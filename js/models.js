@@ -8,7 +8,7 @@ const Tex = (() => {
     let s = n.length * 977 + 13; const r = () => { s = (s * 16807) % 2147483647; return s / 2147483647; };
     fn(g, r);
     const t = new THREE.CanvasTexture(c);
-    t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearMipmapLinearFilter; t.anisotropy = 4;
+    t.magFilter = THREE.NearestFilter; t.minFilter = THREE.NearestMipmapNearestFilter; // unfiltered, like the software renderer
     t.wrapS = t.wrapT = THREE.RepeatWrapping;
     cache[n] = t;
     return t;
@@ -95,32 +95,32 @@ const Models = (() => {
     P.legL = pivot(body, -0.1, 0.74, 0);
     P.legR = pivot(body, 0.1, 0.74, 0);
     for (const leg of [P.legL, P.legR]) {
-      leg.userData.upper = part(cyl(0.095, 0.078, 0.37, 8), o.pants, 0, -0.18, 0, leg);
+      leg.userData.upper = part(cyl(0.095, 0.078, 0.37, 5), o.pants, 0, -0.18, 0, leg);
       leg.userData.kneeP = pivot(leg, 0, -0.36, 0);
-      leg.userData.knee = part(sph(0.078, 8, 6), o.pants, 0, 0, 0.01, leg.userData.kneeP);
-      leg.userData.shin = part(cyl(0.076, 0.06, 0.34, 8), o.pants, 0, -0.17, 0, leg.userData.kneeP);
-      leg.userData.foot = part(sph(0.08, 8, 6), o.boots, 0, -0.34, 0.06, leg.userData.kneeP, 1, 0.7, 1.9);
+      leg.userData.knee = part(sph(0.078, 5, 4), o.pants, 0, 0, 0.01, leg.userData.kneeP);
+      leg.userData.shin = part(cyl(0.076, 0.06, 0.34, 5), o.pants, 0, -0.17, 0, leg.userData.kneeP);
+      leg.userData.foot = part(sph(0.08, 5, 4), o.boots, 0, -0.34, 0.06, leg.userData.kneeP, 1, 0.7, 1.9);
     }
-    if (o.robe) { P.skirt = part(cyl(0.2, 0.34, 0.72, 10), o.robe, 0, 0.38, 0, body); for (const l of [P.legL, P.legR]) { l.userData.upper.visible = false; l.userData.knee.visible = false; l.userData.shin.visible = false; } }
-    P.torso = part(cyl(0.26, 0.19, 0.56, 10), o.shirt, 0, 1.0, 0, body, 1, 1, 0.62);
-    P.chest = part(sph(0.2, 10, 8), o.shirt, 0, 1.12, 0.03, body, 1.25, 0.8, 0.75);
-    P.belt = part(cyl(0.2, 0.2, 0.07, 10), Icons.shade(o.pants, 0.7), 0, 0.74, 0, body, 1, 1, 0.7);
-    P.hips = part(cyl(0.19, 0.2, 0.14, 10), o.pants, 0, 0.66, 0, body, 1, 1, 0.7);
+    if (o.robe) { P.skirt = part(cyl(0.2, 0.34, 0.72, 6), o.robe, 0, 0.38, 0, body); for (const l of [P.legL, P.legR]) { l.userData.upper.visible = false; l.userData.knee.visible = false; l.userData.shin.visible = false; } }
+    P.torso = part(cyl(0.26, 0.19, 0.56, 6), o.shirt, 0, 1.0, 0, body, 1, 1, 0.62);
+    P.chest = part(sph(0.2, 6, 4), o.shirt, 0, 1.12, 0.03, body, 1.25, 0.8, 0.75);
+    P.belt = part(cyl(0.2, 0.2, 0.07, 6), Icons.shade(o.pants, 0.7), 0, 0.74, 0, body, 1, 1, 0.7);
+    P.hips = part(cyl(0.19, 0.2, 0.14, 6), o.pants, 0, 0.66, 0, body, 1, 1, 0.7);
     P.armL = pivot(body, -0.3, 1.2, 0);
     P.armR = pivot(body, 0.3, 1.2, 0);
     for (const arm of [P.armL, P.armR]) {
       const c = o.sleeves ? o.shirt : o.skin;
-      arm.userData.shoulder = part(sph(0.095, 8, 6), c, 0, 0, 0, arm);
-      arm.userData.upper = part(cyl(0.075, 0.064, 0.28, 8), c, 0, -0.13, 0, arm);
+      arm.userData.shoulder = part(sph(0.095, 5, 4), c, 0, 0, 0, arm);
+      arm.userData.upper = part(cyl(0.075, 0.064, 0.28, 5), c, 0, -0.13, 0, arm);
       arm.userData.elbow = pivot(arm, 0, -0.27, 0);
-      arm.userData.fore = part(cyl(0.064, 0.052, 0.25, 8), c, 0, -0.12, 0, arm.userData.elbow);
-      arm.userData.hand = part(sph(0.065, 8, 6), o.skin, 0, -0.26, 0, arm.userData.elbow, 1, 1.3, 1);
+      arm.userData.fore = part(cyl(0.064, 0.052, 0.25, 5), c, 0, -0.12, 0, arm.userData.elbow);
+      arm.userData.hand = part(sph(0.065, 5, 4), o.skin, 0, -0.26, 0, arm.userData.elbow, 1, 1.3, 1);
     }
     P.handR = pivot(P.armR.userData.elbow, 0, -0.28, 0.02);
     P.handL = pivot(P.armL.userData.elbow, 0, -0.15, 0);
     P.head = pivot(body, 0, 1.28, 0);
-    P.neck = part(cyl(0.06, 0.07, 0.12, 8), o.skin, 0, 0.0, 0, P.head);
-    P.face = part(sph(0.15, 12, 10), o.skin, 0, 0.19, 0, P.head, 1, 1.2, 1.08);
+    P.neck = part(cyl(0.06, 0.07, 0.12, 5), o.skin, 0, 0.0, 0, P.head);
+    P.face = part(sph(0.15, 7, 5), o.skin, 0, 0.19, 0, P.head, 1, 1.2, 1.08);
     const nose = part(G('nose', () => new THREE.ConeGeometry(0.028, 0.07, 5)), o.skin, 0, 0.17, 0.165, P.head); nose.rotation.x = Math.PI / 2;
     for (const s of [-1, 1]) {
       part(sph(0.022, 6, 4), '#f0f0f0', s * 0.055, 0.22, 0.135, P.head);
@@ -131,16 +131,16 @@ const Models = (() => {
     part(G('mouth', () => new THREE.BoxGeometry(0.06, 0.012, 0.02)), Icons.shade(o.skin, 0.6), 0, 0.12, 0.152, P.head);
     if (o.hair) {
       P.hair = new THREE.Group(); P.head.add(P.hair);
-      part(sph(0.162, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.5), o.hair, 0, 0.21, -0.01, P.hair, 1, 1.25, 1.12);
-      part(sph(0.155, 10, 8, Math.PI * 0.6, Math.PI * 0.8, Math.PI * 0.3, Math.PI * 0.45), o.hair, 0, 0.19, -0.005, P.hair, 1, 1.2, 1.1);
+      part(sph(0.162, 7, 4, 0, Math.PI * 2, 0, Math.PI * 0.5), o.hair, 0, 0.21, -0.01, P.hair, 1, 1.25, 1.12);
+      part(sph(0.155, 6, 4, Math.PI * 0.6, Math.PI * 0.8, Math.PI * 0.3, Math.PI * 0.45), o.hair, 0, 0.19, -0.005, P.hair, 1, 1.2, 1.1);
     }
-    if (o.beard) part(sph(0.12, 10, 8, 0, Math.PI * 2, Math.PI * 0.5, Math.PI * 0.5), o.beard, 0, 0.16, 0.04, P.head, 1, 1.1, 1);
+    if (o.beard) part(sph(0.12, 6, 4, 0, Math.PI * 2, Math.PI * 0.5, Math.PI * 0.5), o.beard, 0, 0.16, 0.04, P.head, 1, 1.1, 1);
     if (o.ears) for (const s of [-1, 1]) { const e = part(G('ear', () => new THREE.ConeGeometry(0.05, 0.18, 4)), o.skin, s * 0.17, 0.24, 0, P.head); e.rotation.z = -s * 1.1; }
-    if (o.hat) { part(cyl(0.2, 0.2, 0.03, 12), o.hat, 0, 0.37, 0, P.head); part(cyl(0.13, 0.15, 0.16, 12), o.hat, 0, 0.45, 0, P.head); }
-    if (o.strawhat) { part(cyl(0.3, 0.3, 0.025, 12), '#d8c070', 0, 0.36, 0, P.head); part(cyl(0.13, 0.15, 0.13, 12), '#d8c070', 0, 0.43, 0, P.head); }
-    if (o.wizhat) { part(cyl(0.25, 0.25, 0.025, 12), o.wizhat, 0, 0.35, 0, P.head); const c = part(G('wh', () => new THREE.ConeGeometry(0.15, 0.48, 10)), o.wizhat, 0, 0.6, -0.03, P.head); c.rotation.x = -0.25; }
-    if (o.hood) { part(sph(0.185, 12, 10, 0, Math.PI * 2, 0, Math.PI * 0.75), o.hood, 0, 0.2, -0.02, P.head, 1, 1.25, 1.1); }
-    if (o.cape) { P.cape = part(cyl(0.2, 0.3, 0.85, 8, 1, true), o.cape, 0, 0.82, -0.12, body, 1, 1, 0.25); }
+    if (o.hat) { part(cyl(0.2, 0.2, 0.03, 7), o.hat, 0, 0.37, 0, P.head); part(cyl(0.13, 0.15, 0.16, 7), o.hat, 0, 0.45, 0, P.head); }
+    if (o.strawhat) { part(cyl(0.3, 0.3, 0.025, 7), '#d8c070', 0, 0.36, 0, P.head); part(cyl(0.13, 0.15, 0.13, 7), '#d8c070', 0, 0.43, 0, P.head); }
+    if (o.wizhat) { part(cyl(0.25, 0.25, 0.025, 7), o.wizhat, 0, 0.35, 0, P.head); const c = part(G('wh', () => new THREE.ConeGeometry(0.15, 0.48, 10)), o.wizhat, 0, 0.6, -0.03, P.head); c.rotation.x = -0.25; }
+    if (o.hood) { part(sph(0.185, 7, 5, 0, Math.PI * 2, 0, Math.PI * 0.75), o.hood, 0, 0.2, -0.02, P.head, 1, 1.25, 1.1); }
+    if (o.cape) { P.cape = part(cyl(0.2, 0.3, 0.85, 5, 1, true), o.cape, 0, 0.82, -0.12, body, 1, 1, 0.25); }
     if (o.apron) part(G('apron', () => new THREE.BoxGeometry(0.3, 0.5, 0.02)), o.apron, 0, 0.82, 0.13, body);
     P.equip = {};
     P.base = o;

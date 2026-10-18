@@ -111,8 +111,9 @@ const Render = (() => {
   let time = 0;
 
   function init(canvas) {
-    renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-    renderer.setPixelRatio(2);
+    // RS2 rendered its 512x334 viewport natively, no anti-aliasing: pixels are upscaled crisp
+    renderer = new THREE.WebGLRenderer({ canvas, antialias: false });
+    renderer.setPixelRatio(1);
     renderer.setSize(VW, VH, false);
     scene = new THREE.Scene();
     scene.background = new THREE.Color('#9cb8d8');
