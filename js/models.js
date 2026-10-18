@@ -465,6 +465,11 @@ const Models = (() => {
       case 'hunter': return humanoid({ skin: '#b07a4c', hair: '#5a3a18', shirt: '#6a5a2a', pants: '#4a3a1a', hood: null, cape: '#3a5a2a', beard: '#5a3a18' });
       case 'demon': { const d = humanoid({ skin: '#a01a10', hair: null, shirt: '#a01a10', pants: '#801408', boots: '#401008', scale: 1.5, sleeves: false, ears: true });
         const P = d.userData.parts; for (const s of [-1, 1]) { const h = Models.cone(0.05, 0.25, 4); const m = new THREE.Mesh(h, mat('#e8e0c0')); m.position.set(s * 0.1, 0.42, 0); m.rotation.z = -s * 0.4; P.head.add(m); const w = box(0.04, 0.6, 0.5, '#601008', s * 0.25, 1.15, -0.25, P.body); w.rotation.y = s * 0.6; } return d; }
+      case 'knight_ardy': { const g = humanoid({ skin: '#c8915c', hair: '#4a2e16', shirt: '#2a4a9a', pants: '#3a3a3a', cape: '#2a4a9a' }); applyEquipment(g, { head: 'steel_full_helm', body: 'steel_platebody', legs: 'steel_platelegs', weapon: 'steel_sword', shield: 'steel_kiteshield' }); return g; }
+      case 'paladin': { const g = humanoid({ skin: '#c8915c', hair: '#8a6a3a', shirt: '#e8e8e8', pants: '#e0e0e0', cape: '#e8e8f0' }); applyEquipment(g, { head: 'wk_helm', body: 'wk_body', legs: 'wk_legs', weapon: 'mithril_sword', shield: 'wk_shield' }); return g; }
+      case 'lathas': return humanoid({ skin: '#d0a070', hair: '#5a3a1a', shirt: '#5a1a7a', pants: '#3a1a4a', cape: '#8a1a1a', beard: '#5a3a1a', hat: '#e8c030' });
+      case 'seer': return humanoid({ skin: '#d0a070', hair: '#c0c0c0', shirt: '#4a3a7a', pants: '#4a3a7a', robe: '#3a2a6a', hood: '#3a2a6a', beard: '#d0d0d0' });
+      case 'tribesman': return humanoid({ skin: '#5a3a22', hair: '#1a1a1a', shirt: '#5a3a22', pants: '#8a6a3a', boots: '#4a2a14', sleeves: false });
       case 'werewolf': { const g = humanoid({ skin: '#a08870', hair: '#5a4a3a', shirt: pickC(['#5a4a3a', '#3a3a4a', '#4a3a2a']), pants: '#3a3028', beard: '#6a5a4a', ears: true }); return g; }
       case 'druid': return humanoid({ skin: '#d0a070', hair: '#e0e0e0', shirt: '#e8e8e0', pants: '#e8e8e0', robe: '#f0f0e8', beard: '#e8e8e8', hood: null });
       case 'thug': return humanoid({ skin: '#a06a40', hair: '#1a1a1a', shirt: '#4a3a5a', pants: '#2a2a2a', hood: '#2a2a2a', beard: '#1a1a1a' });
