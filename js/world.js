@@ -3,8 +3,8 @@ const World = (() => {
   const W = 240, H = 264;
   const OX = 40, OZ = 36; // offset of the original Ardenvale village layout
   const WATER_H = -0.35;
-  const U = { GRASS: 1, FOREST: 2, DIRT: 3, SAND: 4, DARK: 5, SWAMP: 6, DESERT: 7, JUNGLE: 8, ESS: 9 };
-  const UCOL = { 1: [84, 114, 40], 2: [66, 94, 32], 3: [108, 90, 62], 4: [172, 156, 100], 5: [58, 50, 42], 6: [70, 80, 44], 7: [196, 170, 108], 8: [50, 98, 28], 9: [150, 150, 170] };
+  const U = { GRASS: 1, FOREST: 2, DIRT: 3, SAND: 4, DARK: 5, SWAMP: 6, DESERT: 7, JUNGLE: 8, ESS: 9, SNOW: 10 };
+  const UCOL = { 1: [84, 114, 40], 2: [66, 94, 32], 3: [108, 90, 62], 4: [172, 156, 100], 5: [58, 50, 42], 6: [70, 80, 44], 7: [196, 170, 108], 8: [50, 98, 28], 9: [150, 150, 170], 10: [214, 222, 232] };
   const O = { PATH: 1, WATER: 2, WOOD: 3, STONE: 4, BRIDGE: 5, MUD: 6, COBBLE: 7, LAVA: 8, PIER: 9, SANDPATH: 10 };
   const OCOL = { 1: [122, 100, 66], 2: [40, 66, 120], 3: [104, 72, 40], 4: [96, 92, 86], 5: [40, 66, 120], 6: [80, 66, 46], 7: [112, 108, 100], 8: [220, 90, 20], 9: [40, 66, 120], 10: [170, 140, 90] };
 
@@ -83,6 +83,11 @@ const World = (() => {
     banana: { name: 'Banana tree', ops: ['Pick'], examine: 'A tree full of bananas.' },
     guild_door: { name: 'Door', ops: ['Open'], examine: 'The door to the Mining Guild. Mining level 60 required.' },
     portal: { name: 'Portal', ops: ['Use'], examine: 'A magical portal out of the mine.' },
+    gnome_hut: { name: 'Gnome hut', w: 2, d: 2, ops: [], examine: 'A cosy gnome home.' },
+    goblin_hut: { name: 'Goblin hut', w: 2, d: 2, ops: [], examine: 'A smelly goblin hut.' },
+    grand_tree: { name: 'Grand Tree', w: 3, d: 3, ops: [], examine: 'An enormous ancient tree, home of the gnomes.' },
+    spirit_tree: { name: 'Spirit tree', w: 2, d: 2, ops: ['Travel'], examine: 'An ancient, wise spirit tree.' },
+    trade_board: { name: 'Trading board', ops: ['Read'], examine: 'Adverts from players buying and selling.' },
     fairy_ring: { name: 'Fairy ring', block: false, ops: ['Use'], examine: 'A mystical ring of mushrooms.' },
     gem_stall: { name: 'Gem stall', w: 2, d: 1, ops: ['Steal-from'], examine: 'A stall selling fine gems.' },
     maple: { name: 'Maple tree', ops: ['Chop down'], examine: 'It\'ll be nice and colourful in autumn.' },
@@ -189,6 +194,10 @@ const World = (() => {
       if (ie < 1) { setO(x, z, 0); setU(x, z, U.JUNGLE); }
     }
     rectU(64, 6, 90, 34, U.GRASS);
+    rectU(38, 146, 58, 168, U.GRASS); rectU(38, 224, 70, 252, U.GRASS);
+    for (let z = 190; z < 223; z++) for (let x = 40; x < 76; x++) if (Math.hypot(x - 57, z - 206) < 13) setU(x, z, U.GRASS);
+    for (let z = 48; z < 68; z++) for (let x = 118; x < 142; x++) if (Math.hypot(x - 130, z - 58) < 9) setU(x, z, U.DIRT);
+    for (let z = 3; z < 34; z++) for (let x = 37; x < 59; x++) if (!isWater(x, z) && x < riverX(z) - 3) setU(x, z, U.SNOW);
     // southern kingdom: woods, River Lum, Lumbridge swamp, essence mine island
     rectU(38, 190, 78, 222, U.FOREST); rectU(160, 238, 196, 262, U.FOREST);
     rectU(68, 250, 108, 262, U.SWAMP);
@@ -242,6 +251,9 @@ const World = (() => {
     rectO(154, 228, 155, 236, O.PATH);
     rectO(146, 208, 164, 222, O.COBBLE); rectO(131, 214, 177, 215, O.COBBLE); rectO(154, 206, 155, 235, O.COBBLE);
     rectO(96, 228, 99, 240, O.COBBLE);
+    // Draynor & Edgeville streets and connecting roads
+    rectO(44, 236, 62, 241, O.COBBLE); rectO(60, 242, 97, 243, O.PATH); rectO(52, 226, 53, 236, O.PATH);
+    rectO(40, 156, 56, 158, O.COBBLE); for (let x = 56; x < 90; x++) setO(x, 157, isWater(x, 157) ? O.PIER : O.PATH);
     for (let z = 0; z < H; z++) for (let x = 180; x < W; x++) if (under[idx(x, z)] === U.JUNGLE && !ov(x, z)) { let nearSea = false; for (let dz = -2; dz <= 2; dz++) for (let dx = -2; dx <= 2; dx++) if (ov(x + dx, z + dz) === O.WATER) nearSea = true; if (nearSea) setU(x, z, U.SAND); }
   }
 
@@ -434,6 +446,39 @@ const World = (() => {
     mapIcons.push({ x: 84, z: 229.5, icon: 'range' }, { x: 103, z: 224.5, icon: 'altar' }, { x: 100.5, z: 246, icon: 'store' }, { x: 86.5, z: 247, icon: 'axe' }, { x: 88, z: 232, icon: 'quest' });
     for (const [t, x, z] of [['copper', 82, 254], ['copper', 84, 256], ['tin', 87, 254], ['tin', 89, 257], ['copper', 91, 255], ['tin', 85, 259]]) addLoc(t, x, z);
     mapIcons.push({ x: 86, z: 256, icon: 'mine' });
+    // ===== Draynor Village =====
+    building({ name: 'Draynor Bank', x0: 46, z0: 228, x1: 52, z1: 232, style: 'wood', roof: 'rooftile', floor: O.WOOD, doors: [{ x: 49, z: 232, s: 'S' }] });
+    for (const x of [47, 49, 51]) addLoc('bank_booth', x, 229);
+    building({ name: 'Draynor Jail', x0: 56, z0: 244, x1: 62, z1: 249, style: 'stone', roof: 'slate', floor: O.STONE, doors: [{ x: 59, z: 244, s: 'N' }] });
+    building({ name: 'Wise Old Man\'s House', x0: 40, z0: 244, x1: 45, z1: 248, style: 'wood', roof: 'thatch', floor: O.WOOD, doors: [{ x: 42, z: 244, s: 'N' }] });
+    addLoc('bakery_stall', 47, 238); addLoc('silk_stall', 51, 238); addLoc('gem_stall', 55, 238);
+    addLoc('fountain', 58, 237); addLoc('signpost', 62, 240);
+    for (const [x, z] of [[44, 236], [62, 236], [44, 241]]) addLoc('lamp', x, z);
+    for (let z = 228; z < 252; z += 3) if (canPlace(36, z, 1, 1)) addLoc('willow', 36, z);
+    mapIcons.push({ x: 49, z: 230, icon: 'bank' }, { x: 51, z: 238.5, icon: 'stall' }, { x: 59, z: 246, icon: 'quest' });
+    // ===== Edgeville =====
+    building({ name: 'Edgeville Bank', x0: 40, z0: 149, x1: 46, z1: 153, style: 'stone', roof: 'slate', floor: O.STONE, doors: [{ x: 43, z: 153, s: 'S' }] });
+    for (const x of [41, 43, 45]) addLoc('bank_booth', x, 150);
+    building({ name: 'Edgeville Store', x0: 48, z0: 149, x1: 53, z1: 153, style: 'wood', roof: 'thatch', floor: O.WOOD, doors: [{ x: 50, z: 153, s: 'S' }] });
+    building({ name: 'Edgeville House', x0: 40, z0: 161, x1: 45, z1: 165, style: 'wood', roof: 'thatch', floor: O.WOOD, doors: [{ x: 42, z: 161, s: 'N' }] });
+    addLoc('range', 44, 164); addLoc('furnace', 49, 160); addLoc('anvil', 52, 160); addLoc('signpost', 38, 157);
+    for (const [x, z] of [[40, 156], [56, 156]]) addLoc('lamp', x, z);
+    mapIcons.push({ x: 43, z: 151, icon: 'bank' }, { x: 50.5, z: 151, icon: 'store' }, { x: 50, z: 161, icon: 'furnace' }, { x: 44.5, z: 164.5, icon: 'range' });
+    // ===== Tree Gnome Village =====
+    addLoc('grand_tree', 55, 203);
+    for (const [x, z] of [[46, 198], [64, 198], [45, 209], [66, 210], [51, 214], [60, 215]]) addLoc('gnome_hut', x, z);
+    addLoc('spirit_tree', 60, 205);
+    rectO(52, 207, 53, 225, O.PATH); rectO(48, 207, 64, 208, O.PATH);
+    for (const [x, z] of [[49, 204], [62, 202], [57, 211]]) addLoc('flowers', x, z);
+    mapIcons.push({ x: 56.5, z: 204.5, icon: 'quest' }, { x: 61, z: 206, icon: 'spirit' });
+    // spirit tree network
+    addLoc('spirit_tree', 86, 42); addLoc('spirit_tree', 184, 208); addLoc('spirit_tree', 196, 100);
+    mapIcons.push({ x: 87, z: 43, icon: 'spirit' }, { x: 185, z: 209, icon: 'spirit' }, { x: 197, z: 101, icon: 'spirit' });
+    // ===== Goblin Village =====
+    for (const [x, z] of [[126, 53], [133, 52], [136, 59], [124, 60], [130, 63]]) addLoc('goblin_hut', x, z);
+    // trade boards
+    addLoc('trade_board', 92, 86); addLoc('trade_board', 151, 219); addLoc('trade_board', 145, 86); addLoc('trade_board', 61, 238);
+    mapIcons.push({ x: 92.5, z: 86.5, icon: 'board' }, { x: 151.5, z: 219.5, icon: 'board' }, { x: 145.5, z: 86.5, icon: 'board' }, { x: 61.5, z: 238.5, icon: 'board' });
     // ===== New runecrafting altars, essence mine =====
     addLoc('rc_cosmic', 224, 74); addLoc('rc_law', 118, 46); addLoc('rc_death', 6, 112);
     mapIcons.push({ x: 225, z: 75, icon: 'rc' }, { x: 119, z: 47, icon: 'rc' }, { x: 7, z: 113, icon: 'rc' });
@@ -450,7 +495,7 @@ const World = (() => {
     }
     // labels for the world map
     labels.push(['Ardenvale', 90, 74, 1], ['Port Sarrow', 144, 66, 1], ['Elderwood', 85, 8, 0], ['Runestone Circle', 100, 34, 0], ['Duskmoor Swamp', 140, 14, 0],
-      ['Kharidian Desert', 100, 136, 1], ['Al Kharid', 135, 133, 1], ['Wilderness', 18, 30, 1], ['Whitecliff', 77, 4, 1], ['Saltreach Isle', 209, 44, 1], ['Mount Ember', 216, 66, 0], ['Saltreach', 196, 76, 0], ['Mining Guild', 71, 36, 0], ['Varrock', 154, 192, 1], ['Lumbridge', 92, 222, 1], ['River Lum', 118, 250, 0], ['Rune Essence Mine', 18, 232, 0], ['Barbarian Camp', 101, 194, 0], ['Hill Giants', 123, 194, 0], ['Dark Wizards', 155, 244, 0], ['Lumbridge Swamp', 86, 262, 0], ['Kingdom of Misthal', 160, 186, 1], ['Morrow Mire', 216, 200, 1], ['Barbarian Agility', 98, 184, 0], ['Wilderness Agility', 23, 162, 0], ['Western Woods', 49, 64, 0], ['Ardenvale Mine', 87, 120, 0], ['Goblin Camp', 112, 122, 0],
+      ['Kharidian Desert', 100, 136, 1], ['Al Kharid', 135, 133, 1], ['Wilderness', 18, 30, 1], ['Whitecliff', 77, 4, 1], ['Saltreach Isle', 209, 44, 1], ['Mount Ember', 216, 66, 0], ['Saltreach', 196, 76, 0], ['Mining Guild', 71, 36, 0], ['Varrock', 154, 192, 1], ['Lumbridge', 92, 222, 1], ['River Lum', 118, 250, 0], ['Rune Essence Mine', 18, 232, 0], ['Barbarian Camp', 101, 194, 0], ['Hill Giants', 123, 194, 0], ['Dark Wizards', 155, 244, 0], ['Lumbridge Swamp', 86, 262, 0], ['Kingdom of Misthal', 160, 186, 1], ['Morrow Mire', 216, 200, 1], ['Tree Gnome Village', 57, 188, 1], ['Goblin Village', 130, 46, 0], ['Draynor Village', 52, 222, 1], ['Edgeville', 47, 144, 1], ['Frozen Peaks', 48, 4, 1], ['Black Knights\' Camp', 114, 2, 0], ['Moss Giants', 216, 130, 0], ['Graveyard', 130, 246, 0], ['Barbarian Agility', 98, 184, 0], ['Wilderness Agility', 23, 162, 0], ['Western Woods', 49, 64, 0], ['Ardenvale Mine', 87, 120, 0], ['Goblin Camp', 112, 122, 0],
       ['Cinder Lair', 50, 122, 0], ['Demon Pit', 18, 140, 0], ['Agility Course', 74, 106, 0], ['Farm', 75, 90, 0], ['Oasis', 62, 156, 0]);
 
     // ===== NPCs =====
@@ -502,6 +547,31 @@ const World = (() => {
     for (const [x, z] of [[210, 210], [222, 222], [214, 238], [228, 246], [206, 252], [230, 204]]) npc('ghast', x, z);
     for (const [x, z] of [[204, 200], [216, 214], [226, 232], [208, 244], [88, 258], [76, 254]]) npc('giant_frog', x, z);
     npc('swamp_wizard', 72, 14);
+    // more monsters
+    for (const [x, z] of [[140, 238], [130, 242], [122, 236], [96, 260], [102, 262]]) npc('zombie', x, z);
+    for (const [x, z] of [[78, 214], [84, 218], [70, 208], [106, 240]]) npc('giant_spider', x, z);
+    for (const [x, z] of [[184, 204], [190, 214], [186, 220], [120, 70]]) npc('unicorn', x, z);
+    for (const [x, z] of [[46, 22], [54, 30], [110, 8], [118, 30]]) npc('bear', x, z);
+    for (const [x, z] of [[40, 8], [48, 14], [56, 8], [44, 30], [52, 20]]) npc('wolf', x, z);
+    for (const [x, z] of [[62, 104], [66, 110], [58, 116], [64, 120]]) npc('hobgoblin', x, z);
+    for (const [x, z] of [[108, 6], [114, 8], [120, 6], [112, 12]]) npc('black_knight', x, z);
+    for (const [x, z] of [[220, 112], [228, 100], [204, 118], [216, 124]]) npc('moss_giant', x, z);
+    for (const [x, z] of [[42, 6], [50, 10], [38, 18], [58, 14]]) npc('ice_warrior', x, z);
+    for (const [x, z] of [[46, 12], [54, 6], [40, 26]]) npc('ice_giant', x, z);
+    npc('greater_demon', 8, 28); npc('greater_demon', 14, 36); npc('greater_demon', 6, 44);
+    npc('blue_dragon', 222, 52); npc('blue_dragon', 210, 50);
+    for (const x of [47, 49, 51]) npc('banker', x, 228); for (const x of [41, 43, 45]) npc('banker', x, 149);
+    npc('wise_old_man', 43, 246); npc('draynor_shop', 49, 240); npc('edge_shop', 50, 151);
+    for (const [x, z] of [[46, 240], [56, 241], [60, 234], [54, 245]]) npc(Math.random() < 0.5 ? 'man' : 'woman', x, z);
+    for (const [x, z] of [[58, 247], [60, 248]]) npc('varrock_guard', x, z);
+    for (const [x, z] of [[46, 157], [54, 155], [44, 159]]) npc(Math.random() < 0.5 ? 'man' : 'woman', x, z);
+    npc('guard', 39, 152);
+    npc('guide', 88, 85);
+    for (const [x, z] of [[50, 202], [61, 200], [48, 212], [58, 213], [63, 207], [53, 196]]) npc('gnome', x, z);
+    for (const [x, z] of [[52, 206], [58, 200], [54, 218]]) npc('gnome_guard', x, z);
+    npc('gnome_king', 56, 201); npc('gnome_trader', 47, 205);
+    for (const [x, z] of [[128, 56], [131, 58], [134, 56], [129, 61], [132, 54], [127, 58], [135, 62]]) npc('goblin', x, z);
+    for (const [x, z] of [[130, 56], [133, 60], [126, 62]]) npc('goblin_warrior', x, z);
     npc('harbourmaster', 148, 72); npc('sailor', 166, 82); npc('man', 145, 82); npc('woman', 150, 79); npc('guard', 140, 80); npc('man', 143, 86);
   }
 
@@ -515,13 +585,14 @@ const World = (() => {
     for (let z = 3; z < H - 3; z++) for (let x = 3; x < W - 3; x++) {
       if (!free(x, z)) continue;
       const u = under[idx(x, z)], r = rnd();
-      if (Math.hypot(x - 90, z - 82) < 15 || Math.hypot(x - 144, z - 81) < 13 || nearRC(x, z) || (x >= 64 && x <= 90 && z >= 6 && z <= 34) || (x >= 186 && x <= 206 && z >= 76 && z <= 96) || (x >= 126 && x <= 180 && z >= 192 && z <= 238) || (x >= 78 && x <= 110 && z >= 206 && z <= 250) || (x < 36 && z > 226) || (x >= 90 && x <= 108 && z >= 184 && z <= 198) || (x >= 16 && x <= 30 && z >= 142 && z <= 164)) continue;
+      if (Math.hypot(x - 90, z - 82) < 15 || Math.hypot(x - 144, z - 81) < 13 || nearRC(x, z) || (x >= 64 && x <= 90 && z >= 6 && z <= 34) || (x >= 186 && x <= 206 && z >= 76 && z <= 96) || (x >= 126 && x <= 180 && z >= 192 && z <= 238) || (x >= 78 && x <= 110 && z >= 206 && z <= 250) || (x < 36 && z > 226) || (x >= 90 && x <= 108 && z >= 184 && z <= 198) || (x >= 16 && x <= 30 && z >= 142 && z <= 164) || Math.hypot(x - 57, z - 206) < 13 || Math.hypot(x - 130, z - 58) < 9 || (x >= 38 && x <= 66 && z >= 224 && z <= 252) || (x >= 37 && x <= 58 && z >= 146 && z <= 168)) continue;
       if (x >= 64 && x <= 81 && z >= 82 && z <= 104) continue; // farm + agility
       if (x >= 103 && x <= 121 && z >= 63 && z <= 103) continue; // pens
       if (u === U.FOREST) { if (r < 0.1) addLoc('tree', x, z); else if (r < 0.125) addLoc('oak', x, z); else if (r < 0.15) addLoc('pine', x, z); else if (r < 0.17) addLoc('bush', x, z); }
       else if (u === U.GRASS) { if (r < 0.018) addLoc('tree', x, z); else if (r < 0.024) addLoc('oak', x, z); else if (r < 0.034) addLoc('flowers', x, z); else if (r < 0.04) addLoc('bush', x, z); }
       else if (u === U.DARK) { if (r < 0.04) addLoc('deadtree', x, z); else if (r < 0.05) addLoc('bonepile', x, z); }
       else if (u === U.SWAMP) { if (r < 0.06) addLoc('deadtree', x, z); else if (r < 0.1) addLoc('willow', x, z); }
+      else if (u === U.SNOW) { if (r < 0.06) addLoc('pine', x, z); }
       else if (u === U.JUNGLE) { if (r < 0.06) addLoc('palm', x, z); else if (r < 0.1) addLoc('teak', x, z); else if (r < 0.12) addLoc('mahogany', x, z); else if (r < 0.16) addLoc('bush', x, z); }
       else if (u === U.DESERT) { if (r < 0.012) addLoc('cactus', x, z); else if (r < 0.016) addLoc('bonepile', x, z); }
     }
@@ -751,6 +822,11 @@ const World = (() => {
       case 'guild_door': return Models.guildDoor();
       case 'portal': return Models.portal();
       case 'fairy_ring': return Models.fairyRing();
+      case 'trade_board': return Models.board();
+      case 'gnome_hut': return Models.gnomeHut();
+      case 'goblin_hut': return Models.gnomeHut('#8a6a3a');
+      case 'grand_tree': return Models.grandTree();
+      case 'spirit_tree': return Models.spiritTree();
       case 'gem_stall': return Models.stall('#8040c0');
       case 'fishing_spot': return Models.fishingSpot();
       case 'furnace': return Models.furnace();
@@ -819,8 +895,12 @@ const World = (() => {
     for (let x = 177; x < 186; x++) for (const z of [85, 88]) if (ov(x, z) === O.WATER) spots.push([x, z, 'sea']);
     for (let z = 70; z < 110; z += 3) for (let x = 182; x < 192; x++) if (ov(x, z) === O.WATER && !isWater(x + 1, z)) { spots.push([x, z, 'coast']); break; }
     for (let z = 190; z < 262; z += 2) { const x = Math.floor(riverLum(z) + 1.3); if (ov(x, z) === O.WATER && !isWater(x + 1, z)) spots.push([x, z, z % 4 ? 'river' : 'coast']); }
+    for (let z = 138; z < 153; z++) for (let x = 50; x < 75; x++) if (ov(x, z) === O.WATER && !isWater(x + 1, z) && Math.abs(z - 145) < 6) spots.push([x, z, 'river']);
+    for (let z = 226; z < 252; z += 2) if (ov(34, z) === O.WATER) spots.push([34, z, z % 4 ? 'coast' : 'river']);
+    for (let z = 44; z < 52; z++) for (let x = 64; x < 72; x++) if (ov(x, z) === O.WATER && !isWater(x - 1, z)) spots.push([x, z, 'river']);
+    for (let z = 60; z < 120; z += 4) for (let x = 230; x > 215; x--) if (ov(x, z) === O.WATER && !isWater(x - 1, z)) { spots.push([x, z, 'sea']); break; }
     World.fishTiles = spots;
-    const want = { river: 10, coast: 9, sea: 6 };
+    const want = { river: 22, coast: 20, sea: 14 };
     for (const k in want) for (let i = 0; i < want[k]; i++) { const pool = spots.filter(s => s[2] === k); if (!pool.length) break; const s = pool[Math.floor(rnd() * pool.length)]; spots.splice(spots.indexOf(s), 1); addLoc('fishing_spot', s[0], s[1], { kind: k }); }
     buildTerrain();
     buildWalls();

@@ -6,13 +6,25 @@ const Game = (() => {
     tick: 0, lastTick: 0, name: 'Player', scene: null,
     skills: {}, inv: new Array(28).fill(null), equip: {}, ammoQty: 0, bank: [],
     quests: {}, questPoints: 0, slayer: null, agilityNext: 0,
-    style: 0, autoRetaliate: true, autocast: null, spellSel: null, prayers: {}, settings: { brightness: 2 },
+    style: 0, autoRetaliate: true, autocast: null, spellSel: null, prayers: {}, settings: { brightness: 2, xpRate: 5 },
     messages: [], dialog: null, iface: null, selected: -1,
-    npcs: [], bots: [], ground: [], traps: [], pouches: {}, player: null, shops: {}, levelFx: [], patches: {},
+    xpDrops: [], xpSession: {}, sessionStart: now(), npcs: [], bots: [], ground: [], traps: [], pouches: {}, player: null, shops: {}, levelFx: [], patches: {},
     loggedIn: false,
   };
   for (const q of QUESTS) S.quests[q.id] = 0;
 
+  function track(ev, n) {
+    S.taskProg = S.taskProg || {}; S.tasksDone = S.tasksDone || {};
+    S.taskProg[ev] = (S.taskProg[ev] || 0) + (n || 1);
+    for (const t of TASKS) {
+      if (t.ev !== ev || S.tasksDone[t.id] || S.taskProg[ev] < t.n) continue;
+      S.tasksDone[t.id] = true;
+      msg(`Beginner task complete: ${t.text}!`, '#005000');
+      if (t.coins) invAddOrDrop('coins', t.coins);
+      if (t.lamp) invAddOrDrop('xp_lamp', 1);
+      Sfx.play('quest');
+    }
+  }
   function msg(text, color) { S.messages.push({ text, color: color || '#000000', t: now() }); if (S.messages.length > 120) S.messages.shift(); }
 
   // ---------- skills ----------
@@ -28,6 +40,8 @@ const Game = (() => {
   const totalLevel = () => SKILLS.reduce((s, k) => s + lvl(k), 0);
   function addXp(id, amt) {
     const before = lvl(id);
+    amt *= S.settings.xpRate || 1;
+    if (amt > 0) { S.xpDrops.push({ skill: id, amt, t: now() }); S.xpSession[id] = (S.xpSession[id] || 0) + amt; }
     S.skills[id].xp = Math.min(200000000, S.skills[id].xp + amt);
     const after = lvl(id);
     if (after > before) {
@@ -75,9 +89,10 @@ const Game = (() => {
   }
   const weaponDef = () => S.equip.weapon ? ITEMS[S.equip.weapon] : null;
   const weaponKind = () => { const w = weaponDef(); return w ? (w.equip.kind || 'melee') : 'melee'; };
-  const weaponSpeed = () => { const w = weaponDef(); return (w ? w.equip.speed || 4 : 4) - (weaponKind() === 'bow' && S.style === 1 ? 1 : 0); };
+  const weaponSpeed = () => { const w = weaponDef(); return (w ? w.equip.speed || 4 : 4) - ((weaponKind() === 'bow' || weaponKind() === 'thrown') && S.style === 1 ? 1 : 0); };
   const weaponType = () => { const w = weaponDef(); return w ? w.icon.t : 'unarmed'; };
   const STYLE_NAMES = {
+    dart: ['Accurate', 'Rapid', 'Longrange'],
     unarmed: ['Punch', 'Kick', 'Block'], dagger: ['Stab', 'Lunge', 'Block'], sword: ['Stab', 'Slash', 'Block'],
     scimitar: ['Chop', 'Slash', 'Block'], axe: ['Chop', 'Hack', 'Block'], pickaxe: ['Spike', 'Impale', 'Block'],
     bow: ['Accurate', 'Rapid', 'Longrange'], staff: ['Bash', 'Pound', 'Focus'],
@@ -87,6 +102,13 @@ const Game = (() => {
     const it = S.inv[slot]; if (!it) return;
     const def = ITEMS[it.id], e = def.equip;
     for (const k in e.req) if (lvl(k) < e.req[k]) { msg(`You need a${/^[AEIOU]/.test(SKILL_NAMES[k]) ? 'n' : ''} ${SKILL_NAMES[k]} level of ${e.req[k]} to wear this.`); return; }
+    if (e.kind === 'thrown') {
+      if (S.equip.weapon === it.id) { S.wepQty = (S.wepQty || 0) + it.qty; S.inv[slot] = null; return; }
+      const old = S.equip.weapon, oq = S.wepQty || 1;
+      S.equip.weapon = it.id; S.wepQty = it.qty; S.inv[slot] = null;
+      if (old) invAddOrDrop(old, ITEMS[old].stackable ? oq : 1);
+      Models.applyEquipment(S.player.model, S.equip); return;
+    }
     if (e.slot === 'ammo') {
       if (S.equip.ammo === it.id) { S.ammoQty += it.qty; S.inv[slot] = null; return; }
       const old = S.equip.ammo, oq = S.ammoQty;
@@ -103,7 +125,7 @@ const Game = (() => {
   }
   function unequip(slotName) {
     const id = S.equip[slotName]; if (!id) return;
-    if (!invAdd(id, slotName === 'ammo' ? S.ammoQty : 1)) { msg('You don\'t have enough free inventory space to do that.'); return; }
+    if (!invAdd(id, slotName === 'ammo' ? S.ammoQty : (slotName === 'weapon' && ITEMS[id].stackable ? S.wepQty || 1 : 1))) { msg('You don\'t have enough free inventory space to do that.'); return; }
     delete S.equip[slotName];
     if (slotName === 'ammo') S.ammoQty = 0;
     if (slotName === 'weapon') S.autocast = null;
@@ -138,7 +160,7 @@ const Game = (() => {
   function say(e, text) { e.overhead = { text, until: now() + 3000 }; }
 
   function initPlayer() {
-    const p = makeEntity({ isPlayer: true, x: World.SPAWN.x, z: World.SPAWN.z, run: false, energy: 100, pending: null, combat: null, attackTimer: 0, task: null, stun: 0, eatDelay: 0, dead: 0, forced: null });
+    const p = makeEntity({ isPlayer: true, x: World.SPAWN.x, z: World.SPAWN.z, run: true, energy: 100, pending: null, combat: null, attackTimer: 0, task: null, stun: 0, eatDelay: 0, dead: 0, forced: null });
     p.model = Models.humanoid({ skin: '#c8915c', hair: '#5a3418', shirt: '#4a6aa0', pants: '#5a4430', boots: '#3a2a1a', hairStyle: 1 });
     S.scene.add(p.model);
     S.player = p;
@@ -179,7 +201,7 @@ const Game = (() => {
   }
   const npcReach = (p, n) => World.adjacentTo(p.x, p.z, n.x, n.z, 1, 1);
   const cheb = (a, b) => Math.max(Math.abs(a.x - b.x), Math.abs(a.z - b.z));
-  function pathTo(goalFn, tx, tz) { const p = S.player; const path = World.findPath(p.x, p.z, goalFn, tx, tz); p.path = path || []; return path; }
+  function pathTo(goalFn, tx, tz) { const p = S.player; const path = World.findPath(p.x, p.z, goalFn, tx, tz); p.path = path || []; S.flag = p.path.length ? p.path[p.path.length - 1] : null; return path; }
   const pathToLoc = loc => pathTo((x, z) => locReach({ x, z }, loc), loc.x, loc.z);
   const pathToNpc = n => pathTo((x, z) => npcReach({ x, z }, n), n.x, n.z);
 
@@ -266,7 +288,7 @@ const Game = (() => {
     if (pe.useSlot != null) return useItemOn(pe.useSlot, pe.kind, pe.ent);
     if (pe.kind === 'ground') return takeGround(pe.ent);
     if (pe.kind === 'loc') return locAction(pe.ent, pe.op);
-    if (pe.kind === 'npc') return npcAction(pe.ent, pe.op);
+    if (pe.kind === 'npc') return npcAction(pe.ent, pe.op, pe.deal);
   }
   function takeGround(g) {
     if (!invAdd(g.id, g.qty)) { msg('You don\'t have enough inventory space to hold that item.'); return; }
@@ -300,6 +322,12 @@ const Game = (() => {
   }
   function locAction(loc, op) {
     const p = S.player, T = loc.type;
+    if (T === 'spirit_tree') {
+      const dests = [['Tree Gnome Village', 62, 207], ['Elderwood', 88, 44], ['Varrock (east)', 186, 210], ['Saltreach Isle', 198, 102]].filter(d => Math.hypot(d[1] - loc.x, d[2] - loc.z) > 5);
+      options('Where would you like to travel?', dests.map(([name, x, z]) => ({ text: name, fn: () => { resetActions(); p.loop = 'teleport'; p.loopStart = now(); Sfx.play('teleport'); p.task = { timer: 3, interval: 3, fn: () => { p.x = x; p.z = z; p.from = null; p.steps = []; msg(`The spirit tree carries you to ${name}.`); return false; } }; } })));
+      return;
+    }
+    if (T === 'trade_board') { S.iface = { type: 'board' }; return; }
     if (op === 'Read') { msg('North: Elderwood & the Runestone Circle. South: Ardenvale Mine, Al Kharid.'); msg('East: Port Sarrow. West: The Old Bridge & the Wilderness (beware!).'); return; }
     if (op === 'Prospect') {
       if (loc.depletedUntil > S.tick) { msg('There is currently no ore available in this rock.'); return; }
@@ -327,6 +355,7 @@ const Game = (() => {
       if (Math.random() < 0.2) loc.depletedUntil = S.tick + 50;
       return;
     }
+    if (T === 'trade_board') { S.iface = { type: 'board' }; return; }
     if (T === 'fairy_ring') return fairyUse(loc);
     if (T === 'portal') { const r = S.essReturn || [166, 220]; p.x = r[0]; p.z = r[1]; p.from = null; p.steps = []; Sfx.play('teleport'); msg('You step through the portal and return to Varrock.'); return; }
     if (T === 'guild_door') {
@@ -372,15 +401,15 @@ const Game = (() => {
     if (f.bait && !has(f.bait)) { msg(`You don't have any ${ITEMS[f.bait].name.toLowerCase()}${f.bait === 'feather' ? 's' : ''} left.`); return; }
     if (!freeSlots()) { msg('You can\'t carry any more fish.'); return; }
     msg({ Net: 'You cast out your net...', Bait: 'You cast out your line...', Lure: 'You cast out your line...', Cage: 'You attempt to catch a lobster.', Harpoon: 'You start harpooning fish.' }[op]);
-    startLoop('fish', f.tool, 5, () => {
+    startLoop('fish', f.tool, 4, () => {
       if (World.locs.indexOf(loc) < 0 || !locReach(p, loc)) return false;
       if (!freeSlots()) { msg('You can\'t carry any more fish.'); return false; }
       if (f.bait && !has(f.bait)) { msg('You have run out of bait.'); return false; }
-      if (Math.random() < Math.min(0.85, 0.28 + (lvl('fishing') - minLv) * 0.012)) {
+      if (Math.random() < Math.min(0.95, 0.55 + (lvl('fishing') - minLv) * 0.015)) {
         const avail = f.fish.filter(x => lvl('fishing') >= x[1]);
         const pickF = avail.length > 1 && Math.random() < 0.45 ? avail[avail.length - 1] : avail[Math.floor(Math.random() * avail.length)];
         if (f.bait) invRemove(f.bait, 1);
-        invAdd(pickF[0]); addXp('fishing', pickF[2]);
+        invAdd(pickF[0]); addXp('fishing', pickF[2]); track('fish');
         const nm = ITEMS[pickF[0]].name.replace('Raw ', '');
         msg(`You catch ${/s$/.test(nm) ? 'some' : /^[aeiou]/.test(nm) ? 'an' : 'a'} ${nm}.`); Sfx.play('splash');
       }
@@ -394,13 +423,13 @@ const Game = (() => {
     if (lvl('woodcutting') < tr.level) { msg(`You need a Woodcutting level of ${tr.level} to chop down this tree.`); return; }
     if (!freeSlots()) { msg('Your inventory is too full to hold any more logs.'); return; }
     msg('You swing your axe at the tree.');
-    startLoop('chop', axe, 4, () => {
+    startLoop('chop', axe, 3, () => {
       if (loc.depletedUntil > S.tick) return false;
       if (!freeSlots()) { msg('Your inventory is too full to hold any more logs.'); return false; }
       Sfx.play('chop');
-      const chance = Math.min(0.92, tr.base + (lvl('woodcutting') - tr.level) * 0.008 + ITEMS[axe].tool.power * 0.07);
+      const chance = Math.min(0.95, tr.base + 0.3 + (lvl('woodcutting') - tr.level) * 0.012 + ITEMS[axe].tool.power * 0.08);
       if (Math.random() < chance) {
-        invAdd(tr.log); addXp('woodcutting', tr.xp);
+        invAdd(tr.log); addXp('woodcutting', tr.xp); track('chop');
         msg(`You get some ${ITEMS[tr.log].name.toLowerCase()}.`);
         if (Math.random() < tr.deplete) { loc.depletedUntil = S.tick + ri(tr.respawn[0], tr.respawn[1]); Sfx.play('timber'); return false; }
       }
@@ -414,12 +443,12 @@ const Game = (() => {
     if (lvl('mining') < rk.level) { msg(`You need a Mining level of ${rk.level} to mine this rock.`); return; }
     if (!freeSlots()) { msg('Your inventory is too full to hold any more ore.'); return; }
     msg('You swing your pick at the rock.');
-    startLoop('mine', pick, 4, () => {
+    startLoop('mine', pick, 3, () => {
       if (loc.depletedUntil > S.tick) return false;
       if (!freeSlots()) { msg('Your inventory is too full to hold any more ore.'); return false; }
       Sfx.play('mine');
-      if (Math.random() < Math.min(0.9, rk.base + (lvl('mining') - rk.level) * 0.01 + ITEMS[pick].tool.power * 0.08)) {
-        invAdd(rk.ore); addXp('mining', rk.xp);
+      if (Math.random() < Math.min(0.95, rk.base + 0.3 + (lvl('mining') - rk.level) * 0.012 + ITEMS[pick].tool.power * 0.08)) {
+        invAdd(rk.ore); addXp('mining', rk.xp); track('mine');
         if (Math.random() < 1 / 60) gemFound();
         msg(`You manage to mine some ${ITEMS[rk.ore].name.replace(' ore', '').toLowerCase()}.`);
         loc.depletedUntil = S.tick + rk.respawn;
@@ -443,7 +472,7 @@ const Game = (() => {
     if (pouched) msg('You empty your pouches into the altar.');
     const mult = 1 + Math.floor(lvl('runecrafting') / a.multi);
     invRemove('pure_essence', invCount('pure_essence')); if (!a.pure) invRemove('rune_essence', invCount('rune_essence'));
-    invAdd(k + '_rune', n * mult); addXp('runecrafting', a.xp * n);
+    invAdd(k + '_rune', n * mult); addXp('runecrafting', a.xp * n); track('rc');
     setAnim(S.player, 'craftrune'); Sfx.play('teleport');
     msg(`You bind the temple's power into ${k} runes.`);
   }
@@ -461,7 +490,7 @@ const Game = (() => {
     if (loc.depletedUntil > S.tick) { msg('The stall has nothing left to steal right now.'); return; }
     if (!freeSlots()) { msg('You don\'t have enough inventory space.'); return; }
     setAnim(p, 'pickup');
-    invAdd(cake ? 'cake' : 'silk'); addXp('thieving', cake ? 16 : 24);
+    invAdd(cake ? 'cake' : 'silk'); addXp('thieving', cake ? 16 : 24); track('thieve');
     msg(`You steal ${cake ? 'a cake' : 'some silk'} from the stall.`);
     loc.depletedUntil = S.tick + (cake ? 4 : 8);
   }
@@ -483,7 +512,7 @@ const Game = (() => {
       p.x = a.start[0]; p.z = a.start[1]; p.from = null; p.steps = [];
       msg('You lose your footing and fall!'); damagePlayer(ri(1, 3), null); return;
     }
-    addXp('agility', a.xp);
+    addXp('agility', a.xp); track('agility');
     const list = World.AG.filter(o => o.course === a.course), k = list.indexOf(a);
     S.agi = S.agi || {};
     const next = S.agi[a.course] || 0;
@@ -604,7 +633,7 @@ const Game = (() => {
     startLoop('smelt', null, 4, () => {
       if (!hasMats(r)) return false;
       for (const k in r.needs) invRemove(k, r.needs[k]);
-      if (Math.random() < r.success) { invAdd(r.out); addXp('smithing', r.xp); msg(`You retrieve a bar of ${ITEMS[r.out].name.replace(' bar', '').toLowerCase()}.`); }
+      if (Math.random() < r.success) { invAdd(r.out); addXp('smithing', r.xp); track('smelt'); msg(`You retrieve a bar of ${ITEMS[r.out].name.replace(' bar', '').toLowerCase()}.`); }
       else msg('The ore is too impure and you fail to refine it.');
       Sfx.play('smelt');
       return hasMats(r);
@@ -635,7 +664,7 @@ const Game = (() => {
     let left = count;
     startLoop('smith', 'hammer', 4, () => {
       if (invCount(recipe.bar) < recipe.bars) return false;
-      invRemove(recipe.bar, recipe.bars); invAdd(recipe.out, recipe.qty); addXp('smithing', recipe.xp);
+      invRemove(recipe.bar, recipe.bars); invAdd(recipe.out, recipe.qty); addXp('smithing', recipe.xp); track('smith');
       msg(`You hammer the ${recipe.metal} and make ${recipe.qty > 1 ? 'some' : 'a'} ${ITEMS[recipe.out].name.toLowerCase().replace(recipe.metal + ' ', '')}.`);
       Sfx.play('anvil');
       return --left > 0 && invCount(recipe.bar) >= recipe.bars;
@@ -651,7 +680,7 @@ const Game = (() => {
       const L = lvl('cooking');
       const burn = L >= c.stopBurn ? 0 : Math.max(0, 0.55 * (1 - (L - c.level) / (c.stopBurn - c.level))) * (onRange ? 0.8 : 1);
       if (Math.random() < burn) { invAdd(c.burnt); msg(`You accidentally burn the ${ITEMS[c.out].name.toLowerCase()}.`); }
-      else { invAdd(c.out); addXp('cooking', c.xp); msg(`You successfully cook ${/s$/.test(ITEMS[c.out].name) ? 'some' : 'a'} ${ITEMS[c.out].name.toLowerCase()}.`); }
+      else { invAdd(c.out); addXp('cooking', c.xp); track('cook'); msg(`You successfully cook ${/s$/.test(ITEMS[c.out].name) ? 'some' : 'a'} ${ITEMS[c.out].name.toLowerCase()}.`); }
       Sfx.play('cook');
       return has(rawId);
     }, 2);
@@ -669,7 +698,7 @@ const Game = (() => {
         invRemove(logId);
         const f = World.addLocLive('fire', p.x, p.z);
         f.expire = S.tick + ri(60, 110);
-        addXp('firemaking', fm.xp);
+        addXp('firemaking', fm.xp); track('fire');
         msg('The fire catches and the logs begin to burn.'); Sfx.play('fire');
         for (const [dx, dz] of [[-1, 0], [1, 0], [0, 1], [0, -1]]) if (World.canStep(p.x, p.z, dx, dz)) { p.path = [[p.x + dx, p.z + dz]]; break; }
         faceEnt(p, f);
@@ -678,7 +707,7 @@ const Game = (() => {
       return true;
     });
   }
-  function makeLoop(name, tool, need, fn) { resetActions(); startLoop(name, tool, 3, () => { if (!need()) return false; fn(); return need(); }, 2); }
+  function makeLoop(name, tool, need, fn) { resetActions(); startLoop(name, tool, 2, () => { if (!need()) return false; fn(); if (name === 'fletch') track('fletch'); return need(); }, 1); }
   function fletchMenu(logId) {
     const opts = [];
     const sh = SHAFTS[logId];
@@ -745,6 +774,11 @@ const Game = (() => {
       if (lvl('crafting') < c.level) return msg(`You need a Crafting level of ${c.level} to cut this gem.`);
       return makeLoop('craft', 'chisel', () => has(o), () => { invRemove(o); invAdd(cut); addXp('crafting', c.xp); msg(`You cut the ${ITEMS[cut].name.toLowerCase()}.`); });
     }
+    if ((o = pair('feather', id => /_dart_tip$/.test(id)))) {
+      const m = o.replace('_dart_tip', ''), dt = DARTS.find(d => d[0] === m);
+      if (lvl('fletching') < dt[1]) return msg(`You need a Fletching level of ${dt[1]} to make these darts.`);
+      return makeLoop('fletch', null, () => has('feather') && has(o), () => { const n = Math.min(10, invCount(o), invCount('feather')); invRemove(o, n); invRemove('feather', n); invAdd(m + '_dart', n); addXp('fletching', n * dt[2]); msg(`You finish making ${n} darts.`); });
+    }
     if (pair('needle', id => id === 'leather')) { if (!has('thread')) return msg('You need some thread to sew with.'); return craftLeather(); }
     // herblore
     const herb = ids.find(id => /_leaf$/.test(id)), unf = ids.find(id => /_unf$/.test(id));
@@ -773,6 +807,8 @@ const Game = (() => {
     if (d.bury) ops.push('Bury');
     if (HUNTER[it.id]) ops.push('Lay');
     if (d.pouch) ops.push('Fill', 'Empty', 'Check');
+    if (it.id === 'xp_lamp') ops.push('Rub');
+    if (d.tab) ops.push('Break');
     if (d.talisman) ops.push('Locate');
     if (d.equip) ops.push(d.equip.slot === 'weapon' ? 'Wield' : 'Wear');
     if (FIREMAKING[it.id]) ops.push('Light');
@@ -811,11 +847,19 @@ const Game = (() => {
     }
     if (op === 'Bury') {
       if (p.eatDelay > 0) return;
-      S.inv[slot] = null; addXp('prayer', d.bury); msg('You dig a hole in the ground...'); msg('You bury the bones.');
+      S.inv[slot] = null; addXp('prayer', d.bury); track('bury'); msg('You dig a hole in the ground...'); msg('You bury the bones.');
       setAnim(p, 'bury'); p.eatDelay = 2; Sfx.play('bury');
       return;
     }
     if (op === 'Lay') return layTrap(slot);
+    if (op === 'Rub') { S.iface = { type: 'lamp', slot }; return; }
+    if (op === 'Break') {
+      if (wildLevel(p.x, p.z) > 20) { msg('A mysterious force prevents you from teleporting.'); return; }
+      const dest = d.tab; invRemove(it.id, 1); resetActions();
+      p.loop = 'teleport'; p.loopStart = now(); Sfx.play('teleport'); track('spell');
+      p.task = { timer: 3, interval: 3, fn: () => { p.x = dest[0]; p.z = dest[1]; p.from = null; p.steps = []; p.path = []; return false; } };
+      return;
+    }
     if (op === 'Fill' || op === 'Empty' || op === 'Check') {
       const cap = d.pouch.cap, cur0 = S.pouches[it.id] || 0;
       if (lvl('runecrafting') < d.pouch.level) { msg(`You need a Runecrafting level of ${d.pouch.level} to use this pouch.`); return; }
@@ -868,7 +912,7 @@ const Game = (() => {
     if (!canCast(spell, true)) return;
     if (spell.type === 'tele') {
       if (wildLevel(p.x, p.z) > 20) { msg('A mysterious force prevents you from teleporting.'); return; }
-      payRunes(spell); addXp('magic', spell.xp); resetActions();
+      payRunes(spell); addXp('magic', spell.xp); track('spell'); resetActions();
       p.loop = 'teleport'; p.loopStart = now(); Sfx.play('teleport');
       const d = spell.dest || [World.SPAWN.x, World.SPAWN.z];
       p.task = { timer: 3, interval: 3, fn: () => { p.x = d[0]; p.z = d[1]; p.from = null; p.steps = []; p.path = []; return false; } };
@@ -908,10 +952,10 @@ const Game = (() => {
   }
 
   // ---------- NPC dialogue ----------
-  function npcAction(n, op) {
+  function npcAction(n, op, deal) {
     if (!n.isBot) faceEnt(n, S.player);
     n.wanderGoal = null; n.talkUntil = S.tick + 8;
-    if (n.isBot) { if (op === 'Trade with') openTrade(n); return; }
+    if (n.isBot) { if (op === 'Trade with') openTrade(n, deal); return; }
     if (op === 'Talk-to') return talkTo(n);
     if (op === 'Bank') return openBank();
     if (op === 'Trade') return openShop(n.def.shop);
@@ -938,7 +982,7 @@ const Game = (() => {
   }
   const end = () => { S.dialog = null; };
   function questDone(id, rewards, fn) {
-    S.quests[id] = 2; S.questPoints++;
+    S.quests[id] = 2; S.questPoints++; setTimeout(() => track('quest'), 50);
     if (fn) fn();
     const q = QUESTS.find(q => q.id === id);
     S.dialog = null;
@@ -987,6 +1031,12 @@ const Game = (() => {
         { text: 'No thanks.', fn: end }] }]);
     }
     else if (t === 'cook') cookQuest(n);
+    else if (t === 'gnome') chat(n, [['npc', ['Hello human!', 'Have you tried the worm battas?', 'Our Spirit Tree is very old and very wise.', 'Mind the guards, they\'re grumpy today.'][ri(0, 3)]]]);
+    else if (t === 'guide') chat(n, [['npc', 'Welcome, adventurer! I keep a list of beginner tasks - complete them for coins and magic lamps that grant experience.'], { options: [
+      { text: 'Show me the beginner tasks.', fn: () => { S.iface = { type: 'tasks' }; } },
+      { text: 'How do I train my skills?', fn: () => chat(n, [['npc', 'Click on any skill in your Stats tab to see what it unlocks. Chop trees nearby, fish at the river west of here, and mine copper and tin in the mine to the south.'], ['npc', 'You can change how fast you gain experience in the Game Options tab (the wrench).']]) },
+      { text: 'Can I have some starter supplies?', fn: () => { if (S.gotStarter) { chat(n, [['npc', 'I\'ve already given you some! Check your bank if you lost them.']]); return; } S.gotStarter = true; for (const [id, q] of [['small_net', 1], ['fishing_rod', 1], ['fishing_bait', 50], ['knife', 1], ['feather', 100], ['bronze_axe', 1], ['tinderbox', 1], ['coins', 200]]) invAddOrDrop(id, q); chat(n, [['npc', 'Here you go - a net, a rod with bait, a knife, feathers, an axe and a tinderbox. Good luck!']]); } },
+      { text: 'Goodbye.', fn: end }] }]);
     else if (t === 'esswizard') chat(n, [['npc', 'Ah, a fellow seeker of essence! Shall I send you to the Rune Essence mine?'], { options: [{ text: 'Yes please.', fn: () => essTeleport(n, [72, 16]) }, { text: 'No thanks.', fn: end }] }]);
     else if (t === 'sail') {
       const dest = n.def.sail === 'saltreach' ? { name: 'Saltreach Isle', x: 183, z: 86 } : { name: 'Port Sarrow', x: 169, z: 82 };
@@ -1059,6 +1109,13 @@ const Game = (() => {
     p.task = { timer: 3, interval: 3, fn: () => { p.x = 16; p.z = 249; p.from = null; p.steps = []; msg('You are teleported to the Rune Essence mine.'); return false; } };
   }
   // ---------- fairy rings ----------
+  function rubLamp(skill) {
+    const f = S.iface; if (!f || f.type !== 'lamp') return;
+    const it = S.inv[f.slot]; if (!it || it.id !== 'xp_lamp') { S.iface = null; return; }
+    S.inv[f.slot] = null; S.iface = null;
+    const amt = Math.max(250, lvl(skill) * 25);
+    addXp(skill, amt); msg(`The lamp grants you ${Math.floor(amt * (S.settings.xpRate || 1))} ${SKILL_NAMES[skill]} experience!`, '#000080');
+  }
   function fairyUse(loc) { S.iface = { type: 'fairy', ring: loc, dials: [0, 0, 0] }; S.fairyLog = S.fairyLog || []; if (loc.code && !S.fairyLog.includes(loc.code)) S.fairyLog.push(loc.code); }
   function fairyTeleport(code) {
     const p = S.player, f = FAIRY[code];
@@ -1107,7 +1164,7 @@ const Game = (() => {
     msg(`You attempt to pick the ${n.def.name.toLowerCase()}'s pocket.`);
     setAnim(p, 'pickup');
     p.task = { timer: 2, interval: 2, fn: () => {
-      if (Math.random() < Math.min(0.95, 0.55 + (lvl('thieving') - pp.level) * 0.02)) { invAddOrDrop('coins', pp.coins); if (pp.extra && Math.random() < 0.3) invAddOrDrop(pp.extra, 1); addXp('thieving', pp.xp); msg(`You pick the ${n.def.name.toLowerCase()}'s pocket.`); }
+      if (Math.random() < Math.min(0.95, 0.55 + (lvl('thieving') - pp.level) * 0.02)) { track('thieve'); invAddOrDrop('coins', pp.coins); if (pp.extra && Math.random() < 0.3) invAddOrDrop(pp.extra, 1); addXp('thieving', pp.xp); msg(`You pick the ${n.def.name.toLowerCase()}'s pocket.`); }
       else { msg(`You fail to pick the ${n.def.name.toLowerCase()}'s pocket.`); say(n, 'What do you think you\'re doing?'); faceEnt(n, p); setAnim(n, 'punch'); damagePlayer(pp.stun, null); p.stun = 5; p.path = []; msg('You have been stunned.'); }
       return false;
     } };
@@ -1211,6 +1268,7 @@ const Game = (() => {
     if (p.castOnce) return { type: 'magic', spell: p.castOnce, range: 10 };
     if (S.autocast && weaponKind() === 'staff') return { type: 'magic', spell: SPELLS.find(s => s.id === S.autocast), range: 10 };
     if (weaponKind() === 'bow') return { type: 'ranged', range: S.style === 2 ? 9 : 7 };
+    if (weaponKind() === 'thrown') return { type: 'ranged', thrown: true, range: S.style === 2 ? 6 : 4 };
     return { type: 'melee', range: 1 };
   }
   function hitChance(attRoll, defRoll) { return attRoll > defRoll ? 1 - (defRoll + 2) / (2 * (attRoll + 1)) : attRoll / (2 * (defRoll + 1)); }
@@ -1246,15 +1304,18 @@ const Game = (() => {
       xpSkill = ['attack', 'strength', 'defence'][S.style];
       p.attackTimer = weaponSpeed();
     } else if (mode.type === 'ranged') {
-      if (!S.equip.ammo || S.ammoQty <= 0) { msg('There is no ammo left in your quiver.'); p.combat = null; return; }
+      const thrown = mode.thrown;
+      if (thrown ? !(S.wepQty > 0) : (!S.equip.ammo || S.ammoQty <= 0)) { msg('There is no ammo left in your quiver.'); p.combat = null; return; }
       const effR = cur('ranged') + (S.style === 0 ? 3 : 0) + 8;
       const maxHit = Math.max(1, Math.floor(0.5 + effR * (b.rstr + 64) / 640));
       if (Math.random() < hitChance(effR * (b.rng + 64), (n.def.def + 9) * 64)) dmg = ri(0, maxHit);
-      const ammo = S.equip.ammo;
-      S.ammoQty--; if (S.ammoQty <= 0) { delete S.equip.ammo; }
+      const ammo = thrown ? S.equip.weapon : S.equip.ammo;
+      if (thrown) { S.wepQty--; if (S.wepQty <= 0) { delete S.equip.weapon; Models.applyEquipment(p.model, S.equip); } }
+      else { S.ammoQty--; if (S.ammoQty <= 0) { delete S.equip.ammo; } }
       if (Math.random() < 0.75) setTimeout(() => dropGround(ammo, 1, n.x, n.z), 600);
       setAnim(p, 'shoot');
       Render.projectile(p, n, 'arrow', ITEMS[ammo].icon.c);
+      if (thrown) setAnim(p, 'slash');
       xpSkill = S.style === 2 ? 'longrange' : 'ranged';
       delay = 300 + cheb(p, n) * 70;
       p.attackTimer = weaponSpeed();
@@ -1267,7 +1328,7 @@ const Game = (() => {
       dmg = hit ? ri(0, sp.max) : -1;
       setAnim(p, 'cast');
       Render.projectile(p, n, 'magic', sp.col);
-      addXp('magic', sp.xp);
+      addXp('magic', sp.xp); track('spell');
       xpSkill = 'magic';
       delay = 500 + cheb(p, n) * 60;
       p.attackTimer = 5;
@@ -1296,6 +1357,7 @@ const Game = (() => {
     n.target = null; n.path = [];
     if (S.player.combat === n) S.player.combat = null;
     Sfx.play('death');
+    track('kill');
     if (S.slayer && S.slayer.npc === n.id && S.slayer.left > 0) {
       S.slayer.left--; addXp('slayer', n.def.hp);
       if (S.slayer.left === 0) { msg('You\'ve completed your task; return to a Slayer master.', '#7f0000'); }
@@ -1426,7 +1488,7 @@ const Game = (() => {
     'big_bones', 'nature_rune', 'law_rune', 'air_rune', 'mind_rune', 'uncut_sapphire', 'grimy_ranarr', 'rune_essence', 'bow_string', 'steel_platebody', 'mithril_scimitar', 'prayer_potion3', 'cake'];
   const BUY_GOODS = ['logs', 'oak_logs', 'willow_logs', 'maple_logs', 'yew_logs', 'iron_ore', 'coal', 'copper_ore', 'tin_ore', 'bones', 'big_bones', 'cowhide', 'feather', 'raw_shrimps',
     'raw_lobster', 'raw_trout', 'bronze_bar', 'iron_bar', 'steel_bar', 'rune_essence', 'flax', 'bow_string', 'egg', 'raw_chicken', 'raw_beef', 'grimy_guam', 'leather', 'gold_ore'];
-  const HUBS = [[90, 82], [154, 216], [99, 234], [144, 82], [77, 22], [135, 143], [100, 24], [87, 108], [110, 66], [70, 92], [196, 86]];
+  const HUBS = [[52, 238], [46, 158], [90, 82], [154, 216], [99, 234], [144, 82], [77, 22], [135, 143], [100, 24], [87, 108], [110, 66], [70, 92], [196, 86]];
   const OUTFIT = ['#7a2a2a', '#2a5a7a', '#5a6a2a', '#6a4a2a', '#4a2a6a', '#8a6a2a', '#2a2a2a', '#a0a0a0', '#1a4a1a', '#7a1a5a'];
   const METALS_B = ['bronze', 'iron', 'steel', 'mithril', 'adamant', 'rune'];
   const pickR = a => a[Math.floor(Math.random() * a.length)];
@@ -1453,8 +1515,12 @@ const Game = (() => {
       b.model = Models.humanoid({ skin: pickR(['#c8915c', '#a06a40', '#d0a070', '#8a5a30']), hair: pickR(['#3a2410', '#7a5a30', '#c08030', '#1a1a1a', '#e0e0e0', '#a03010']), shirt: pickR(OUTFIT), pants: pickR(OUTFIT), boots: '#3a2a1a', robe: Math.random() < 0.1 ? pickR(OUTFIT) : null });
       Models.applyEquipment(b.model, b.equip);
       b.model.userData.ent = b;
-      if (persona === 'seller') { b.good = pickR(SELL_GOODS); b.price = Math.max(1, Math.round(ITEMS[b.good].value * (1.1 + Math.random() * 0.5))); b.stock = ITEMS[b.good].stackable ? ri(50, 500) : ri(5, 30); }
-      if (persona === 'buyer') { b.good = pickR(BUY_GOODS); b.price = Math.max(1, Math.round(ITEMS[b.good].value * (0.9 + Math.random() * 0.5))); }
+      const mk = (id, lo, hi, sell) => { const mark = lo + Math.random() * (hi - lo); return { id, mark, isSell: sell, price: Math.max(1, Math.round(mprice(id) * mark)), stock: sell ? (ITEMS[id].stackable ? ri(50, 500) : ri(5, 30)) : 0 }; };
+      const pickN = (arr, n) => arr.slice().sort(() => Math.random() - 0.5).slice(0, n);
+      b.sells = []; b.buys = [];
+      if (persona === 'seller') b.sells = pickN(SELL_GOODS, ri(1, 3)).map(id => mk(id, 1.05, 1.35, true));
+      if (persona === 'buyer') b.buys = pickN(BUY_GOODS, ri(1, 3)).map(id => mk(id, 0.85, 1.2, false));
+      if (persona === 'trader') { b.sells = pickN(SELL_GOODS, 1).map(id => mk(id, 1.0, 1.2, true)); b.buys = pickN(BUY_GOODS, 2).map(id => mk(id, 0.9, 1.1, false)); }
       S.scene.add(b.model);
       World.pickables.push(b.model);
       S.bots.push(b);
@@ -1466,9 +1532,10 @@ const Game = (() => {
     if (Math.abs(b.x - p.x) < 20 && Math.abs(b.z - p.z) < 20) S.messages.push({ text, from: b.name, t: now() });
   }
   function adLine(b) {
-    const nm = ITEMS[b.good].name.toLowerCase();
-    if (b.persona === 'seller') return pickR([`Selling ${nm} ${b.price}ea!`, `selling ${nm} - ${b.price} each`, `${nm} for sale ${b.price}ea, trade me`]);
-    return pickR([`Buying ${nm} ${b.price}ea!!`, `buying all ${nm} ${b.price} each`, `paying ${b.price}ea for ${nm}, trade me`]);
+    const sell = b.sells.length && (!b.buys.length || Math.random() < 0.5);
+    const e = sell ? pickR(b.sells) : pickR(b.buys), nm = ITEMS[e.id].name.toLowerCase();
+    if (sell) return pickR([`Selling ${nm} ${e.price}ea!`, `selling ${nm} - ${e.price} each`, `${nm} for sale ${e.price}ea, trade me`]);
+    return pickR([`Buying ${nm} ${e.price}ea!!`, `buying all ${nm} ${e.price} each`, `paying ${e.price}ea for ${nm}, trade me`]);
   }
   let botPathBudget = 0;
   function botPath(b, goal, tx, tz) {
@@ -1484,9 +1551,9 @@ const Game = (() => {
     if (Math.abs(b.x - p.x) > 45 || Math.abs(b.z - p.z) > 45) return;
     if (S.tick >= b.nextChat) {
       b.nextChat = S.tick + ri(25, 140);
-      if (b.persona === 'seller' || b.persona === 'buyer') botSay(b, Math.random() < 0.75 ? adLine(b) : pickR(CASUAL_LINES));
+      if (b.sells.length || b.buys.length) botSay(b, Math.random() < 0.75 ? adLine(b) : pickR(CASUAL_LINES));
       else if (Math.random() < 0.5) botSay(b, pickR(CASUAL_LINES));
-      if ((b.persona === 'seller' || b.persona === 'buyer') && Math.random() < 0.25 && Math.abs(b.x - p.x) <= 6 && Math.abs(b.z - p.z) <= 6 && !S.iface) msg(`${b.name} wishes to trade with you.`, '#800080');
+      if ((b.persona === 'seller' || b.persona === 'buyer') && Math.random() < 0.25 && Math.abs(b.x - p.x) <= 6 && Math.abs(b.z - p.z) <= 6 && !S.iface) { S.tradeReq = { bot: b, deal: null, until: S.tick + 60 }; S.messages.push({ text: `${b.name} wishes to trade with you.`, color: '#800080', t: now(), tradeReq: b }); }
     }
     if (S.iface && S.iface.type === 'trade' && S.iface.bot === b) { b.path = []; faceEnt(b, p); return; }
     if (b.path.length) {
@@ -1549,39 +1616,75 @@ const Game = (() => {
     else b.act = { type: 'idle', timer: ri(3, 10) };
   }
 
-  // ---------- trading ----------
-  const tradeVal = list => list.reduce((s, it) => s + ITEMS[it.id].value * it.qty, 0);
-  function openTrade(b) {
-    const p = S.player;
-    if (b.persona === 'casual' && Math.random() < 0.6) { botSay(b, pickR(['no thx', 'busy sry', 'what u want?', 'no trades lol'])); msg('Other player declined trade request.'); return; }
-    S.iface = { type: 'trade', bot: b, my: [], their: [], stage: 1, meAcc: false, themAcc: false, status: '' };
-    faceEnt(p, b);
-    botRecalc();
-    botSay(b, b.persona === 'seller' ? `${b.price}ea, how many?` : b.persona === 'buyer' ? `put ur ${ITEMS[b.good].name.toLowerCase()} in, ${b.price}ea` : pickR(['what u got?', 'hi', 'whats up']));
+  // ---------- market prices (drift slowly over time) ----------
+  const market = {};
+  function mprice(id) {
+    if (id === 'coins') return 1;
+    if (!market[id]) market[id] = 0.9 + Math.random() * 0.3;
+    return Math.max(1, Math.round(ITEMS[id].value * market[id]));
   }
+  function marketDrift() { for (const id in market) market[id] = Math.max(0.6, Math.min(1.8, market[id] * (0.96 + Math.random() * 0.08))); for (const b of S.bots) { for (const s of b.sells || []) s.price = Math.max(1, Math.round(mprice(s.id) * s.mark)); for (const s of b.buys || []) s.price = Math.max(1, Math.round(mprice(s.id) * s.mark)); } }
+  function findItemByName(txt) {
+    txt = txt.toLowerCase().trim().replace(/s$/, '');
+    const alias = { lobby: 'lobster', lobbie: 'lobster', lob: 'lobster', sword: 'swordfish', ess: 'rune_essence', nat: 'nature_rune', law: 'law_rune', yew: 'yew_logs', mage: 'magic_logs', coal: 'coal', bone: 'bones', feather: 'feather', hide: 'cowhide', 'pure ess': 'pure_essence' };
+    if (alias[txt] && ITEMS[alias[txt]]) return alias[txt];
+    let best = null;
+    for (const id in ITEMS) { const n = ITEMS[id].name.toLowerCase().replace(/s$/, ''); if (n === txt) return id; if (!best && (n.startsWith(txt) || id === txt.replace(/ /g, '_'))) best = id; }
+    return best;
+  }
+
+  // ---------- trading ----------
+  const tradeVal = list => list.reduce((s, it) => s + mprice(it.id) * it.qty, 0);
+  const sellEntry = (b, id) => (b.sells || []).find(s => s.id === id);
+  const buyEntry = (b, id) => (b.buys || []).find(s => s.id === id);
+  function openTrade(b, deal) {
+    const p = S.player;
+    if (b.persona === 'casual' && !deal && Math.random() < 0.6) { botSay(b, pickR(['no thx', 'busy sry', 'what u want?', 'no trades lol'])); msg('Other player declined trade request.'); return; }
+    if (b.annoyedUntil && S.tick < b.annoyedUntil) { botSay(b, 'not trading u again lol'); msg('Other player declined trade request.'); return; }
+    S.iface = { type: 'trade', bot: b, my: [], req: {}, their: [], stage: 1, meAcc: false, themAcc: false, status: '', haggles: 0, disc: 1, deal: deal || null };
+    S.tradeReq = null;
+    faceEnt(p, b);
+    if (deal) {
+      const e = deal.mode === 'sell' ? buyEntry(b, deal.id) : sellEntry(b, deal.id);
+      if (e) e.dealPrice = deal.price;
+      if (deal.mode === 'buy' && e) S.iface.req[deal.id] = Math.min(e.stock, deal.qty || e.stock);
+    }
+    botRecalc();
+    const s0 = (b.sells || [])[0], b0 = (b.buys || [])[0];
+    botSay(b, s0 ? `got ${ITEMS[s0.id].name.toLowerCase()} ${priceOf(s0)}ea, how many?` : b0 ? `put ur ${ITEMS[b0.id].name.toLowerCase()} in, ${priceOf(b0)}ea` : pickR(['what u got?', 'hi', 'whats up']));
+  }
+  const priceOf = e => Math.max(1, Math.round((e.dealPrice || e.price) * (e.isSell ? S.iface && S.iface.disc || 1 : 1 / (S.iface && S.iface.disc || 1))));
   function botRecalc() {
     const t = S.iface; if (!t || t.type !== 'trade') return;
     const b = t.bot;
     t.meAcc = false; t.themAcc = false;
-    const coinsOffered = t.my.filter(i => i.id === 'coins').reduce((s, i) => s + i.qty, 0);
-    if (b.persona === 'seller') {
-      const st = ITEMS[b.good].stackable;
-      let q = Math.min(b.stock, coinsOffered > 0 ? Math.floor(coinsOffered / b.price) : b.stock);
-      if (!st) q = Math.min(q, freeSlots() + t.my.filter(i => !ITEMS[i.id].stackable).length);
-      t.their = q > 0 ? [{ id: b.good, qty: q }] : [];
-      const fair = coinsOffered >= q * b.price && q > 0 && t.my.every(i => i.id === 'coins');
-      t.wantAcc = fair;
-    } else if (b.persona === 'buyer') {
-      const q = t.my.filter(i => i.id === b.good).reduce((s, i) => s + i.qty, 0);
-      const other = t.my.filter(i => i.id !== b.good);
-      t.their = q > 0 ? [{ id: 'coins', qty: q * b.price + Math.floor(tradeVal(other) * 0.3) }] : [];
-      t.wantAcc = q > 0;
-    } else {
-      // trader: offers coins worth ~85-100% of what you put in
-      const v = tradeVal(t.my);
-      t.their = v > 0 ? [{ id: 'coins', qty: Math.floor(v * (0.85 + Math.random() * 0.15)) }] : [];
-      t.wantAcc = v > 0;
+    // what the player owes for requested goods
+    let owe = 0;
+    const goods = [];
+    for (const id in t.req) {
+      const e = sellEntry(b, id); if (!e || !t.req[id]) continue;
+      let q = Math.min(t.req[id], e.stock);
+      if (!ITEMS[id].stackable) q = Math.min(q, freeSlots() + t.my.filter(i => !ITEMS[i.id].stackable).length);
+      t.req[id] = q;
+      if (q > 0) { goods.push({ id, qty: q }); owe += q * priceOf(e); }
     }
+    // what the bot pays for the player's items
+    let credit = 0, junk = 0, coins = 0;
+    for (const it of t.my) {
+      if (it.id === 'coins') { coins += it.qty; continue; }
+      const e = buyEntry(b, it.id);
+      if (e) credit += it.qty * priceOf(e);
+      else if (b.persona === 'trader') credit += Math.floor(it.qty * mprice(it.id) * 0.6);
+      else junk++;
+    }
+    const net = credit - owe;
+    t.their = goods.slice();
+    const change = (goods.length || credit > 0) ? Math.max(0, coins - Math.max(0, owe - credit)) : 0;
+    if (net + change > 0) t.their.push({ id: 'coins', qty: Math.max(0, net) + change });
+    t.owe = Math.max(0, owe - credit);
+    t.coinsIn = coins;
+    t.junk = junk;
+    t.wantAcc = (goods.length || credit > 0) && coins >= t.owe && junk === 0;
     t.thinkAt = S.tick + ri(1, 3);
   }
   function tradeTick() {
@@ -1592,19 +1695,23 @@ const Game = (() => {
     if (t.thinkAt && S.tick >= t.thinkAt) {
       t.thinkAt = 0;
       if (t.wantAcc && !t.themAcc) { t.themAcc = true; if (Math.random() < 0.6) botSay(b, pickR(['ok', 'deal', 'accept', 'ty', 'sure'])); }
-      else if (!t.wantAcc && t.my.length) botSay(b, b.persona === 'seller' ? pickR([`its ${b.price}ea`, 'need more gp', 'coins only pls']) : b.persona === 'buyer' ? `i only want ${ITEMS[b.good].name.toLowerCase()}` : 'hmm');
+      else if (!t.wantAcc && (t.my.length || Object.keys(t.req).length)) {
+        if (t.junk) botSay(b, pickR(['i dont want that', 'take that junk off', 'i only buy what i said']));
+        else if (t.coinsIn < t.owe) botSay(b, pickR([`need ${fmtGp(t.owe - t.coinsIn)} more`, `thats ${fmtGp(t.owe)} total`, 'more gp pls']));
+      }
     }
     if (t.meAcc && t.themAcc) {
       if (t.stage === 1) { t.stage = 2; t.meAcc = false; t.themAcc = false; t.thinkAt = S.tick + 1; }
       else completeTrade();
     }
   }
+  const fmtGp = n => n >= 10000 ? Math.floor(n / 1000) + 'k' : String(n);
   function offerItem(slot, n) {
-    const t = S.iface; const it = S.inv[slot]; if (!t || !it) return;
-    if (t.stage !== 1) return;
+    const t = S.iface; const it = S.inv[slot]; if (!t || !it || t.stage !== 1) return;
     if (!ITEMS[it.id].value && it.id !== 'coins') { msg('You can\'t trade that item.'); return; }
     const id = it.id;
     n = Math.min(n, invCount(id));
+    if (n <= 0) return;
     invRemove(id, n);
     const ex = ITEMS[id].stackable && t.my.find(i => i.id === id);
     if (ex) ex.qty += n; else if (ITEMS[id].stackable) t.my.push({ id, qty: n }); else for (let k = 0; k < n; k++) t.my.push({ id, qty: 1 });
@@ -1617,11 +1724,29 @@ const Game = (() => {
     it.qty -= n; if (it.qty <= 0) t.my.splice(idx, 1);
     botRecalc();
   }
+  function requestItem(id, n) {
+    const t = S.iface; if (!t || t.stage !== 1) return;
+    const e = sellEntry(t.bot, id); if (!e) return;
+    t.req[id] = Math.max(0, Math.min(e.stock, n));
+    botRecalc();
+  }
+  function haggle() {
+    const t = S.iface; if (!t || t.stage !== 1) return;
+    const b = t.bot;
+    if (t.haggles >= 3) { botSay(b, 'ur so annoying, no trade'); b.annoyedUntil = S.tick + 100; declineTrade('Other player declined trade.'); return; }
+    const chance = 0.55 - t.haggles * 0.15 - (b.persona === 'trader' ? 0 : 0.05);
+    t.haggles++;
+    if (Math.random() < chance) {
+      t.disc *= 0.92;
+      botSay(b, pickR(['fine, 8% off', 'ugh ok cheaper', 'ok ok deal', 'only for u']));
+      botRecalc();
+    } else botSay(b, pickR(['no', 'price is price', 'lol no', 'thats already cheap', 'no haggling pls']));
+  }
   function acceptTrade() {
     const t = S.iface; if (!t) return;
     if (t.stage === 1) {
       const needed = t.their.reduce((s, i) => s + (ITEMS[i.id].stackable ? (has(i.id) ? 0 : 1) : i.qty), 0);
-      if (needed > freeSlots()) { msg('You don\'t have enough inventory space for this trade.'); return; }
+      if (needed > freeSlots() + t.my.filter(i => !ITEMS[i.id].stackable).length) { msg('You don\'t have enough inventory space for this trade.'); return; }
     }
     t.meAcc = true;
   }
@@ -1632,14 +1757,52 @@ const Game = (() => {
     msg(why || 'Trade declined.');
   }
   function completeTrade() {
-    const t = S.iface;
+    const t = S.iface, b = t.bot;
     for (const it of t.their) invAddOrDrop(it.id, it.qty);
-    if (t.bot.persona === 'seller') { t.bot.stock -= t.their.reduce((s, i) => s + i.qty, 0); if (t.bot.stock <= 0) { t.bot.stock = ri(50, 300); } }
+    for (const it of t.their) { const e = sellEntry(b, it.id); if (e) { e.stock -= it.qty; if (e.stock <= 0) e.stock = ITEMS[e.id].stackable ? ri(50, 400) : ri(5, 25); } }
+    for (const e of [...(b.sells || []), ...(b.buys || [])]) delete e.dealPrice;
+    track('trade');
+    S.tradeLog = S.tradeLog || [];
+    const fmtList = l => l.length ? l.map(i => `${i.qty > 1 ? fmtGp(i.qty) + ' ' : ''}${ITEMS[i.id].name}`).join(', ') : 'nothing';
+    S.tradeLog.unshift({ who: b.name, gave: fmtList(t.my), got: fmtList(t.their), profit: tradeVal(t.their) - tradeVal(t.my) });
+    S.tradeLog = S.tradeLog.slice(0, 8);
     S.iface = null;
     msg('Accepted trade.');
     Sfx.play('pickup');
-    botSay(t.bot, pickR(['ty!', 'thanks', 'pleasure doing business', 'gl']));
+    botSay(b, pickR(['ty!', 'thanks', 'pleasure doing business', 'gl', 'come again']));
   }
+  // player adverts in public chat: "selling logs 20ea", "buying lobster 150"
+  function playerAd(text) {
+    const m = text.match(/^\s*(selling|sell|buying|buy|wtb|wts)\s+(?:(\d+)\s*x?\s+)?(.+?)\s+(\d+(?:\.\d+)?)\s*(k|m)?\s*(?:gp|ea|each|per)?\s*!*$/i);
+    if (!m) return;
+    const mode = /^(selling|sell|wts)$/i.test(m[1]) ? 'sell' : 'buy';
+    const id = findItemByName(m[3]);
+    if (!id) return;
+    const price = Math.round(parseFloat(m[4]) * (m[5] ? (m[5].toLowerCase() === 'k' ? 1000 : 1e6) : 1));
+    const p = S.player;
+    const near = S.bots.filter(b => Math.abs(b.x - p.x) <= 16 && Math.abs(b.z - p.z) <= 16);
+    const keen = near.filter(b => mode === 'sell' ? (buyEntry(b, id) && price <= buyEntry(b, id).price * 1.25) : (sellEntry(b, id) && price >= sellEntry(b, id).price * 0.8));
+    if (!keen.length) {
+      const anyone = near.find(b => mode === 'sell' ? buyEntry(b, id) : sellEntry(b, id));
+      if (anyone) setTimeout(() => botSay(anyone, mode === 'sell' ? `${price}? too much lol` : `${price}? way too low`), 900);
+      return;
+    }
+    const b = keen[0];
+    setTimeout(() => {
+      botSay(b, mode === 'sell' ? pickR([`ill buy ur ${ITEMS[id].name.toLowerCase()}`, 'trade me!', `ill take them at ${price}`]) : pickR(['i got some, trade', 'selling to u, trade me', `deal at ${price}`]));
+      S.tradeReq = { bot: b, deal: { id, price, mode, qty: m[2] ? +m[2] : 0 }, until: S.tick + 60 };
+      S.messages.push({ text: `${b.name} wishes to trade with you.`, color: '#800080', t: now(), tradeReq: b });
+    }, 1200);
+  }
+  function acceptTradeRequest(b) {
+    const p = S.player;
+    if (busy()) return;
+    resetActions();
+    const deal = S.tradeReq && S.tradeReq.bot === b && S.tick < S.tradeReq.until ? S.tradeReq.deal : null;
+    p.pending = { kind: 'npc', ent: b, op: 'Trade with', deal };
+    pathToNpc(b);
+  }
+
 
   // ---------- main tick ----------
   function tick() {
@@ -1672,6 +1835,7 @@ const Game = (() => {
     for (const b of S.bots) botTick(b);
     for (const b of S.bots) if (b.moveTick !== S.tick) { if (b.moveTick !== S.tick - 1) { b.from = null; b.steps = []; } }
     tradeTick();
+    if (!p.path.length) S.flag = null;
     if (p.follow && !p.dead) { if (!npcReach(p, p.follow) && (p.path.length === 0 || S.tick % 2 === 0)) pathToNpc(p.follow); }
     if (S.tick % (S.prayers.rapid_heal ? 50 : 100) === 0 && cur('hitpoints') < lvl('hitpoints') && !p.dead) S.skills.hitpoints.cur++;
     if (S.tick % 100 === 0) for (const k of SKILLS) { if (k === 'hitpoints' || k === 'prayer') continue; if (S.skills[k].cur < lvl(k)) S.skills[k].cur++; else if (S.skills[k].cur > lvl(k)) S.skills[k].cur--; }
@@ -1682,6 +1846,7 @@ const Game = (() => {
     for (const g of S.ground.slice()) if (S.tick >= g.until) removeGround(g);
     if (S.tick % 60 === 0) for (const id in S.shops) for (const st of S.shops[id]) { if (st.qty < st.base) st.qty++; else if (st.qty > st.base) st.qty--; }
     if (S.tick % 30 === 0) moveFishingSpot();
+    if (S.tick % 100 === 0) marketDrift();
     if (S.tick % 50 === 0) growPatches();
     trapTick();
     if (S.tick % 2 === 0) save();
@@ -1706,7 +1871,7 @@ const Game = (() => {
     const p = S.player;
     const patches = {};
     for (const l of World.locs) if (l.patch) patches[l.x + ',' + l.z] = l.patch;
-    const data = { v: 2, skills: S.skills, inv: S.inv, equip: S.equip, ammo: S.ammoQty, bank: S.bank, quests: S.quests, qp: S.questPoints, x: p.x, z: p.z, style: S.style, run: p.run, energy: p.energy, ar: S.autoRetaliate, slayer: S.slayer, patches, gift: S.gift, autocast: S.autocast, pouches: S.pouches, pouchesP: S.pouchesP, agi: S.agi, fairyLog: S.fairyLog, essReturn: S.essReturn, bright: S.settings.brightness };
+    const data = { v: 2, skills: S.skills, inv: S.inv, equip: S.equip, ammo: S.ammoQty, bank: S.bank, quests: S.quests, qp: S.questPoints, x: p.x, z: p.z, style: S.style, run: p.run, energy: p.energy, ar: S.autoRetaliate, slayer: S.slayer, patches, gift: S.gift, autocast: S.autocast, tradeLog: S.tradeLog, taskProg: S.taskProg, tasksDone: S.tasksDone, gotStarter: S.gotStarter, gift2: S.gift2, wepQty: S.wepQty, pouches: S.pouches, pouchesP: S.pouchesP, agi: S.agi, fairyLog: S.fairyLog, essReturn: S.essReturn, bright: S.settings.brightness, xpRate: S.settings.xpRate };
     try { localStorage.setItem(KEY(S.name), JSON.stringify(data)); localStorage.setItem('ardenvale_last', S.name); } catch (e) { }
   }
   function load(name) {
@@ -1721,8 +1886,9 @@ const Game = (() => {
       S.inv = data.inv.map(s => s && ITEMS[s.id] ? s : null); S.equip = data.equip || {}; for (const k in S.equip) if (!ITEMS[S.equip[k]]) delete S.equip[k];
       S.ammoQty = data.ammo || 0; S.bank = (data.bank || []).filter(b => ITEMS[b.id]);
       Object.assign(S.quests, data.quests || {}); S.questPoints = data.qp || 0;
-      S.style = data.style || 0; S.autoRetaliate = data.ar !== false; S.slayer = data.slayer || null; S.gift = data.gift; S.autocast = data.autocast || null; S.pouches = data.pouches || {}; S.pouchesP = data.pouchesP || {}; S.agi = data.agi || {}; S.fairyLog = data.fairyLog || []; S.essReturn = data.essReturn;
+      S.style = data.style || 0; S.autoRetaliate = data.ar !== false; S.slayer = data.slayer || null; S.gift = data.gift; S.autocast = data.autocast || null; S.pouches = data.pouches || {}; S.tradeLog = data.tradeLog || []; S.taskProg = data.taskProg || {}; S.tasksDone = data.tasksDone || {}; S.gotStarter = data.gotStarter; S.gift2 = data.gift2; S.wepQty = data.wepQty || 0; S.pouchesP = data.pouchesP || {}; S.agi = data.agi || {}; S.fairyLog = data.fairyLog || []; S.essReturn = data.essReturn;
       S.settings.brightness = data.bright == null ? 2 : data.bright;
+      S.settings.xpRate = data.xpRate || 5;
       for (const l of World.locs) if (l.patch && data.patches && data.patches[l.x + ',' + l.z]) { l.patch = data.patches[l.x + ',' + l.z]; World.refreshLoc(l); }
     } else {
       S.inv = new Array(28).fill(null);
@@ -1737,9 +1903,15 @@ const Game = (() => {
       for (const k in set) { if (!S.equip[k]) S.equip[k] = set[k]; else { S.bank.push({ id: set[k], qty: 1 }); banked = true; } }
       msg('You have been given a set of bronze armour and a scimitar' + (banked ? ' (some pieces were sent to your bank).' : '.'), '#000080');
     }
+    if (!S.gift2) {
+      S.gift2 = 1;
+      const give = (id, q) => { if (!invAdd(id, q)) { const b = S.bank.find(b => b.id === id); if (b) b.qty += q; else S.bank.push({ id, qty: q }); } };
+      for (const [id, q] of [['staff_of_air', 1], ['law_rune', 100], ['air_rune', 500], ['water_rune', 200], ['earth_rune', 200], ['fire_rune', 200], ['mind_rune', 300], ['chaos_rune', 100], ['death_rune', 50], ['tab_ardenvale', 10], ['tab_varrock', 10], ['tab_lumbridge', 10], ['tab_whitecliff', 10], ['tab_gnome', 10], ['tab_draynor', 10]]) give(id, q);
+      msg('You have been given a staff of air, runes and teleport tablets (any overflow went to your bank). Break a tablet to teleport!', '#000080');
+    }
     if (data) {
       if (data.v === 2 && World.walkable(data.x, data.z)) { S.player.x = data.x; S.player.z = data.z; }
-      S.player.run = !!data.run; S.player.energy = data.energy == null ? 100 : data.energy;
+      S.player.run = data.run !== false; S.player.energy = data.energy == null ? 100 : data.energy;
       if (S.quests.bridge === 2) World.setBridgeOpen(true);
       msg('Welcome back to ' + WORLD_NAME + '.');
     } else {
@@ -1764,6 +1936,6 @@ const Game = (() => {
     S, tick, msg, lvl, cur, combatLevel, totalLevel, invCount, freeSlots, itemOps, invAction, swapInv, unequip, bonuses, locOps,
     walkTo, interact, useItemOn, useItemOnItem, togglePrayer, openBank, bankDeposit, bankDepositAll, bankDepositEquip, bankWithdraw,
     shopBuy, shopSell, buyPrice, sellPrice, smith, openSmithing, load, logout, save, init, styleNames, weaponType, weaponKind,
-    homeTeleport, emote, resetActions, dropGround, fairyTeleport, offerItem, removeOffer, acceptTrade, declineTrade, tradeVal, castSpell, castOn, castOnItem, canCast, region, wildLevel, METALS, barOf,
+    homeTeleport, emote, resetActions, dropGround, fairyTeleport, rubLamp, offerItem, removeOffer, acceptTrade, declineTrade, tradeVal, requestItem, haggle, playerAd, acceptTradeRequest, mprice, castSpell, castOn, castOnItem, canCast, region, wildLevel, METALS, barOf,
   };
 })();

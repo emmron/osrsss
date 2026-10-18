@@ -6,13 +6,16 @@ const UI = (() => {
   let menu = null, tab = 3, crosses = [], chatInput = '', loginName = '', tooltip = null, drag = null, mapDrag = null;
   let bankScroll = 0, chatScroll = 0, guideScroll = 0, frameCv, parchCv, mmCv, mmBridge = null, hoverOpts = [];
   const worldMap = { open: false, zoom: 2.6, cx: 90, cz: 82 };
+  let mmZ = 4, prompt = null, tracker = false;
+  const ORB = { hp: { cx: 532, cy: 64 }, pr: { cx: 532, cy: 90 }, run: { cx: 532, cy: 116 } };
   const F12 = 'bold 12px Arial', F11 = '11px Arial', F11B = 'bold 11px Arial', F13 = 'bold 13px Arial';
   const VP = { x: 4, y: 4, w: 512, h: 334 };
+  const XPBOX = { x: VP.x + VP.w - 104, y: VP.y + 4, w: 100, h: 18 };
   const CHAT = { x: 7, y: 345, w: 506, h: 128 };
   const PANEL = { x: 553, y: 205, w: 190, h: 261 };
   const MM = { cx: 643, cy: 84, r: 72 };
   const COMPASS = { cx: 548, cy: 24, r: 17 };
-  const MAPBTN = { cx: 540, cy: 148, r: 13 };
+  const MAPBTN = { cx: 540, cy: 150, r: 12 };
   const TABS_TOP = { y: 168, h: 36, x: 522, w: 33 };
   const TABS_BOT = { y: 466, h: 36, x: 522, w: 33 };
   const TAB_NAMES = ['Combat Options', 'Stats', 'Quest List', 'Inventory', 'Worn Equipment', 'Prayer', 'Magic',
@@ -146,7 +149,7 @@ const UI = (() => {
     range: ['#d0d0d0', '#5a2a10', 'C'], altar: ['#ffffff', '#3a3a8a', '+'], quest: ['#6aa0ff', '#0a1a5a', '?'], fish: ['#80c0ff', '#103060', '~'], mine: ['#c0a080', '#3a2a1a', 'M'],
     rune: ['#ff6040', '#3a0a40', 'R'], archery: ['#e0c080', '#2a4a1a', 'B'], herb: ['#80e060', '#1a3a10', 'H'], tanner: ['#e0a060', '#4a2a10', 'T'], spin: ['#f0e0c0', '#4a3a2a', 'W'],
     stall: ['#ffd060', '#4a1a1a', '$'], farm: ['#a0e060', '#3a2a10', 'F'], agility: ['#60c0ff', '#1a2a4a', 'A'], slayer: ['#ff4040', '#200000', 'S'], rc: ['#ffffff', '#2a2a6a', 'O'],
-    essence: ['#d0d0ff', '#30305a', 'E'], scimitar: ['#e0e0e0', '#6a1a1a', 'Z'], boat: ['#ffffff', '#1a3a6a', 'P'], gem: ['#60e0ff', '#1a2a4a', 'G'], armour: ['#e0e0e0', '#3a3a5a', 'A'], guild: ['#e8c030', '#3a2a1a', 'M'], staff: ['#c0a0ff', '#2a1a4a', '/'], axe: ['#d0d0d0', '#4a2a1a', 'X'], ring: ['#a0ffb0', '#1a4a2a', '*'] };
+    essence: ['#d0d0ff', '#30305a', 'E'], scimitar: ['#e0e0e0', '#6a1a1a', 'Z'], boat: ['#ffffff', '#1a3a6a', 'P'], gem: ['#60e0ff', '#1a2a4a', 'G'], armour: ['#e0e0e0', '#3a3a5a', 'A'], guild: ['#e8c030', '#3a2a1a', 'M'], staff: ['#c0a0ff', '#2a1a4a', '/'], axe: ['#d0d0d0', '#4a2a1a', 'X'], ring: ['#a0ffb0', '#1a4a2a', '*'], board: ['#f0e0b0', '#5a3a1a', 'T'], spirit: ['#80ff80', '#1a3a1a', 'Y'] };
   function mapIcon(type, x, y, r) {
     const [fg, bg, ch] = ICONS[type] || ICONS.quest;
     r = r || 6;
@@ -253,6 +256,7 @@ const UI = (() => {
   function worldOptions(vx, vy) {
     const st = S(), opts = [], exam = [];
     const { ents, tile } = Render.pick(vx, vy);
+    Render.setHoverTile(tile);
     const sel = st.selected >= 0 && st.inv[st.selected];
     const spell = st.spellSel;
     const useSeg = sel ? [['Use ', C.white], [selName(), C.itemc], [' -> ', C.white]] : null;
@@ -305,7 +309,7 @@ const UI = (() => {
     if (iface === 'bank') return [1, 5, 10, 'All'].map(n => O(act('Deposit-' + n, nm, C.itemc), () => Game.bankDeposit(slot, n === 'All' ? 1e9 : n))).concat([O(act('Examine', nm, C.itemc), () => Game.msg(ITEMS[it.id].examine))]);
     if (iface === 'trade') {
       if (st.iface.stage !== 1) return [];
-      return [1, 5, 10, 'All'].map(n => O(act('Offer-' + n, nm, C.itemc), () => Game.offerItem(slot, n === 'All' ? 1e9 : n)))
+      return [1, 5, 10, 'All', 'X'].map(n => O(act('Offer-' + n, nm, C.itemc), () => n === 'X' ? askAmount('Enter amount:', v => Game.offerItem(slot, v)) : Game.offerItem(slot, n === 'All' ? 1e9 : n)))
         .concat([O(act('Value', nm, C.itemc), () => Game.msg(`${nm} is worth about ${fmt(ITEMS[it.id].value)} coins each.`)), O(act('Examine', nm, C.itemc), () => Game.msg(ITEMS[it.id].examine))]);
     }
     if (iface === 'shop') {
@@ -383,6 +387,7 @@ const UI = (() => {
     }
     if (tab === 2) {
       const i = Math.floor((ly - 32) / 16);
+      if (lx >= 20 && ly >= 176 && lx < 170 && ly < 198) return [O(act('View Beginner Tasks'), () => { st.iface = { type: 'tasks' }; })];
       if (ly >= 32 && i >= 0 && i < QUESTS.length) { const q = QUESTS[i]; return [O(act('Read Journal:', q.name, C.orange), () => { st.iface = { type: 'journal', quest: q.id }; })]; }
       return [];
     }
@@ -391,6 +396,7 @@ const UI = (() => {
       for (let b = 0; b < 4; b++) if (lx >= 12 + b * 42 && ly >= 40 && lx < 48 + b * 42 && ly < 64) return [O(act('Adjust Brightness'), () => { st.settings.brightness = b; Render.setBrightness(b); })];
       if (lx >= 12 && ly >= 100 && lx < 178 && ly < 124) return [O(act('Toggle Sound Effects'), () => { Sfx.enabled = !Sfx.enabled; })];
       if (lx >= 12 && ly >= 134 && lx < 178 && ly < 158) return [O(act('Toggle Music'), () => Sfx.setMusic(!Sfx.musicOn))];
+      for (const [i, r] of [[0, 1], [1, 2], [2, 5], [3, 10]]) if (lx >= 12 + i * 42 && ly >= 190 && lx < 48 + i * 42 && ly < 214) return [O(act('Set XP rate', r + 'x', C.yellow), () => { st.settings.xpRate = r; Game.msg(`XP rate set to ${r}x.`); })];
       return [];
     }
     if (tab === 12) {
@@ -415,7 +421,7 @@ const UI = (() => {
     if (Math.hypot(dx0, dy0) > MM.r) return null;
     const a = Render.cam.yaw, cs = Math.cos(a), sn = Math.sin(a);
     const dx = dx0 * cs + dy0 * sn, dz = -dx0 * sn + dy0 * cs;
-    const tx = Math.floor(p.rx + dx / 4), tz = Math.floor(p.rz + dz / 4);
+    const tx = Math.floor(p.rx + dx / mmZ), tz = Math.floor(p.rz + dz / mmZ);
     return [O(act('Walk here'), () => Game.walkTo(tx, tz))];
   }
   function chatOptions(x, y) {
@@ -424,6 +430,12 @@ const UI = (() => {
       const i = Math.floor((x - 5) / 128);
       const labels = ['Public chat', 'Private chat', 'Trade/compete', 'Report abuse'];
       if (i >= 0 && i < 4) return [O(act(labels[i]), () => { if (i === 3) Game.msg('Thank you, your abuse report has been received.'); })];
+      return [];
+    }
+    if (inR(x, y, CHAT) && !d && y < CHAT.y + 110) {
+      const k = Math.floor((CHAT.y + 108 - y) / 14), m = st.messages[st.messages.length - 1 - chatScroll - k];
+      if (m && m.tradeReq) return [O([['Accept trade from ', C.white], [m.tradeReq.name, C.white]], () => Game.acceptTradeRequest(m.tradeReq))];
+      if (m && m.from && m.from !== st.name) { const b = st.bots.find(b => b.name === m.from); if (b) return [O([['Trade with ', C.white], [b.name, C.white]], () => Game.acceptTradeRequest(b))]; }
       return [];
     }
     if (!inR(x, y, CHAT) || !d) return [];
@@ -472,16 +484,26 @@ const UI = (() => {
       for (let i = 0; i < log.length; i++) if (inR(x, y, { x: WIN.x + 300, y: WIN.y + 46 + i * 18, w: 176, h: 18 })) { const c = log[i]; return [O(act('Set code', c, C.yellow), () => { f.dials = c.split('').map((ch, j) => FAIRY_DIALS[j].indexOf(ch)); })]; }
       return [];
     }
+    if (f.type === 'board' || f.type === 'tasks' || f.type === 'xptracker') return [];
+    if (f.type === 'lamp') {
+      for (let i = 0; i < SKILLS.length; i++) { const [cx, cy] = gridCell(i, 7, WIN.x + 30, WIN.y + 50, 64, 56); if (inR(x, y, { x: cx, y: cy, w: 56, h: 48 })) { const k = SKILLS[i]; return [O(act('Choose', SKILL_NAMES[k], C.orange), () => Game.rubLamp(k))]; } }
+      return [];
+    }
     if (f.type === 'trade') {
-      if (inR(x, y, { x: WIN.x + 130, y: WIN.y + WIN.h - 34, w: 100, h: 24 })) return [O(act('Accept'), () => Game.acceptTrade())];
-      if (inR(x, y, { x: WIN.x + 254, y: WIN.y + WIN.h - 34, w: 100, h: 24 })) return [O(act('Decline'), () => Game.declineTrade())];
+      if (inR(x, y, { x: WIN.x + 90, y: WIN.y + WIN.h - 34, w: 96, h: 24 })) return [O(act('Accept'), () => Game.acceptTrade())];
+      if (inR(x, y, { x: WIN.x + 194, y: WIN.y + WIN.h - 34, w: 96, h: 24 })) return [O(act('Decline'), () => Game.declineTrade())];
+      if (f.stage === 1 && inR(x, y, { x: WIN.x + 298, y: WIN.y + WIN.h - 34, w: 96, h: 24 })) return [O(act('Haggle'), () => Game.haggle())];
+      if (f.stage === 1) for (let i = 0; i < (f.bot.sells || []).length; i++) {
+        const e = f.bot.sells[i], ry = WIN.y + 154 + i * 20;
+        if (inR(x, y, { x: WIN.x + 250, y: ry - 2, w: 228, h: 20 })) { const nm = ITEMS[e.id].name; return [1, 5, 10, 'All', 'X'].map(n => O(act('Request-' + n, nm, C.itemc), () => n === 'X' ? askAmount('How many?', v => Game.requestItem(e.id, v)) : Game.requestItem(e.id, n === 'All' ? e.stock : n))).concat([O(act('Clear', nm, C.itemc), () => Game.requestItem(e.id, 0))]); }
+      }
       if (f.stage === 1) for (let i = 0; i < f.my.length; i++) {
         const [cx, cy] = gridCell(i, 5, WIN.x + 16, WIN.y + 46, 42, 36);
-        if (x >= cx && y >= cy && x < cx + 36 && y < cy + 32) { const it = f.my[i], nm = ITEMS[it.id].name; return [1, 5, 10, 'All'].map(n => O(act('Remove-' + n, nm, C.itemc), () => Game.removeOffer(i, n === 'All' ? 1e9 : n))); }
+        if (x >= cx && y >= cy && x < cx + 36 && y < cy + 32) { const it = f.my[i], nm = ITEMS[it.id].name; return [1, 5, 10, 'All', 'X'].map(n => O(act('Remove-' + n, nm, C.itemc), () => n === 'X' ? askAmount('Enter amount:', v => Game.removeOffer(i, v)) : Game.removeOffer(i, n === 'All' ? 1e9 : n))); }
       }
       if (f.stage === 1) for (let i = 0; i < f.their.length; i++) {
         const [cx, cy] = gridCell(i, 5, WIN.x + 258, WIN.y + 46, 42, 36);
-        if (x >= cx && y >= cy && x < cx + 36 && y < cy + 32) { const it = f.their[i], nm = ITEMS[it.id].name; return [O(act('Examine', nm, C.itemc), () => Game.msg(ITEMS[it.id].examine)), O(act('Value', nm, C.itemc), () => Game.msg(`${nm} is worth about ${fmt(ITEMS[it.id].value)} coins each.`))]; }
+        if (x >= cx && y >= cy && x < cx + 36 && y < cy + 32) { const it = f.their[i], nm = ITEMS[it.id].name; return [O(act('Examine', nm, C.itemc), () => Game.msg(ITEMS[it.id].examine)), O(act('Value', nm, C.itemc), () => Game.msg(`${nm} is worth about ${fmt(Game.mprice(it.id))} coins each.`))]; }
       }
       return [];
     }
@@ -556,7 +578,7 @@ const UI = (() => {
     T('Key', L.x + 69, L.y + 16, C.orange, F13, 'center');
     const names = { bank: 'Bank', store: 'General store', furnace: 'Furnace', anvil: 'Anvil', range: 'Cooking range', altar: 'Altar', quest: 'Quest start', fish: 'Fishing spot', mine: 'Mining site',
       rune: 'Rune shop', archery: 'Archery shop', herb: 'Herbalist', tanner: 'Tannery', spin: 'Spinning wheel', stall: 'Market stall', farm: 'Farming patch', agility: 'Agility course', slayer: 'Slayer master',
-      rc: 'Runecrafting altar', essence: 'Rune essence', scimitar: 'Scimitar shop', boat: 'Ship / travel', gem: 'Gem store', armour: 'Armour shop', guild: 'Mining Guild', staff: 'Staff shop', axe: 'Axe shop', ring: 'Fairy ring' };
+      rc: 'Runecrafting altar', essence: 'Rune essence', scimitar: 'Scimitar shop', boat: 'Ship / travel', gem: 'Gem store', armour: 'Armour shop', guild: 'Mining Guild', staff: 'Staff shop', axe: 'Axe shop', ring: 'Fairy ring', board: 'Trading board', spirit: 'Spirit tree' };
     Object.keys(names).forEach((k, i) => { mapIcon(k, L.x + 14, L.y + 34 + i * 18); T(names[k], L.x + 26, L.y + 38 + i * 18, C.white, F11); });
     button(632, 462, 114, 26, 'Close map', false, F12);
     T('Drag to move, scroll to zoom', 310, 501, '#c0b090', F11, 'center');
@@ -573,9 +595,13 @@ const UI = (() => {
     tooltip = null;
     if (inR(x, y, VP)) {
       if (st.iface) { const r = ifaceOptions(x, y); if (r) return r; }
+      if (inR(x, y, XPBOX)) return [O(act('Open XP tracker'), () => { st.iface = { type: 'xptracker' }; })];
       if (st.player.dead) return [];
       return worldOptions(x - VP.x, y - VP.y);
     }
+    if (Math.hypot(x - ORB.run.cx, y - ORB.run.cy) <= 12) return [O(act(st.player.run ? 'Toggle Run (on)' : 'Toggle Run (off)'), () => { st.player.run = !st.player.run; })];
+    if (Math.hypot(x - ORB.hp.cx, y - ORB.hp.cy) <= 12) { tooltip = { x, y, lines: [`Hitpoints: ${Game.cur('hitpoints')} / ${Game.lvl('hitpoints')}`] }; return []; }
+    if (Math.hypot(x - ORB.pr.cx, y - ORB.pr.cy) <= 12) { tooltip = { x, y, lines: [`Prayer: ${Math.ceil(Game.cur('prayer'))} / ${Game.lvl('prayer')}`] }; return []; }
     const nearMap = Math.hypot(x - MM.cx, y - MM.cy) <= MM.r || Math.hypot(x - COMPASS.cx, y - COMPASS.cy) <= COMPASS.r || Math.hypot(x - MAPBTN.cx, y - MAPBTN.cy) <= MAPBTN.r;
     if (nearMap) { const mm = minimapOptions(x, y); if (mm) return mm; }
     const t = tabAt(x, y);
@@ -648,6 +674,7 @@ const UI = (() => {
     if (worldMap.open) { worldMap.zoom = Math.max(1.5, Math.min(8, worldMap.zoom * (e.deltaY > 0 ? 0.85 : 1.18))); return; }
     if (st.iface && st.iface.type === 'bank' && inR(x, y, WIN)) { bankScroll = Math.max(0, Math.min(Math.max(0, Math.ceil(st.bank.length / 8) - 6), bankScroll + Math.sign(e.deltaY))); return; }
     if (st.iface && st.iface.type === 'guide' && inR(x, y, WIN)) { guideScroll = Math.max(0, guideScroll + Math.sign(e.deltaY)); return; }
+    if (Math.hypot(x - MM.cx, y - MM.cy) <= MM.r) { mmZ = Math.max(2, Math.min(8, mmZ + (e.deltaY > 0 ? -0.5 : 0.5))); return; }
     if (inR(x, y, CHAT)) { chatScroll = Math.max(0, Math.min(st.messages.length - 7, chatScroll - Math.sign(e.deltaY))); return; }
     Render.cam.dist = Math.max(4.5, Math.min(16, Render.cam.dist + Math.sign(e.deltaY) * 0.8));
   }
@@ -659,6 +686,13 @@ const UI = (() => {
       if (e.key === 'Enter') doLogin();
       else if (e.key === 'Backspace') loginName = loginName.slice(0, -1);
       else if (e.key.length === 1 && /[a-zA-Z0-9 ]/.test(e.key) && loginName.length < 12) loginName += e.key;
+      e.preventDefault(); return;
+    }
+    if (prompt) {
+      if (e.key === 'Enter') { const v = prompt.text.toLowerCase(); let n = parseFloat(v); if (/k$/.test(v)) n *= 1000; if (/m$/.test(v)) n *= 1e6; const cb = prompt.cb; prompt = null; if (n > 0) cb(Math.floor(n)); }
+      else if (e.key === 'Escape') prompt = null;
+      else if (e.key === 'Backspace') prompt.text = prompt.text.slice(0, -1);
+      else if (/^[0-9kmKM]$/.test(e.key) && prompt.text.length < 10) prompt.text += e.key;
       e.preventDefault(); return;
     }
     if (e.key === 'Escape') { menu = null; st.selected = -1; st.spellSel = null; st.iface = null; worldMap.open = false; return; }
@@ -675,12 +709,14 @@ const UI = (() => {
         if (s.startsWith('::')) { command(s.slice(2)); return; }
         st.messages.push({ text: s, from: st.name, t: performance.now() });
         st.player.overhead = { text: s, until: performance.now() + 3000 };
+        Game.playerAd(s);
       }
       return;
     }
     if (e.key === 'Backspace') { chatInput = chatInput.slice(0, -1); e.preventDefault(); return; }
     if (e.key.length === 1 && chatInput.length < 80) { chatInput += e.key; e.preventDefault(); }
   }
+  function askAmount(label, cb) { prompt = { label, cb, text: '' }; }
   function command(c) {
     const [cmd] = c.split(' ');
     if (cmd === 'pos') Game.msg(`Position: ${S().player.x}, ${S().player.z}`);
@@ -805,6 +841,12 @@ const UI = (() => {
       ctx.drawImage(Icons.item('ancient_skull'), x + 6, y - 6, 24, 24);
       T(`Level: ${wl}`, x + 18, y + 30, C.yellow, F12, 'center');
     }
+    // XP counter + drops
+    const totalXp = SKILLS.reduce((a, k) => a + st.skills[k].xp, 0);
+    bevel(XPBOX.x, XPBOX.y, XPBOX.w, XPBOX.h, 'rgba(40,34,26,0.85)', '#6a604e', '#1e1a14');
+    T('XP: ' + fmt(totalXp), XPBOX.x + XPBOX.w / 2, XPBOX.y + 13, C.white, F11B, 'center');
+    st.xpDrops = st.xpDrops.filter(d => nowT - d.t < 1800);
+    st.xpDrops.slice(-6).forEach((d, i, arr) => { const age = (nowT - d.t) / 1800, y = XPBOX.y + 40 + (arr.length - 1 - i) * 18 - age * 20; ctx.globalAlpha = 1 - age * 0.6; ctx.drawImage(Icons.skill(d.skill), XPBOX.x + 30, y - 13, 16, 16); T('+' + fmt(d.amt), XPBOX.x + XPBOX.w - 4, y, C.white, F12, 'right'); ctx.globalAlpha = 1; });
     if (st.spellSel) T(`${st.spellSel.name} selected (right-click Cancel)`, VP.x + VP.w - 4, VP.y + 15, C.spell, F11, 'right');
     if (!menu && hoverOpts.length) {
       const segs = hoverOpts[0].segs.slice();
@@ -861,19 +903,56 @@ const UI = (() => {
       log.forEach((c, i) => { T(c, WIN.x + 304, WIN.y + 58 + i * 18, C.yellow, F11B); T(FAIRY[c].name, WIN.x + 340, WIN.y + 58 + i * 18, C.white, F11); });
       if (!log.length) T('Visit fairy rings to log their codes.', WIN.x + 388, WIN.y + 64, '#c0a070', F11, 'center');
       T('Tip: the code is shown when you look at a ring on the world map.', WIN.x + WIN.w / 2, WIN.y + WIN.h - 10, '#c0a070', F11, 'center');
+    } else if (f.type === 'board') {
+      winFrame('Trading Board');
+      const hubName = b => { let best = '', bd = 1e9; for (const [n, x, z] of World.labels) { const d = Math.hypot(x - b.x, z - b.z); if (d < bd) { bd = d; best = n; } } return best; };
+      T('Selling', WIN.x + 120, WIN.y + 40, C.orange, F12, 'center'); T('Buying', WIN.x + 362, WIN.y + 40, C.orange, F12, 'center');
+      let si = 0, bi = 0;
+      for (const b of st.bots) {
+        for (const e of b.sells || []) if (si < 11) { T(`${ITEMS[e.id].name} ${fmt(e.price)}ea`, WIN.x + 14, WIN.y + 58 + si * 14, C.yellow, F11); T(`${b.name} - ${hubName(b)}`, WIN.x + 236, WIN.y + 58 + si++ * 14, '#c0b090', F11, 'right'); }
+        for (const e of b.buys || []) if (bi < 11) { T(`${ITEMS[e.id].name} ${fmt(e.price)}ea`, WIN.x + 254, WIN.y + 58 + bi * 14, C.green, F11); T(`${b.name} - ${hubName(b)}`, WIN.x + 476, WIN.y + 58 + bi++ * 14, '#c0b090', F11, 'right'); }
+      }
+      ctx.fillStyle = '#5a4e3c'; ctx.fillRect(WIN.x + 8, WIN.y + 216, WIN.w - 16, 1);
+      T('Your recent trades:', WIN.x + 14, WIN.y + 232, C.orange, F11B);
+      (st.tradeLog || []).slice(0, 4).forEach((t, i) => T(`${t.who}: gave ${t.gave} - got ${t.got}`.slice(0, 80), WIN.x + 14, WIN.y + 248 + i * 13, t.profit >= 0 ? C.white : '#ffb0a0', F11));
+      if (!(st.tradeLog || []).length) T('Tip: say "selling logs 20ea" or "buying lobster 150ea" in chat - nearby players will reply!', WIN.x + 14, WIN.y + 250, '#c0a070', F11);
+    } else if (f.type === 'tasks') {
+      winFrame('Beginner Tasks');
+      const done = st.tasksDone || {}, prog = st.taskProg || {};
+      TASKS.forEach((t, i) => {
+        const x = WIN.x + 14 + Math.floor(i / 12) * 236, y = WIN.y + 44 + (i % 12) * 20, d = done[t.id];
+        T((d ? '\u2713 ' : '') + t.text, x, y, d ? C.green : C.white, F11);
+        T(d ? 'Done' : `${Math.min(prog[t.ev] || 0, t.n)}/${t.n}`, x + 226, y, d ? C.green : C.yellow, F11, 'right');
+      });
+      T(`Completed ${Object.keys(done).length} / ${TASKS.length}. Rewards: coins and XP lamps.`, WIN.x + WIN.w / 2, WIN.y + WIN.h - 10, '#c0a070', F11, 'center');
+    } else if (f.type === 'lamp') {
+      winFrame('Choose a skill to gain experience in');
+      SKILLS.forEach((k, i) => { const [cx, cy] = gridCell(i, 7, WIN.x + 30, WIN.y + 50, 64, 56); bevel(cx, cy, 56, 48, '#3a3226', '#5a4e3c', '#1e1a14'); ctx.drawImage(Icons.skill(k), cx + 18, cy + 6); T(SKILL_NAMES[k], cx + 28, cy + 42, C.orange, '10px Arial', 'center'); });
+    } else if (f.type === 'xptracker') {
+      winFrame('Experience Tracker');
+      const hrs = Math.max(1 / 3600, (performance.now() - st.sessionStart) / 3600000);
+      const rows = Object.entries(st.xpSession).sort((a, b) => b[1] - a[1]);
+      T('Skill', WIN.x + 50, WIN.y + 42, C.orange, F11B); T('Gained', WIN.x + 200, WIN.y + 42, C.orange, F11B, 'right'); T('XP / hour', WIN.x + 300, WIN.y + 42, C.orange, F11B, 'right'); T('To next level', WIN.x + 440, WIN.y + 42, C.orange, F11B, 'right');
+      rows.slice(0, 12).forEach(([k, v], i) => { const y = WIN.y + 62 + i * 18, L = Game.lvl(k); ctx.drawImage(Icons.skill(k), WIN.x + 22, y - 13, 16, 16); T(SKILL_NAMES[k], WIN.x + 50, y, C.white, F11); T(fmt(v), WIN.x + 200, y, C.yellow, F11, 'right'); T(fmt(v / hrs), WIN.x + 300, y, C.green, F11, 'right'); T(L < 99 ? fmt(XP_TABLE[L + 1] - st.skills[k].xp) : 'Max', WIN.x + 440, y, C.white, F11, 'right'); });
+      if (!rows.length) T('Gain some experience and it will be tracked here.', WIN.x + WIN.w / 2, WIN.y + 120, '#c0a070', F12, 'center');
+      T(`Session: ${Math.floor(hrs * 60)} min - XP rate ${st.settings.xpRate}x (change in Game Options)`, WIN.x + WIN.w / 2, WIN.y + WIN.h - 10, '#c0a070', F11, 'center');
     } else if (f.type === 'trade') {
       const b = f.bot;
       winFrame('Trading With: ' + b.name);
       if (f.stage === 1) {
         T('Your Offer', WIN.x + 120, WIN.y + 40, C.orange, F12, 'center');
+        T('For sale (right-click to request):', WIN.x + 258, WIN.y + 144, C.orange, F11B);
+        (b.sells || []).forEach((e, i) => { const ry = WIN.y + 154 + i * 20; ctx.drawImage(Icons.item(e.id, 100), WIN.x + 258, ry - 1, 18, 18); T(`${ITEMS[e.id].name}`, WIN.x + 280, ry + 12, C.white, F11); T(`${fmt(Math.round((e.dealPrice || e.price) * f.disc))}ea (${fmt(e.stock)})`, WIN.x + 470, ry + 12, C.yellow, F11, 'right'); if (f.req[e.id]) T('x' + fmt(f.req[e.id]), WIN.x + 405, ry + 12, C.green, F11B, 'right'); });
+        if (!(b.sells || []).length) T('Nothing for sale.', WIN.x + 270, WIN.y + 160, '#c0a070', F11);
+        const by = WIN.y + 164 + Math.max(1, (b.sells || []).length) * 20;
+        if ((b.buys || []).length) { T('Buying:', WIN.x + 258, by, C.orange, F11B); b.buys.forEach((e, i) => T(`${ITEMS[e.id].name} - ${fmt(Math.round((e.dealPrice || e.price) / f.disc))}ea`, WIN.x + 300, by + i * 14, C.white, F11)); }
+        if (f.owe > 0) T(`They want ${fmt(f.owe)} coins (${fmt(f.coinsIn)} offered)`, WIN.x + 120, WIN.y + WIN.h - 60, f.coinsIn >= f.owe ? C.green : C.yellow, F11B, 'center');
         T(b.name + '\'s Offer', WIN.x + 362, WIN.y + 40, C.orange, F12, 'center');
         ctx.fillStyle = '#5a4e3c'; ctx.fillRect(WIN.x + WIN.w / 2 - 1, WIN.y + 28, 2, WIN.h - 70);
         f.my.forEach((it, i) => { const [cx, cy] = gridCell(i, 5, WIN.x + 16, WIN.y + 46, 42, 36); drawItem(it.id, it.qty, cx + 2, cy); });
-        f.their.forEach((it, i) => { const [cx, cy] = gridCell(i, 5, WIN.x + 258, WIN.y + 46, 42, 36); drawItem(it.id, it.qty, cx + 2, cy); });
+        f.their.slice(0, 10).forEach((it, i) => { const [cx, cy] = gridCell(i, 5, WIN.x + 258, WIN.y + 46, 42, 36); drawItem(it.id, it.qty, cx + 2, cy); });
         T('Value: ' + fmt(Game.tradeVal(f.my)) + ' coins', WIN.x + 120, WIN.y + WIN.h - 46, '#c0a070', F11, 'center');
-        T('Value: ' + fmt(Game.tradeVal(f.their)) + ' coins', WIN.x + 362, WIN.y + WIN.h - 46, '#c0a070', F11, 'center');
-        if (b.persona === 'seller') T(`Selling ${ITEMS[b.good].name.toLowerCase()} at ${b.price}ea - offer coins`, WIN.x + 362, WIN.y + WIN.h - 60, C.yellow, F11, 'center');
-        if (b.persona === 'buyer') T(`Buying ${ITEMS[b.good].name.toLowerCase()} at ${b.price}ea`, WIN.x + 362, WIN.y + WIN.h - 60, C.yellow, F11, 'center');
+        T('Value: ' + fmt(Game.tradeVal(f.their)) + ' coins', WIN.x + 362, WIN.y + 124, '#c0a070', F11, 'center');
       } else {
         T('Are you sure you want to make this trade?', WIN.x + WIN.w / 2, WIN.y + 44, C.white, F12, 'center');
         T('You are about to give:', WIN.x + 120, WIN.y + 70, C.yellow, F12, 'center');
@@ -883,7 +962,8 @@ const UI = (() => {
       }
       const status = f.themAcc ? 'Other player has accepted.' : f.meAcc ? 'Waiting for other player...' : '';
       T(status, WIN.x + WIN.w / 2, WIN.y + WIN.h - 40, f.themAcc ? C.green : C.white, F11B, 'center');
-      button(WIN.x + 130, WIN.y + WIN.h - 34, 100, 24, 'Accept', f.meAcc); button(WIN.x + 254, WIN.y + WIN.h - 34, 100, 24, 'Decline');
+      ctx.fillStyle = '#5a4e3c'; ctx.fillRect(WIN.x + 246, WIN.y + 131, 232, 1);
+      button(WIN.x + 90, WIN.y + WIN.h - 34, 96, 24, 'Accept', f.meAcc); button(WIN.x + 194, WIN.y + WIN.h - 34, 96, 24, 'Decline'); if (f.stage === 1) button(WIN.x + 298, WIN.y + WIN.h - 34, 96, 24, `Haggle (${3 - f.haggles})`);
     } else if (f.type === 'bank') {
       winFrame('The Bank of Ardenvale');
       for (let i = 0; i < 48; i++) { const b = st.bank[i + bankScroll * 8]; if (!b) break; const [cx, cy] = gridCell(i, 8, WIN.x + 22, WIN.y + 32, 56, 40); drawItem(b.id, b.qty, cx + 4, cy + 1); }
@@ -950,15 +1030,16 @@ const UI = (() => {
     ctx.save();
     ctx.beginPath(); ctx.arc(MM.cx, MM.cy, MM.r, 0, Math.PI * 2); ctx.clip();
     ctx.fillStyle = '#000'; ctx.fillRect(MM.cx - MM.r, MM.cy - MM.r, MM.r * 2, MM.r * 2);
-    ctx.translate(MM.cx, MM.cy); ctx.rotate(a);
+    ctx.translate(MM.cx, MM.cy); ctx.rotate(a); ctx.scale(mmZ / 4, mmZ / 4);
     ctx.drawImage(mmCv, -p.rx * 4, -p.rz * 4);
+    if (st.flag) { const fx = (st.flag[0] + 0.5 - p.rx) * 4, fz = (st.flag[1] + 0.5 - p.rz) * 4; ctx.save(); ctx.translate(fx, fz); ctx.rotate(-a); const k = 4 / mmZ; ctx.scale(k, k); ctx.fillStyle = '#000'; ctx.fillRect(-1, -12, 2, 13); ctx.fillStyle = '#ff2020'; ctx.beginPath(); ctx.moveTo(1, -12); ctx.lineTo(9, -9); ctx.lineTo(1, -6); ctx.fill(); ctx.restore(); }
     for (const g of st.ground) { if (Math.abs(g.x - p.x) > 22 || Math.abs(g.z - p.z) > 22) continue; ctx.fillStyle = '#000'; ctx.fillRect((g.x + 0.5 - p.rx) * 4 - 1.5, (g.z + 0.5 - p.rz) * 4 - 1.5, 4, 4); ctx.fillStyle = '#ff0000'; ctx.fillRect((g.x + 0.5 - p.rx) * 4 - 1, (g.z + 0.5 - p.rz) * 4 - 1, 3, 3); }
     for (const b of st.bots) { if (Math.abs(b.x - p.x) > 22 || Math.abs(b.z - p.z) > 22) continue; const x = ((b.rx ?? b.x + 0.5) - p.rx) * 4, z = ((b.rz ?? b.z + 0.5) - p.rz) * 4; ctx.fillStyle = '#000'; ctx.fillRect(x - 1.5, z - 1.5, 4, 4); ctx.fillStyle = '#ffffff'; ctx.fillRect(x - 1, z - 1, 3, 3); }
     for (const n of st.npcs) { if (n.dead || Math.abs(n.x - p.x) > 22 || Math.abs(n.z - p.z) > 22) continue; const x = ((n.rx ?? n.x + 0.5) - p.rx) * 4, z = ((n.rz ?? n.z + 0.5) - p.rz) * 4; ctx.fillStyle = '#000'; ctx.fillRect(x - 1.5, z - 1.5, 4, 4); ctx.fillStyle = '#ffff00'; ctx.fillRect(x - 1, z - 1, 3, 3); }
     ctx.restore();
     ctx.save(); ctx.beginPath(); ctx.arc(MM.cx, MM.cy, MM.r, 0, Math.PI * 2); ctx.clip();
     const cs = Math.cos(a), sn = Math.sin(a);
-    for (const ic of World.mapIcons) { const dx = (ic.x - p.rx) * 4, dz = (ic.z - p.rz) * 4; if (Math.hypot(dx, dz) > MM.r + 6) continue; mapIcon(ic.icon, MM.cx + dx * cs - dz * sn, MM.cy + dx * sn + dz * cs); }
+    for (const ic of World.mapIcons) { const dx = (ic.x - p.rx) * mmZ, dz = (ic.z - p.rz) * mmZ; if (Math.hypot(dx, dz) > MM.r + 6) continue; mapIcon(ic.icon, MM.cx + dx * cs - dz * sn, MM.cy + dx * sn + dz * cs); }
     ctx.restore();
     ctx.fillStyle = '#fff'; ctx.fillRect(MM.cx - 1, MM.cy - 1, 3, 3);
     ctx.save(); ctx.beginPath(); ctx.arc(COMPASS.cx, COMPASS.cy, COMPASS.r, 0, Math.PI * 2); ctx.clip();
@@ -968,6 +1049,17 @@ const UI = (() => {
     ctx.fillStyle = '#c02020'; ctx.beginPath(); ctx.moveTo(0, -13); ctx.lineTo(4, 0); ctx.lineTo(-4, 0); ctx.fill();
     ctx.fillStyle = '#e8e8e8'; ctx.beginPath(); ctx.moveTo(0, 13); ctx.lineTo(4, 0); ctx.lineTo(-4, 0); ctx.fill();
     ctx.restore();
+    // orbs
+    const orb = (o, frac, col, txt, glyph) => {
+      ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(o.cx, o.cy, 12, 0, 7); ctx.fill();
+      ctx.fillStyle = '#2a241b'; ctx.beginPath(); ctx.arc(o.cx, o.cy, 11, 0, 7); ctx.fill();
+      ctx.save(); ctx.beginPath(); ctx.arc(o.cx, o.cy, 11, 0, 7); ctx.clip(); ctx.fillStyle = col; ctx.fillRect(o.cx - 11, o.cy + 11 - 22 * Math.max(0, Math.min(1, frac)), 22, 22); ctx.restore();
+      ctx.strokeStyle = '#8a7a5a'; ctx.beginPath(); ctx.arc(o.cx, o.cy, 11.5, 0, 7); ctx.stroke();
+      T(txt, o.cx, o.cy + 4, frac < 0.3 ? C.red : C.white, 'bold 10px Arial', 'center');
+    };
+    orb(ORB.hp, Game.cur('hitpoints') / Game.lvl('hitpoints'), '#a01818', String(Game.cur('hitpoints')));
+    orb(ORB.pr, Game.cur('prayer') / Game.lvl('prayer'), '#1a8a9a', String(Math.ceil(Game.cur('prayer'))));
+    orb(ORB.run, p.energy / 100, p.run ? '#c0a020' : '#6a6050', String(Math.floor(p.energy)));
     const g = MAPBTN;
     ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(g.cx, g.cy, g.r + 1, 0, 7); ctx.fill();
     ctx.fillStyle = '#2a5aa0'; ctx.beginPath(); ctx.arc(g.cx, g.cy, g.r - 1, 0, 7); ctx.fill();
@@ -1054,6 +1146,7 @@ const UI = (() => {
     } else if (tab === 2) {
       T('Quest Points: ' + st.questPoints, px + 95, py + 16, C.orange, F13, 'center');
       QUESTS.forEach((q, i) => { const s = st.quests[q.id]; T(q.name, px + 10, py + 44 + i * 16, s === 0 ? '#ff0000' : s === 1 ? '#ffff00' : '#00ff00', F12); });
+      button(px + 20, py + 176, 150, 22, `Beginner Tasks (${Object.keys(st.tasksDone || {}).length}/${TASKS.length})`);
       if (st.slayer && st.slayer.left > 0) { T('Slayer task:', px + 95, py + 214, C.orange, F12, 'center'); T(`${st.slayer.left} x ${NPCS[st.slayer.npc].name}`, px + 95, py + 230, C.yellow, F12, 'center'); }
     } else if (tab === 8 || tab === 9) {
       T(tab === 8 ? 'Friends List' : 'Ignore List', px + 95, py + 18, C.orange, F13, 'center');
@@ -1070,6 +1163,8 @@ const UI = (() => {
       ['Dark', 'Normal', 'Bright', 'V.Bright'].forEach((s, b) => button(px + 12 + b * 42, py + 40, 36, 24, s.slice(0, 4), st.settings.brightness === b, '9px Arial'));
       button(px + 12, py + 100, 166, 24, 'Sound effects: ' + (Sfx.enabled ? 'On' : 'Off'), Sfx.enabled);
       button(px + 12, py + 134, 166, 24, 'Music: ' + (Sfx.musicOn ? 'On' : 'Off'), Sfx.musicOn);
+      T('Experience rate', px + 95, py + 182, C.orange, F12, 'center');
+      [1, 2, 5, 10].forEach((r, i) => button(px + 12 + i * 42, py + 190, 36, 24, r + 'x', st.settings.xpRate === r));
     } else if (tab === 12) {
       T('Move speed:', px + 95, py + 20, C.orange, F12, 'center');
       button(px + 14, py + 30, 78, 26, 'Walk', !st.player.run); button(px + 98, py + 30, 78, 26, 'Run', st.player.run);
@@ -1111,12 +1206,13 @@ const UI = (() => {
       for (let i = st.messages.length - 1 - chatScroll; i >= 0 && y > y0; i--) {
         const m = st.messages[i];
         if (m.from) rich([[m.from + ': ', '#000'], [m.text, C.blue]], x0 + 6, y, F12, false);
-        else T(m.text, x0 + 6, y, m.color, F12, 'left', false);
+        else T(m.text + (m.tradeReq ? '  (click to trade)' : ''), x0 + 6, y, m.color, F12, 'left', false);
         y -= 14;
       }
     }
     const blink = Math.floor(performance.now() / 500) % 2 ? '*' : '';
-    rich([[st.name + ': ', '#000'], [chatInput + blink, C.blue]], x0 + 6, y0 + 124, F12, false);
+    if (prompt) rich([[prompt.label + ' ', '#000'], [prompt.text + blink, C.blue]], x0 + 6, y0 + 124, F12, false);
+    else rich([[st.name + ': ', '#000'], [chatInput + blink, C.blue]], x0 + 6, y0 + 124, F12, false);
     ctx.restore();
     [['Public chat', 'On'], ['Private chat', 'On'], ['Trade/compete', 'On'], ['Report abuse', '']].forEach(([l, s], i) => {
       const bx = 5 + i * 128, by = 481;
@@ -1155,6 +1251,7 @@ const UI = (() => {
     if (!st.loggedIn) { drawLogin(); return; }
     if (worldMap.open) { drawWorldMap(); return; }
     ctx.drawImage(frameCv, 0, 0);
+    Render.setHoverTile(null);
     hoverOpts = (mouse.x >= 0 && !menu) ? optionsAt(mouse.x, mouse.y) : [];
     drawViewportOverlays();
     drawMinimap();

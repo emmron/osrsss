@@ -115,14 +115,29 @@ const Render = (() => {
     renderer.setPixelRatio(2);
     renderer.setSize(VW, VH, false);
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x000000);
-    scene.fog = new THREE.Fog(0x000000, 18, 32);
-    camera = new THREE.PerspectiveCamera(46, VW / VH, 0.1, 60);
+    scene.background = new THREE.Color('#9cb8d8');
+    scene.fog = new THREE.Fog('#9cb8d8', 20, 42);
+    const sea = new THREE.Mesh(new THREE.PlaneGeometry(1400, 1400), new THREE.MeshLambertMaterial({ color: '#2c4a84' }));
+    sea.rotation.x = -Math.PI / 2; sea.position.set(120, -0.42, 132);
+    scene.add(sea);
+    camera = new THREE.PerspectiveCamera(46, VW / VH, 0.1, 80);
     ambient = new THREE.AmbientLight(0xffffff, 0.6);
     sun = new THREE.DirectionalLight(0xfff4e0, 0.8);
     sun.position.set(-40, 80, -25);
     scene.add(ambient, sun);
     return scene;
+  }
+  let hoverLine = null;
+  function setHoverTile(t) {
+    if (!hoverLine) {
+      hoverLine = new THREE.LineLoop(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: '#ffffa0', transparent: true, opacity: 0.55, depthTest: false }));
+      hoverLine.geometry.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(12), 3));
+      hoverLine.renderOrder = 999; scene.add(hoverLine);
+    }
+    if (!t) { hoverLine.visible = false; return; }
+    const [x, z] = t, a = hoverLine.geometry.attributes.position;
+    [[x, z], [x + 1, z], [x + 1, z + 1], [x, z + 1]].forEach(([px, pz], i) => a.setXYZ(i, px, World.heightAt(Math.min(px, World.W - 0.01), Math.min(pz, World.H - 0.01)) + 0.03, pz));
+    a.needsUpdate = true; hoverLine.geometry.computeBoundingSphere(); hoverLine.visible = true;
   }
   function setBrightness(b) { ambient.intensity = [0.42, 0.52, 0.6, 0.74][b]; }
 
@@ -216,7 +231,7 @@ const Render = (() => {
     let tx, tz, ty;
     if (p && S.loggedIn) { updateEntity(p, t, dt); tx = p.rx; tz = p.rz; ty = World.heightAt(tx, tz) + 0.9; }
     else { cam.yaw += dt * 0.08; tx = 90; tz = 81; ty = 1.5; cam.pitch = 0.5; cam.dist = 14; }
-    World.updateChunks(tx, tz, 30);
+    World.updateChunks(tx, tz, 40);
     for (const n of S.npcs) {
       const near = Math.abs(n.x - tx) < 34 && Math.abs(n.z - tz) < 34;
       n.model.visible = near && (!n.dead || (S.tick - n.deathAt) < 2);
@@ -274,7 +289,7 @@ const Render = (() => {
     if (v3.z > 1) return null;
     return [(v3.x + 1) / 2 * VW, (1 - v3.y) / 2 * VH];
   }
-  return { init, update, pick, project, groundMesh, projectile, cam, setBrightness, get camera() { return camera; } };
+  return { init, update, pick, project, groundMesh, projectile, cam, setBrightness, setHoverTile, get camera() { return camera; } };
 })();
 
 // ===== Boot =====

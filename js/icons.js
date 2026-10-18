@@ -78,11 +78,13 @@ const Icons = (() => {
         ctx.strokeStyle = shade(ic.c, 1.4); ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(0, 4, 14, Math.PI * 1.3, Math.PI * 1.7); ctx.stroke();
       });
     },
-    net(ctx) {
+    net(ctx, ic) {
+      if (ic && ic.big) { ctx.save(); ctx.translate(-2, -2); ctx.scale(1.12, 1.12); }
       ctx.strokeStyle = '#c8b48a'; ctx.lineWidth = 1.2;
       for (let i = 0; i < 6; i++) { ctx.beginPath(); ctx.moveTo(6 + i * 4, 6); ctx.lineTo(4 + i * 4.5, 27); ctx.stroke(); }
       for (let i = 0; i < 6; i++) { ctx.beginPath(); ctx.moveTo(5, 7 + i * 4); ctx.lineTo(28, 6 + i * 4); ctx.stroke(); }
       ctx.strokeStyle = '#6b4523'; ctx.lineWidth = 2; ctx.strokeRect(5, 6, 22, 21);
+      if (ic && ic.big) ctx.restore();
     },
     tinderbox(ctx) {
       rect(ctx, 7, 12, 18, 11, '#7a7a80'); rect(ctx, 7, 12, 18, 3, '#a8a8b0');
@@ -161,9 +163,9 @@ const Icons = (() => {
         rect(ctx, -2 * s, -9 * s, 1.2 * s, 18 * s, '#ffffff');
       });
     },
-    hide(ctx) {
-      poly(ctx, [5, 9, 11, 5, 16, 8, 22, 4, 28, 10, 25, 17, 28, 25, 20, 28, 15, 24, 9, 28, 4, 22, 7, 16], '#ddd5c5');
-      ell(ctx, 12, 14, 4, 3, '#2a2420'); ell(ctx, 21, 21, 4, 3, '#2a2420');
+    hide(ctx, ic) {
+      poly(ctx, [5, 9, 11, 5, 16, 8, 22, 4, 28, 10, 25, 17, 28, 25, 20, 28, 15, 24, 9, 28, 4, 22, 7, 16], ic.c || '#ddd5c5');
+      if (!ic.c) { ell(ctx, 12, 14, 4, 3, '#2a2420'); ell(ctx, 21, 21, 4, 3, '#2a2420'); }
     },
     feather(ctx, ic) {
       diag(ctx, () => {
@@ -246,6 +248,12 @@ const Icons = (() => {
     egg(ctx) { ell(ctx, 16, 17, 7, 9, '#f0e8d8'); ell(ctx, 14, 14, 2.5, 3, '#ffffff'); },
     bucket(ctx, ic) { poly(ctx, [8, 10, 24, 10, 22, 26, 10, 26], '#8a6238'); if (ic.milk) ell(ctx, 16, 11, 8, 2.5, '#f8f8f8'); else ell(ctx, 16, 11, 8, 2.5, '#3a2a1a'); rect(ctx, 8, 15, 16, 2, '#4a4a4a'); rect(ctx, 9, 22, 14, 2, '#4a4a4a'); ctx.strokeStyle = '#4a4a4a'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(16, 10, 8, Math.PI, 0); ctx.stroke(); },
     flourpot(ctx, ic) { ell(ctx, 16, 19, 9, 8, '#a0603a'); rect(ctx, 10, 9, 12, 4, '#8a5030'); if (ic.flour) ell(ctx, 16, 10, 6, 2, '#f8f8f0'); },
+    horn(ctx) { poly(ctx, [10, 26, 16, 4, 22, 26], '#f0ece0'); for (let i = 0; i < 4; i++) rect(ctx, 12 + i * 0.8, 22 - i * 5, 8 - i * 1.6, 1, '#c8c0a8'); },
+    dart(ctx, ic) { for (let i = 0; i < 3; i++) { ctx.save(); ctx.translate(12 + i * 4, 20 - i * 3); ctx.rotate(-0.8); rect(ctx, -6, -0.8, 9, 1.6, '#a07a48'); poly(ctx, [3, -2.5, 9, 0, 3, 2.5], ic.c); poly(ctx, [-8, 0, -5, -3, -4, 0], '#f0f0f0'); ctx.restore(); } },
+    cape(ctx, ic) { poly(ctx, [10, 5, 22, 5, 27, 27, 5, 27], ic.c); poly(ctx, [10, 5, 22, 5, 20, 9, 12, 9], Icons.shade(ic.c, 0.7)); rect(ctx, 14, 9, 2, 17, Icons.shade(ic.c, 1.25)); },
+    lamp(ctx) { ell(ctx, 15, 20, 9, 5, '#e8c030'); poly(ctx, [22, 18, 29, 13, 28, 16, 23, 21], '#e8c030'); ell(ctx, 12, 15, 3, 2, '#e8c030'); ell(ctx, 13, 19, 3, 1.5, '#fff080'); rect(ctx, 8, 24, 14, 2, '#a08020'); },
+    tab(ctx, ic) { poly(ctx, [7, 6, 25, 6, 25, 26, 7, 26], '#c8b896'); ctx.strokeStyle = '#6a5a3a'; ctx.strokeRect(7.5, 6.5, 17, 19); ell(ctx, 16, 16, 5, 5, ic.c); ell(ctx, 15, 15, 2, 2, '#ffffff'); },
+    gnomefood(ctx, ic) { ell(ctx, 16, 20, 11, 6, '#d8c8a0'); ell(ctx, 16, 17, 9, 5, ic.c); for (const [x, y] of [[12, 16], [18, 15], [20, 18]]) ell(ctx, x, y, 1.5, 1.5, Icons.shade(ic.c, 1.4)); },
     needle(ctx) { diag(ctx, () => { rect(ctx, -0.8, -12, 1.6, 24, '#c8c8d0'); rect(ctx, -0.4, -11, 0.8, 3, '#202020'); }); },
     thread(ctx) { ell(ctx, 16, 16, 9, 9, '#e8e0c8'); for (let i = -6; i <= 6; i += 3) rect(ctx, 8, 16 + i, 16, 1, '#b8b098'); rect(ctx, 6, 5, 20, 3, '#8a5a2a'); rect(ctx, 6, 24, 20, 3, '#8a5a2a'); },
     rake(ctx) { diag(ctx, () => { rect(ctx, -1, -6, 2, 20, WOOD); rect(ctx, -8, -8, 16, 2.5, '#808088'); for (let i = -7; i <= 7; i += 3.5) rect(ctx, i - 0.5, -13, 1.5, 6, '#808088'); }); },

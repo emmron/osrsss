@@ -137,11 +137,24 @@ defItem('mithril_arrowtips', { name: 'Mithril arrowtips', stackable: true, value
 defItem('steel_arrow', { name: 'Steel arrow', stackable: true, value: 12, icon: { t: 'arrows', c: '#9aa0a8' }, equip: EQ('ammo', { rstr: 16 }), examine: 'Arrows with steel heads.' });
 defItem('mithril_arrow', { name: 'Mithril arrow', stackable: true, value: 32, icon: { t: 'arrows', c: '#4a4aa0' }, equip: EQ('ammo', { rstr: 22 }), examine: 'Arrows with mithril heads.' });
 const ARROWS = [['bronze', 1, 1.3], ['iron', 15, 2.5], ['steel', 30, 5], ['mithril', 45, 7.5]];
+const DARTS = [['bronze', 10, 1.8, 1, '#9a6a3a'], ['iron', 22, 3.8, 3, '#6e6a66'], ['steel', 37, 7.5, 6, '#9aa0a8'], ['mithril', 52, 11.2, 9, '#4a4aa0']];
+for (const [m, lv, xp, rs, col] of DARTS) {
+  defItem(m + '_dart_tip', { name: m.charAt(0).toUpperCase() + m.slice(1) + ' dart tip', stackable: true, value: 2 * rs, icon: { t: 'tips', c: col }, examine: 'Fletch with feathers to make darts.' });
+  defItem(m + '_dart', { name: m.charAt(0).toUpperCase() + m.slice(1) + ' dart', stackable: true, value: 4 * rs, icon: { t: 'dart', c: col }, equip: EQ('weapon', { kind: 'thrown', rstr: rs, rng: 2 + rs, speed: 3, req: { ranged: Math.max(1, lv - 10) } }), examine: 'A deadly throwing dart.' });
+}
+// capes
+for (const [c, col] of [['red', '#a01a1a'], ['blue', '#1a3aa0'], ['green', '#1a7a1a'], ['yellow', '#c0a010'], ['purple', '#6a1a8a'], ['black', '#1a1a1a'], ['orange', '#d06010']]) defItem(c + '_cape', { name: c.charAt(0).toUpperCase() + c.slice(1) + ' cape', value: 20, icon: { t: 'cape', c: col }, equip: EQ('cape', { def: 1, color: col }), examine: 'A thick ' + c + ' cape.' });
+for (const [k, name, col, dest] of [['ardenvale', 'Ardenvale', '#a060ff', [90, 84]], ['varrock', 'Varrock', '#6080ff', [154, 217]], ['lumbridge', 'Lumbridge', '#40c0a0', [99, 235]], ['whitecliff', 'Whitecliff', '#f0f0f0', [77, 22]], ['gnome', 'Gnome Village', '#60c040', [56, 207]], ['draynor', 'Draynor', '#c0a040', [54, 238]]])
+  defItem('tab_' + k, { name: name + ' teleport', stackable: true, value: 40, icon: { t: 'tab', c: col }, tab: dest, examine: `A tablet containing a magic spell to teleport you to ${name}.` });
+for (const [id, name, heal, col] of [['worm_batta', 'Worm batta', 11, '#c0a060'], ['toad_crunchies', 'Toad crunchies', 8, '#8aa040'], ['chocolate_bomb', 'Chocolate bomb', 15, '#6a3a1a'], ['fruit_blast', 'Fruit blast', 9, '#f0a030']])
+  defItem(id, { name, value: heal * 10, icon: { t: 'gnomefood', c: col }, food: heal, examine: 'A gnome delicacy.' });
+defItem('xp_lamp', { name: 'Lamp', value: 0, icon: { t: 'lamp' }, examine: 'I wonder what happens if I rub it.' });
 
 // fishing / cooking / food
 defItem('fishing_rod', { name: 'Fishing rod', value: 5, icon: { t: 'rod' }, examine: 'Useful for catching sardine or herring.' });
 defItem('fly_fishing_rod', { name: 'Fly fishing rod', value: 5, icon: { t: 'rod', fly: true }, examine: 'Useful for fly fishing.' });
 defItem('fishing_bait', { name: 'Fishing bait', stackable: true, value: 3, icon: { t: 'bait' }, examine: 'For use with a fishing rod.' });
+defItem('big_net', { name: 'Big fishing net', value: 20, icon: { t: 'net', big: true }, examine: 'Useful for catching lots of fish.' });
 defItem('harpoon', { name: 'Harpoon', value: 5, icon: { t: 'harpoon' }, examine: 'Useful for catching really big fish.' });
 defItem('lobster_pot', { name: 'Lobster pot', value: 20, icon: { t: 'pot' }, examine: 'Useful for catching lobsters.' });
 const FISH = [
@@ -153,6 +166,11 @@ const FISH = [
   ['tuna', 'Tuna', '#7080a0', '#906050', 35, 80, 30, 100, 10, 63, 'fish'],
   ['lobster', 'Lobster', '#5a5a8a', '#d04020', 40, 90, 40, 120, 12, 74, 'lobster'],
   ['swordfish', 'Swordfish', '#8090c0', '#a07060', 50, 100, 45, 140, 14, 86, 'swordfish'],
+  ['pike', 'Pike', '#7a8a5a', '#8a6a40', 25, 60, 20, 80, 8, 64, 'fish'],
+  ['mackerel', 'Mackerel', '#6a8aa0', '#8a7050', 16, 20, 10, 60, 6, 45, 'fish'],
+  ['cod', 'Cod', '#8a9a90', '#a08060', 23, 45, 18, 75, 7, 52, 'fish'],
+  ['bass', 'Bass', '#5a6a80', '#9a6a50', 46, 100, 43, 130, 13, 80, 'fish'],
+  ['shark', 'Shark', '#6a7080', '#8a6050', 76, 110, 80, 210, 20, 99, 'swordfish'],
 ];
 for (const [id, name, cr, cc, fl, fx, cl, cx, heal, sb, ic] of FISH) {
   defItem('raw_' + id, { name: 'Raw ' + name.toLowerCase(), value: fl * 3, icon: { t: ic, c: cr }, examine: 'I should try cooking this.' });
@@ -182,6 +200,10 @@ defItem('bones', { name: 'Bones', value: 1, icon: { t: 'bones' }, bury: 4.5, exa
 defItem('big_bones', { name: 'Big bones', value: 1, icon: { t: 'bones', big: true }, bury: 15, examine: 'Ooh, those are big bones!' });
 defItem('jogre_bones', { name: 'Jogre bones', value: 1, icon: { t: 'bones', big: true }, bury: 15, examine: 'Bones of a jungle ogre.' });
 defItem('dragon_bones', { name: 'Dragon bones', value: 1500, icon: { t: 'bones', big: true, c: '#e8e0b0' }, bury: 72, examine: 'These would feed a dogfish for a month!' });
+defItem('unicorn_horn', { name: 'Unicorn horn', value: 60, icon: { t: 'horn' }, examine: 'This horn has restorative properties. Grind it with a pestle.' });
+defItem('bear_fur', { name: 'Bear fur', value: 20, icon: { t: 'hide', c: '#6a4a2a' }, examine: 'This would make warm clothing.' });
+defItem('wolf_bones', { name: 'Wolf bones', value: 1, icon: { t: 'bones' }, bury: 4.5, examine: 'Bones of a wolf.' });
+defItem('blue_dhide', { name: 'Blue dragonhide', value: 1500, icon: { t: 'hide', c: '#3050b0' }, examine: 'The scaly hide of a blue dragon.' });
 defItem('cowhide', { name: 'Cowhide', value: 1, icon: { t: 'hide' }, examine: 'I should take this to a tanner.' });
 defItem('leather', { name: 'Leather', value: 1, icon: { t: 'leather' }, examine: 'It\'s a piece of leather.' });
 defItem('feather', { name: 'Feather', stackable: true, value: 2, icon: { t: 'feather' }, examine: 'Used for fly-fishing and fletching.' });
@@ -300,14 +322,19 @@ defItem('wk_shield', { name: 'White kiteshield', value: 1700, icon: { t: 'kitesh
 defItem('amulet_magic', { name: 'Amulet of magic', value: 900, icon: { t: 'amulet', c: '#3050e0' }, equip: EQ('neck', { mag: 10 }), examine: 'A magical amulet.' });
 defItem('amulet_defence', { name: 'Amulet of defence', value: 1300, icon: { t: 'amulet', c: '#20b040' }, equip: EQ('neck', { def: 7 }), examine: 'A protective amulet.' });
 defItem('ring_recoil', { name: 'Ring of recoil', value: 900, icon: { t: 'ring', c: '#3050e0' }, equip: EQ('ring', { def: 3 }), examine: 'An enchanted ring.' });
+defItem('bk_helm', { name: 'Black full helm', value: 1000, icon: { t: 'helm', c: '#2a2a2e' }, equip: EQ('head', { def: 12, req: { defence: 10 } }), examine: 'A black full helm.' });
+defItem('bk_body', { name: 'Black platebody', value: 3800, icon: { t: 'platebody', c: '#2a2a2e' }, equip: EQ('body', { def: 40, req: { defence: 10 }, color: '#2a2a2e' }), examine: 'A black platebody.' });
+defItem('bk_legs', { name: 'Black platelegs', value: 1900, icon: { t: 'platelegs', c: '#2a2a2e' }, equip: EQ('legs', { def: 22, req: { defence: 10 }, color: '#2a2a2e' }), examine: 'Black platelegs.' });
+defItem('bk_shield', { name: 'Black kiteshield', value: 1600, icon: { t: 'kiteshield', c: '#2a2a2e' }, equip: EQ('shield', { def: 20, req: { defence: 10 } }), examine: 'A black kiteshield.' });
+defItem('goblin_mail', { name: 'Goblin mail', value: 15, icon: { t: 'leatherbody', c: '#8a6a3a' }, equip: EQ('body', { def: 6, color: '#7a6a3a' }), examine: 'An orange armour, made for goblins.' });
 const EQUIP_SLOTS = ['head', 'cape', 'neck', 'ammo', 'weapon', 'body', 'shield', 'legs', 'hands', 'feet', 'ring'];
 
 // ---- Smithing ----
 const SMITHING = [];
 (function () {
-  const pieces = [['dagger', 1, 0], ['sword', 1, 4], ['scimitar', 2, 5], ['arrowtips', 1, 5], ['full_helm', 2, 7], ['kiteshield', 3, 12], ['platelegs', 3, 16], ['platebody', 5, 18]];
+  const pieces = [['dagger', 1, 0], ['dart_tip', 1, 4], ['sword', 1, 4], ['scimitar', 2, 5], ['arrowtips', 1, 5], ['full_helm', 2, 7], ['kiteshield', 3, 12], ['platelegs', 3, 16], ['platebody', 5, 18]];
   for (const [metal, base, xp] of [['bronze', 1, 12.5], ['iron', 15, 25], ['steel', 30, 37.5], ['mithril', 50, 50], ['adamant', 70, 62.5], ['rune', 85, 75]]) {
-    for (const [p, bars, lv] of pieces) if (ITEMS[metal + '_' + p]) SMITHING.push({ metal, out: metal + '_' + p, bar: (metal === 'adamant' ? 'adamantite' : metal === 'rune' ? 'runite' : metal) + '_bar', bars, level: Math.min(99, base + lv), xp: xp * bars, qty: p === 'arrowtips' ? 15 : 1 });
+    for (const [p, bars, lv] of pieces) if (ITEMS[metal + '_' + p]) SMITHING.push({ metal, out: metal + '_' + p, bar: (metal === 'adamant' ? 'adamantite' : metal === 'rune' ? 'runite' : metal) + '_bar', bars, level: Math.min(99, base + lv), xp: xp * bars, qty: p === 'arrowtips' ? 15 : p === 'dart_tip' ? 10 : 1 });
   }
 })();
 const SMELTING = [
@@ -418,6 +445,10 @@ const FAIRY = {
   CKS: { name: 'Morrow Mire', x: 214, z: 226 },
   DJR: { name: 'Duskmoor Swamp', x: 142, z: 32 },
   DLS: { name: 'Barbarian Agility Course', x: 98, z: 186 },
+  DKP: { name: 'Draynor Village', x: 62, z: 232 },
+  CLS: { name: 'Tree Gnome Village', x: 66, z: 206 },
+  DIP: { name: 'Goblin Village', x: 124, z: 58 },
+  CJR: { name: 'Edgeville', x: 58, z: 160 },
 };
 
 // ---- Prayers ----
@@ -515,6 +546,41 @@ const NPCS = {
   giant_frog: { name: 'Giant frog', level: 13, hp: 18, att: 10, str: 10, def: 8, maxHit: 2, speed: 4, model: 'frog', wander: 4,
     drops: [{ id: 'big_bones', always: true }, { id: 'raw_bird_meat', chance: 0.2 }, { id: 'snape_grass', chance: 0.05 }], examine: 'It looks like it could swallow me whole!' },
   swamp_wizard: { name: 'Wizard Distentor', level: 0, model: 'mage', wander: 1, talk: 'esswizard', examine: 'A wizard who studies rune essence.' },
+  zombie: { name: 'Zombie', level: 13, hp: 20, att: 10, str: 10, def: 8, maxHit: 2, speed: 5, model: 'zombie', wander: 3, aggressive: true,
+    drops: [{ id: 'bones', always: true }, { id: 'coins', qty: [3, 30], chance: 0.5 }, { id: 'eye_of_newt', chance: 0.1 }, { id: 'grimy_guam', chance: 0.06 }, { id: 'body_rune', qty: [2, 6], chance: 0.08 }], examine: 'The walking dead.' },
+  giant_spider: { name: 'Giant spider', level: 2, hp: 5, att: 1, str: 2, def: 1, maxHit: 1, speed: 4, model: 'spider_small', wander: 4, drops: [], examine: 'I think this spider has been genetically modified.' },
+  unicorn: { name: 'Unicorn', level: 15, hp: 19, att: 12, str: 12, def: 10, maxHit: 2, speed: 4, model: 'unicorn', wander: 4,
+    drops: [{ id: 'bones', always: true }, { id: 'unicorn_horn', always: true }], examine: 'This is meant to be a mythical beast!' },
+  bear: { name: 'Grizzly bear', level: 21, hp: 27, att: 18, str: 18, def: 14, maxHit: 3, speed: 4, model: 'bear', wander: 4,
+    drops: [{ id: 'bones', always: true }, { id: 'bear_fur', always: true }, { id: 'raw_beef', chance: 0.4 }], examine: 'Eek! A bear!' },
+  wolf: { name: 'White wolf', level: 25, hp: 34, att: 22, str: 22, def: 18, maxHit: 4, speed: 4, model: 'wolf', wander: 5, aggressive: true,
+    drops: [{ id: 'wolf_bones', always: true }, { id: 'coins', qty: [5, 30], chance: 0.3 }], examine: 'A vicious mountain wolf.' },
+  hobgoblin: { name: 'Hobgoblin', level: 28, hp: 29, att: 22, str: 24, def: 20, maxHit: 4, speed: 4, model: 'hobgoblin', wander: 4, aggressive: true,
+    drops: [{ id: 'bones', always: true }, { id: 'coins', qty: [10, 60], chance: 0.6 }, { id: 'limpwurt_root', chance: 0.15 }, { id: 'iron_scimitar', chance: 0.04 }, { id: 'grimy_tarromin', chance: 0.06 }, { id: 'law_rune', qty: [1, 3], chance: 0.06 }], examine: 'An ugly smelly creature.' },
+  black_knight: { name: 'Black Knight', level: 33, hp: 42, att: 25, str: 25, def: 30, maxHit: 4, speed: 4, model: 'black_knight', wander: 3, aggressive: true,
+    drops: [{ id: 'bones', always: true }, { id: 'coins', qty: [10, 120], chance: 0.7 }, { id: 'steel_platelegs', chance: 0.04 }, { id: 'iron_full_helm', chance: 0.05 }, { id: 'mithril_bar', chance: 0.03 }, { id: 'death_rune', qty: [1, 3], chance: 0.06 }], examine: 'A sinister looking knight.' },
+  moss_giant: { name: 'Moss giant', level: 42, hp: 60, att: 30, str: 30, def: 30, maxHit: 5, speed: 6, model: 'moss_giant', wander: 4,
+    drops: [{ id: 'big_bones', always: true }, { id: 'coins', qty: [20, 200], chance: 0.6 }, { id: 'nature_rune', qty: [3, 12], chance: 0.15 }, { id: 'mithril_sword', chance: 0.03 }, { id: 'steel_kiteshield', chance: 0.03 }, { id: 'uncut_sapphire', chance: 0.05 }, { id: 'ranarr_seed', chance: 0.04 }], examine: 'His beard seems to have a life of its own.' },
+  ice_warrior: { name: 'Ice warrior', level: 57, hp: 59, att: 47, str: 47, def: 47, maxHit: 6, speed: 5, model: 'ice_warrior', wander: 4, aggressive: true,
+    drops: [{ id: 'coins', qty: [30, 200], chance: 0.7 }, { id: 'adamant_scimitar', chance: 0.02 }, { id: 'mithril_platebody', chance: 0.02 }, { id: 'law_rune', qty: [2, 6], chance: 0.1 }, { id: 'uncut_ruby', chance: 0.03 }], examine: 'A cold-hearted elemental warrior.' },
+  ice_giant: { name: 'Ice giant', level: 53, hp: 70, att: 40, str: 40, def: 40, maxHit: 6, speed: 6, model: 'ice_giant', wander: 4, aggressive: true,
+    drops: [{ id: 'big_bones', always: true }, { id: 'coins', qty: [40, 300], chance: 0.7 }, { id: 'adamant_platelegs', chance: 0.02 }, { id: 'mithril_kiteshield', chance: 0.03 }, { id: 'death_rune', qty: [2, 6], chance: 0.1 }], examine: 'He\'s got icicles in his beard.' },
+  greater_demon: { name: 'Greater demon', level: 92, hp: 87, att: 76, str: 78, def: 81, maxHit: 10, speed: 4, model: 'greater_demon', wander: 3, aggressive: true,
+    drops: [{ id: 'ashes', always: true }, { id: 'coins', qty: [200, 1500], always: true }, { id: 'rune_full_helm', chance: 0.03 }, { id: 'rune_scimitar', chance: 0.015 }, { id: 'adamant_platebody', chance: 0.03 }, { id: 'death_rune', qty: [5, 15], chance: 0.2 }, { id: 'runite_bar', chance: 0.02 }], examine: 'Big, red, and incredibly evil.' },
+  blue_dragon: { name: 'Blue dragon', level: 111, hp: 105, att: 95, str: 95, def: 95, maxHit: 12, speed: 4, model: 'blue_dragon', wander: 3, aggressive: true,
+    drops: [{ id: 'dragon_bones', always: true }, { id: 'blue_dhide', always: true }, { id: 'coins', qty: [300, 2000], chance: 0.8 }, { id: 'rune_platelegs', chance: 0.02 }, { id: 'uncut_diamond', chance: 0.05 }, { id: 'runite_ore', chance: 0.04 }, { id: 'law_rune', qty: [5, 20], chance: 0.15 }], examine: 'A big powerful dragon.' },
+  wise_old_man: { name: 'Wise Old Man', level: 0, model: 'elder', wander: 2, talk: 'generic', examine: 'A wise old man.', greet: 'Back in my day, adventurers had to walk everywhere. Now you lot have fairy rings and fancy teleports! Try the fishing on the Draynor shore - willows and shrimps galore.' },
+  draynor_shop: { name: 'Market seller', level: 0, model: 'farmer', wander: 1, talk: 'generic', shop: 'draynor', examine: 'He sells farming goods.', greet: 'Seeds! Fresh seeds! Plant them in any patch you like.' },
+  edge_shop: { name: 'Shopkeeper', level: 0, model: 'shopkeeper', wander: 1, talk: 'shop', shop: 'edge', examine: 'He supplies adventurers heading into the Wilderness.' },
+  guide: { name: 'Adventure Guide', level: 0, model: 'guide', wander: 0, talk: 'guide', examine: 'He helps new adventurers find their feet.' },
+  goblin_warrior: { name: 'Goblin', level: 11, hp: 16, att: 9, str: 9, def: 10, maxHit: 2, speed: 4, model: 'goblin_warrior', wander: 4, aggressive: true,
+    drops: [{ id: 'bones', always: true }, { id: 'coins', qty: [5, 40], chance: 0.6 }, { id: 'bronze_scimitar', chance: 0.04 }, { id: 'iron_full_helm', chance: 0.02 }, { id: 'goblin_mail', chance: 0.05 }, ...HERB_DROPS], examine: 'An armoured goblin warrior.' },
+  gnome: { name: 'Gnome', level: 3, hp: 5, att: 2, str: 2, def: 3, maxHit: 1, speed: 4, model: 'gnome', wander: 5, talk: 'gnome', pickpocket: { level: 75, xp: 198.5, coins: 300, stun: 1, extra: 'chocolate_bomb' },
+    drops: [{ id: 'bones', always: true }, { id: 'coins', qty: [2, 25], chance: 0.6 }, { id: 'toad_crunchies', chance: 0.1 }], examine: 'Like a mini man!' },
+  gnome_guard: { name: 'Gnome guard', level: 23, hp: 31, att: 18, str: 18, def: 20, maxHit: 3, speed: 4, model: 'gnome_guard', wander: 3,
+    drops: [{ id: 'bones', always: true }, { id: 'coins', qty: [10, 60], chance: 0.7 }, { id: 'worm_batta', chance: 0.1 }, { id: 'oak_shortbow', chance: 0.03 }], examine: 'A tree gnome guard.' },
+  gnome_king: { name: 'King Bolren', level: 0, model: 'gnome_king', wander: 1, talk: 'generic', examine: 'King of the tree gnomes.', greet: 'Welcome, human, to the Tree Gnome Village! Our Spirit Tree can carry you to its brothers across the land.' },
+  gnome_trader: { name: 'Aluft Gianne', level: 0, model: 'gnome', wander: 1, talk: 'generic', shop: 'gnomefood', examine: 'A gnome chef.', greet: 'Hungry, human? Try my worm battas - finest in the land!' },
   priest: { name: 'Father Aldous', level: 0, model: 'priest', wander: 1, talk: 'priest', examine: 'A kindly man of the cloth.' },
   harbourmaster: { name: 'Captain Rourke', level: 0, model: 'sailor', wander: 1, talk: 'harbour', examine: 'He runs the harbour of Port Sarrow.' },
   sailor: { name: 'Sailor', level: 0, model: 'sailor', wander: 2, talk: 'generic', examine: 'He smells of salt and fish.', greet: 'Fancy a spot of fishing off the pier? The shrimp and anchovies are biting.' },
@@ -535,16 +601,19 @@ const SHOPS = {
   scimitars: { name: 'Zeke\'s Superior Scimitars', stock: [['bronze_scimitar', 5], ['iron_scimitar', 3], ['steel_scimitar', 2], ['mithril_scimitar', 1], ['adamant_scimitar', 1]] },
   armour: { name: 'Whitecliff Armoury', stock: [['wk_helm', 1], ['wk_body', 1], ['wk_legs', 1], ['wk_shield', 1], ['steel_full_helm', 3], ['steel_platebody', 2], ['steel_platelegs', 2], ['steel_kiteshield', 2], ['mithril_full_helm', 1], ['mithril_platebody', 1], ['mithril_kiteshield', 1], ['steel_scimitar', 2]] },
   gems: { name: 'Whitecliff Gem Store', stock: [['chisel', 10], ['uncut_sapphire', 5], ['uncut_emerald', 3], ['sapphire', 2], ['gold_bar', 5]] },
-  fishing: { name: 'Gerrant\'s Fishy Business', stock: [['small_net', 5], ['fishing_rod', 5], ['fly_fishing_rod', 5], ['fishing_bait', 500], ['feather', 500], ['harpoon', 5], ['lobster_pot', 5], ['raw_shrimps', 0]] },
+  fishing: { name: 'Gerrant\'s Fishy Business', stock: [['small_net', 5], ['fishing_rod', 5], ['fly_fishing_rod', 5], ['fishing_bait', 500], ['feather', 500], ['harpoon', 5], ['lobster_pot', 5], ['big_net', 5], ['raw_shrimps', 0]] },
   jungle: { name: 'Saltreach Supplies', stock: [['banana', 20], ['bird_snare', 5], ['harpoon', 2], ['lobster_pot', 2], ['unicorn_horn_dust', 5], ['snape_grass', 3]] },
   aubury: { name: 'Aubury\'s Rune Shop', stock: [['air_rune', 1000], ['water_rune', 1000], ['earth_rune', 1000], ['fire_rune', 1000], ['mind_rune', 1000], ['body_rune', 500], ['chaos_rune', 100], ['death_rune', 50], ['air_talisman', 5], ['mind_talisman', 5], ['water_talisman', 5], ['earth_talisman', 5], ['fire_talisman', 5], ['body_talisman', 5], ['tiara', 10], ['medium_pouch', 1], ['rune_essence', 200]] },
   zaff: { name: 'Zaff\'s Superior Staffs', stock: [['staff', 5], ['staff_of_air', 2], ['staff_of_water', 2], ['staff_of_earth', 2], ['staff_of_fire', 2]] },
-  lowe: { name: 'Lowe\'s Archery Emporium', stock: [['shortbow', 4], ['longbow', 4], ['oak_shortbow', 3], ['oak_longbow', 3], ['willow_shortbow', 2], ['maple_shortbow', 1], ['bronze_arrow', 1000], ['iron_arrow', 500], ['steel_arrow', 200], ['mithril_arrow', 100]] },
+  lowe: { name: 'Lowe\'s Archery Emporium', stock: [['shortbow', 4], ['longbow', 4], ['oak_shortbow', 3], ['oak_longbow', 3], ['willow_shortbow', 2], ['maple_shortbow', 1], ['bronze_arrow', 1000], ['iron_arrow', 500], ['steel_arrow', 200], ['mithril_arrow', 100], ['bronze_dart', 500], ['iron_dart', 300], ['steel_dart', 100]] },
   horvik: { name: 'Horvik\'s Armour Shop', stock: [['bronze_platebody', 5], ['iron_platebody', 3], ['steel_platebody', 2], ['mithril_platebody', 1], ['iron_platelegs', 3], ['steel_platelegs', 2], ['mithril_platelegs', 1], ['leather_body', 5], ['leather_chaps', 5]] },
   bob: { name: 'Bob\'s Brilliant Axes', stock: [['bronze_axe', 10], ['iron_axe', 5], ['steel_axe', 3], ['mithril_axe', 2], ['adamant_axe', 1], ['bronze_pickaxe', 10], ['iron_pickaxe', 5], ['steel_pickaxe', 3], ['mithril_pickaxe', 1]] },
   lumby: { name: 'Lumbridge General Store', stock: [['bucket', 10], ['pot', 10], ['pot_flour', 5], ['tinderbox', 5], ['small_net', 5], ['hammer', 5], ['chisel', 5], ['knife', 5], ['shrimps', 10], ['rune_essence', 0]] },
+  draynor: { name: 'Draynor Seed Market', stock: [['potato_seed', 100], ['onion_seed', 50], ['cabbage_seed', 50], ['guam_seed', 10], ['marrentill_seed', 5], ['tarromin_seed', 5], ['rake', 3], ['seed_dibber', 3], ['spade', 3]] },
+  edge: { name: 'Edgeville General Store', stock: [['lobster', 20], ['swordfish', 10], ['prayer_potion3', 5], ['super_attack3', 2], ['iron_arrow', 300], ['law_rune', 10], ['tinderbox', 5], ['small_net', 3], ['harpoon', 2]] },
+  gnomefood: { name: 'Gnome Restaurant', stock: [['worm_batta', 10], ['toad_crunchies', 10], ['chocolate_bomb', 5], ['fruit_blast', 10], ['oak_shortbow', 2], ['oak_longbow', 2], ['bronze_arrow', 500]] },
   hunter: { name: 'Garrick\'s Hunting Supplies', stock: [['bird_snare', 20], ['box_trap', 10], ['knife', 5]] },
-  general: { name: 'Ardenvale General Store', stock: [['vial', 10], ['bird_snare', 10], ['bronze_axe', 5], ['bronze_pickaxe', 5], ['small_net', 5], ['tinderbox', 5], ['hammer', 5], ['knife', 5], ['shrimps', 10], ['bronze_dagger', 3], ['wooden_shield', 2], ['spade', 5]] },
+  general: { name: 'Ardenvale General Store', stock: [['red_cape', 5], ['blue_cape', 5], ['green_cape', 5], ['yellow_cape', 3], ['purple_cape', 3], ['black_cape', 3], ['fishing_rod', 5], ['fishing_bait', 200], ['feather', 200], ['vial', 10], ['bird_snare', 10], ['bronze_axe', 5], ['bronze_pickaxe', 5], ['small_net', 5], ['tinderbox', 5], ['hammer', 5], ['knife', 5], ['shrimps', 10], ['bronze_dagger', 3], ['wooden_shield', 2], ['spade', 5]] },
   smith: { name: 'Hilda\'s Forge', stock: [['iron_axe', 2], ['iron_pickaxe', 2], ['hammer', 10], ['bronze_bar', 10], ['iron_bar', 5], ['bronze_scimitar', 2], ['iron_scimitar', 1], ['bronze_platebody', 1]] },
   magic: { name: 'Orla\'s Rune Emporium', stock: [['air_talisman', 5], ['mind_talisman', 5], ['water_talisman', 3], ['earth_talisman', 3], ['fire_talisman', 3], ['body_talisman', 2], ['tiara', 5], ['air_rune', 500], ['mind_rune', 500], ['water_rune', 300], ['earth_rune', 300], ['fire_rune', 300], ['body_rune', 100], ['chaos_rune', 50], ['law_rune', 20], ['nature_rune', 20], ['staff', 5], ['staff_of_air', 1], ['wizard_hat', 5], ['wizard_robe', 5]] },
   archery: { name: 'Bryn\'s Archery Supplies', stock: [['shortbow', 4], ['longbow', 3], ['oak_shortbow', 2], ['bronze_arrow', 800], ['iron_arrow', 300], ['feather', 500], ['bow_string', 20], ['leather_cowl', 3]] },
@@ -557,11 +626,39 @@ const SHOPS = {
 const FISHING = {
   Net: { tool: 'small_net', anim: 'fish', fish: [['raw_shrimps', 1, 10], ['raw_anchovies', 15, 40]] },
   Bait: { tool: 'fishing_rod', bait: 'fishing_bait', anim: 'fish', fish: [['raw_sardine', 5, 20], ['raw_herring', 10, 30]] },
+  'River bait': { tool: 'fishing_rod', bait: 'fishing_bait', anim: 'fish', fish: [['raw_pike', 25, 60]] },
+  'Big net': { tool: 'big_net', anim: 'fish', fish: [['raw_mackerel', 16, 20], ['raw_cod', 23, 45], ['raw_bass', 46, 100]] },
   Lure: { tool: 'fly_fishing_rod', bait: 'feather', anim: 'fish', fish: [['raw_trout', 20, 50], ['raw_salmon', 30, 70]] },
   Cage: { tool: 'lobster_pot', anim: 'fish', fish: [['raw_lobster', 40, 90]] },
-  Harpoon: { tool: 'harpoon', anim: 'fish', fish: [['raw_tuna', 35, 80], ['raw_swordfish', 50, 100]] },
+  Harpoon: { tool: 'harpoon', anim: 'fish', fish: [['raw_tuna', 35, 80], ['raw_swordfish', 50, 100], ['raw_shark', 76, 110]] },
 };
-const SPOT_OPS = { coast: ['Net', 'Bait'], river: ['Lure', 'Bait'], sea: ['Cage', 'Harpoon'] };
+const SPOT_OPS = { coast: ['Net', 'Bait'], river: ['Lure', 'River bait'], sea: ['Cage', 'Harpoon', 'Big net'] };
+
+// Beginner tasks: event counters -> rewards (lamps give XP in a skill of your choice)
+const TASKS = [
+  { id: 'chop1', text: 'Chop some logs from a tree', ev: 'chop', n: 1, coins: 100 },
+  { id: 'fire1', text: 'Light a fire (tinderbox on logs)', ev: 'fire', n: 1, coins: 100 },
+  { id: 'fish1', text: 'Catch a fish', ev: 'fish', n: 1, coins: 100 },
+  { id: 'cook1', text: 'Cook something on a fire or range', ev: 'cook', n: 1, coins: 100 },
+  { id: 'mine1', text: 'Mine some copper or tin ore', ev: 'mine', n: 1, coins: 100 },
+  { id: 'smelt1', text: 'Smelt a bar at a furnace', ev: 'smelt', n: 1, coins: 150 },
+  { id: 'smith1', text: 'Smith something on an anvil', ev: 'smith', n: 1, coins: 150 },
+  { id: 'kill1', text: 'Defeat a monster in combat', ev: 'kill', n: 1, coins: 100 },
+  { id: 'bury1', text: 'Bury some bones', ev: 'bury', n: 1, coins: 100 },
+  { id: 'fletch1', text: 'Fletch something with a knife', ev: 'fletch', n: 1, coins: 150 },
+  { id: 'spell1', text: 'Cast a spell from your spellbook', ev: 'spell', n: 1, coins: 150 },
+  { id: 'agil1', text: 'Cross an agility obstacle', ev: 'agility', n: 1, coins: 150 },
+  { id: 'thieve1', text: 'Pickpocket someone or steal from a stall', ev: 'thieve', n: 1, coins: 150 },
+  { id: 'rc1', text: 'Craft some runes at an altar', ev: 'rc', n: 1, coins: 200, lamp: 1 },
+  { id: 'trade1', text: 'Trade with another player', ev: 'trade', n: 1, coins: 200, lamp: 1 },
+  { id: 'quest1', text: 'Complete a quest', ev: 'quest', n: 1, coins: 500, lamp: 1 },
+  { id: 'chop50', text: 'Chop 50 logs', ev: 'chop', n: 50, coins: 500, lamp: 1 },
+  { id: 'fish50', text: 'Catch 50 fish', ev: 'fish', n: 50, coins: 500, lamp: 1 },
+  { id: 'mine50', text: 'Mine 50 ores', ev: 'mine', n: 50, coins: 500, lamp: 1 },
+  { id: 'kill50', text: 'Defeat 50 monsters', ev: 'kill', n: 50, coins: 800, lamp: 1 },
+  { id: 'fletch100', text: 'Fletch 100 items', ev: 'fletch', n: 100, coins: 800, lamp: 1 },
+  { id: 'cook50', text: 'Cook 50 meals', ev: 'cook', n: 50, coins: 500, lamp: 1 },
+];
 
 const QUESTS = [
   { id: 'bridge', name: 'Bridge to the West', giver: 'Elder Brannoc in his house in Ardenvale' },
@@ -584,5 +681,5 @@ const HUNTER = {
 
 const SLAYER_TASKS = [
   { npc: 'chicken', min: 0, n: [10, 20] }, { npc: 'cow', min: 0, n: [10, 20] }, { npc: 'goblin', min: 0, n: [10, 20] },
-  { npc: 'rat', min: 0, n: [10, 20] }, { npc: 'bandit', min: 15, n: [10, 20] }, { npc: 'scorpion', min: 18, n: [10, 20] }, { npc: 'skeleton', min: 25, n: [10, 20] }, { npc: 'lesser_demon', min: 60, n: [5, 12] }, { npc: 'hill_giant', min: 25, n: [10, 25] }, { npc: 'ghast', min: 30, n: [10, 20] }, { npc: 'giant_frog', min: 10, n: [10, 25] }, { npc: 'dark_wizard', min: 20, n: [10, 20] }, { npc: 'crawling_hand', min: 3, n: [10, 25], slayer: 5 }, { npc: 'banshee', min: 15, n: [10, 25], slayer: 15 }, { npc: 'jogre', min: 45, n: [10, 20] }, { npc: 'jungle_spider', min: 40, n: [10, 20] }, { npc: 'green_dragon', min: 70, n: [5, 10] }, { npc: 'guard', min: 25, n: [8, 15] }, { npc: 'ogre', min: 40, n: [3, 6] },
+  { npc: 'rat', min: 0, n: [10, 20] }, { npc: 'bandit', min: 15, n: [10, 20] }, { npc: 'scorpion', min: 18, n: [10, 20] }, { npc: 'skeleton', min: 25, n: [10, 20] }, { npc: 'lesser_demon', min: 60, n: [5, 12] }, { npc: 'hill_giant', min: 25, n: [10, 25] }, { npc: 'goblin_warrior', min: 8, n: [10, 25] }, { npc: 'gnome_guard', min: 20, n: [10, 20] }, { npc: 'zombie', min: 10, n: [10, 25] }, { npc: 'bear', min: 18, n: [10, 20] }, { npc: 'wolf', min: 22, n: [10, 25] }, { npc: 'hobgoblin', min: 25, n: [10, 25] }, { npc: 'black_knight', min: 30, n: [10, 25] }, { npc: 'moss_giant', min: 38, n: [10, 25] }, { npc: 'ice_warrior', min: 50, n: [10, 20] }, { npc: 'ice_giant', min: 48, n: [10, 20] }, { npc: 'greater_demon', min: 80, n: [8, 15] }, { npc: 'blue_dragon', min: 90, n: [5, 12] }, { npc: 'ghast', min: 30, n: [10, 20] }, { npc: 'giant_frog', min: 10, n: [10, 25] }, { npc: 'dark_wizard', min: 20, n: [10, 20] }, { npc: 'crawling_hand', min: 3, n: [10, 25], slayer: 5 }, { npc: 'banshee', min: 15, n: [10, 25], slayer: 15 }, { npc: 'jogre', min: 45, n: [10, 20] }, { npc: 'jungle_spider', min: 40, n: [10, 20] }, { npc: 'green_dragon', min: 70, n: [5, 10] }, { npc: 'guard', min: 25, n: [8, 15] }, { npc: 'ogre', min: 40, n: [3, 6] },
 ];
