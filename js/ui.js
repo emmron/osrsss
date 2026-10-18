@@ -416,6 +416,8 @@ const UI = (() => {
   function minimapOptions(x, y) {
     const p = S().player;
     if (Math.hypot(x - COMPASS.cx, y - COMPASS.cy) <= COMPASS.r) return [O(act('Face North'), () => { Render.cam.yawTo = 0; })];
+    if (Math.hypot(x - ZOOMBTN.zin.cx, y - ZOOMBTN.zin.cy) <= ZOOMBTN.zin.r) return [O(act('Zoom in'), () => { mmZ = Math.min(8, mmZ + 1); })];
+    if (Math.hypot(x - ZOOMBTN.zout.cx, y - ZOOMBTN.zout.cy) <= ZOOMBTN.zout.r) return [O(act('Zoom out'), () => { mmZ = Math.max(2, mmZ - 1); })];
     if (Math.hypot(x - MAPBTN.cx, y - MAPBTN.cy) <= MAPBTN.r) return [O(act('World Map'), () => { worldMap.open = true; worldMap.cx = p.x; worldMap.cz = p.z; })];
     const dx0 = x - MM.cx, dy0 = y - MM.cy;
     if (Math.hypot(dx0, dy0) > MM.r) return null;
@@ -424,7 +426,6 @@ const UI = (() => {
     const tx = Math.floor(p.rx + dx / mmZ), tz = Math.floor(p.rz + dz / mmZ);
     let near = null, nd = 7;
     for (const ic of World.mapIcons) { const d = Math.hypot((ic.x - p.rx) * mmZ - dx, (ic.z - p.rz) * mmZ - dz); if (d < nd) { nd = d; near = ic; } }
-    if (near) tooltip = { x: x + 12, y: y + 4, lines: [ICON_NAMES[near.icon] || near.icon] };
     const opts = [O(act('Walk here'), () => Game.walkTo(tx, tz, { run: ctrlHeld }), { cross: 'yellow' })];
     if (mmZ !== 4) opts.push(O(act('Reset zoom'), () => { mmZ = 4; }));
     return opts;
@@ -642,7 +643,7 @@ const UI = (() => {
     if (Math.hypot(x - ORB.run.cx, y - ORB.run.cy) <= 12) tooltip = { x, y, lines: [`Run energy: ${Math.floor(st.player.energy)}%`, 'Ctrl-click a tile to run there once'] };
     if (Math.hypot(x - ORB.hp.cx, y - ORB.hp.cy) <= 12) { tooltip = { x, y, lines: [`Hitpoints: ${Game.cur('hitpoints')} / ${Game.lvl('hitpoints')}`] }; return []; }
     if (Math.hypot(x - ORB.pr.cx, y - ORB.pr.cy) <= 12) { tooltip = { x, y, lines: [`Prayer: ${Math.ceil(Game.cur('prayer'))} / ${Game.lvl('prayer')}`] }; return []; }
-    const nearMap = Math.hypot(x - MM.cx, y - MM.cy) <= MM.r || Math.hypot(x - COMPASS.cx, y - COMPASS.cy) <= COMPASS.r || Math.hypot(x - MAPBTN.cx, y - MAPBTN.cy) <= MAPBTN.r;
+    const nearMap = Math.hypot(x - MM.cx, y - MM.cy) <= MM.r || Math.hypot(x - COMPASS.cx, y - COMPASS.cy) <= COMPASS.r || Math.hypot(x - MAPBTN.cx, y - MAPBTN.cy) <= MAPBTN.r || Math.hypot(x - ZOOMBTN.zin.cx, y - ZOOMBTN.zin.cy) <= 9 || Math.hypot(x - ZOOMBTN.zout.cx, y - ZOOMBTN.zout.cy) <= 9;
     if (nearMap) { const mm = minimapOptions(x, y); if (mm) return mm; }
     const t = tabAt(x, y);
     if (t >= 0) return [O(act(TAB_NAMES[t]), () => { tab = t; })];
@@ -1069,56 +1070,102 @@ const UI = (() => {
     }
   }
 
+  const ZOOMBTN = { zin: { cx: 742, cy: 138, r: 8 }, zout: { cx: 742, cy: 158, r: 8 } };
   function drawMinimap() {
     const st = S(), p = st.player;
     if (!mmCv || mmBridge !== World.bridgeOpen) buildMinimap();
-    const a = Render.cam.yaw;
+    const a = Render.cam.yaw, cs = Math.cos(a), sn = Math.sin(a);
+    const proj = (wx, wz) => { const dx = (wx - p.rx) * mmZ, dz = (wz - p.rz) * mmZ; return [MM.cx + dx * cs - dz * sn, MM.cy + dx * sn + dz * cs]; };
+    const range = MM.r / mmZ + 1;
+    const inRange = (x, z) => Math.abs(x - p.x) <= range && Math.abs(z - p.z) <= range;
+    // --- map image ---
     ctx.save();
     ctx.beginPath(); ctx.arc(MM.cx, MM.cy, MM.r, 0, Math.PI * 2); ctx.clip();
     ctx.fillStyle = '#000'; ctx.fillRect(MM.cx - MM.r, MM.cy - MM.r, MM.r * 2, MM.r * 2);
+    ctx.save();
     ctx.translate(MM.cx, MM.cy); ctx.rotate(a); ctx.scale(mmZ / 4, mmZ / 4);
     ctx.drawImage(mmCv, -p.rx * 4, -p.rz * 4);
     if (p.x >= 162 && p.z >= 134 && p.z <= 185) { ctx.fillStyle = '#000'; ctx.beginPath(); ctx.rect(-2000, -2000, 4000, 4000); ctx.rect((162 - p.rx) * 4, (134 - p.rz) * 4, 78 * 4, 51 * 4); ctx.fill('evenodd'); }
-    if (st.flag) { const fx = (st.flag[0] + 0.5 - p.rx) * 4, fz = (st.flag[1] + 0.5 - p.rz) * 4; ctx.save(); ctx.translate(fx, fz); ctx.rotate(-a); const k = 4 / mmZ; ctx.scale(k, k); ctx.fillStyle = '#000'; ctx.fillRect(-1, -12, 2, 13); ctx.fillStyle = '#ff2020'; ctx.beginPath(); ctx.moveTo(1, -12); ctx.lineTo(9, -9); ctx.lineTo(1, -6); ctx.fill(); ctx.restore(); }
-    { const dx0 = mouse.x - MM.cx, dy0 = mouse.y - MM.cy;
-      if (!menu && Math.hypot(dx0, dy0) <= MM.r) { const cs0 = Math.cos(a), sn0 = Math.sin(a); const ddx = dx0 * cs0 + dy0 * sn0, ddz = -dx0 * sn0 + dy0 * cs0; const hx = Math.floor(p.rx + ddx / mmZ), hz = Math.floor(p.rz + ddz / mmZ);
-        ctx.strokeStyle = World.walkable(hx, hz) ? 'rgba(255,255,255,0.9)' : 'rgba(255,80,80,0.9)'; ctx.lineWidth = 4 / mmZ; ctx.strokeRect((hx - p.rx) * 4, (hz - p.rz) * 4, 4, 4); ctx.lineWidth = 1; } }
-    if (st.flag && p.path.length) { ctx.fillStyle = 'rgba(255,255,255,0.75)'; for (let i = 0; i < p.path.length; i += 2) { const [tx, tz] = p.path[i]; ctx.fillRect((tx + 0.5 - p.rx) * 4 - 0.75, (tz + 0.5 - p.rz) * 4 - 0.75, 1.5, 1.5); } }
-    for (const g of st.ground) { if (Math.abs(g.x - p.x) > 22 || Math.abs(g.z - p.z) > 22) continue; ctx.fillStyle = '#000'; ctx.fillRect((g.x + 0.5 - p.rx) * 4 - 1.5, (g.z + 0.5 - p.rz) * 4 - 1.5, 4, 4); ctx.fillStyle = '#ff0000'; ctx.fillRect((g.x + 0.5 - p.rx) * 4 - 1, (g.z + 0.5 - p.rz) * 4 - 1, 3, 3); }
-    for (const b of st.bots) { if (Math.abs(b.x - p.x) > 22 || Math.abs(b.z - p.z) > 22) continue; const x = ((b.rx ?? b.x + 0.5) - p.rx) * 4, z = ((b.rz ?? b.z + 0.5) - p.rz) * 4; ctx.fillStyle = '#000'; ctx.fillRect(x - 1.5, z - 1.5, 4, 4); ctx.fillStyle = '#ffffff'; ctx.fillRect(x - 1, z - 1, 3, 3); }
-    for (const n of st.npcs) { if (n.dead || Math.abs(n.x - p.x) > 22 || Math.abs(n.z - p.z) > 22) continue; const x = ((n.rx ?? n.x + 0.5) - p.rx) * 4, z = ((n.rz ?? n.z + 0.5) - p.rz) * 4; ctx.fillStyle = '#000'; ctx.fillRect(x - 1.5, z - 1.5, 4, 4); ctx.fillStyle = '#ffff00'; ctx.fillRect(x - 1, z - 1, 3, 3); }
-    { const f = p.face || 0, s = 4 / mmZ, ux = Math.sin(f), uz = Math.cos(f); ctx.save(); ctx.scale(s, s); ctx.fillStyle = '#000'; ctx.beginPath(); ctx.moveTo(ux * 6, uz * 6); ctx.lineTo(-ux * 3 + uz * 4, -uz * 3 - ux * 4); ctx.lineTo(-ux * 3 - uz * 4, -uz * 3 + ux * 4); ctx.closePath(); ctx.fill(); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.moveTo(ux * 4.5, uz * 4.5); ctx.lineTo(-ux * 2 + uz * 2.8, -uz * 2 - ux * 2.8); ctx.lineTo(-ux * 2 - uz * 2.8, -uz * 2 + ux * 2.8); ctx.closePath(); ctx.fill(); ctx.restore(); }
+    // hovered tile preview
+    const hover = !menu && Math.hypot(mouse.x - MM.cx, mouse.y - MM.cy) <= MM.r;
+    if (hover) { const dx0 = mouse.x - MM.cx, dy0 = mouse.y - MM.cy; const hx = Math.floor(p.rx + (dx0 * cs + dy0 * sn) / mmZ), hz = Math.floor(p.rz + (-dx0 * sn + dy0 * cs) / mmZ);
+      ctx.strokeStyle = World.walkable(hx, hz) ? 'rgba(255,255,255,0.9)' : 'rgba(255,80,80,0.9)'; ctx.lineWidth = 4 / mmZ; ctx.strokeRect((hx - p.rx) * 4, (hz - p.rz) * 4, 4, 4); ctx.lineWidth = 1; }
     ctx.restore();
-    ctx.save(); ctx.beginPath(); ctx.arc(MM.cx, MM.cy, MM.r, 0, Math.PI * 2); ctx.clip();
-    const cs = Math.cos(a), sn = Math.sin(a);
-    for (const ic of World.mapIcons) { const dx = (ic.x - p.rx) * mmZ, dz = (ic.z - p.rz) * mmZ; if (Math.hypot(dx, dz) > MM.r + 6) continue; mapIcon(ic.icon, MM.cx + dx * cs - dz * sn, MM.cy + dx * sn + dz * cs); }
+    // --- route ---
+    if (st.flag && p.path.length) { ctx.fillStyle = 'rgba(255,255,255,0.8)'; for (let i = 1; i < p.path.length; i += 2) { const [sx, sy] = proj(p.path[i][0] + 0.5, p.path[i][1] + 0.5); ctx.fillRect(sx - 1, sy - 1, 2, 2); } }
+    // --- dots (fixed size, like the real client) ---
+    const dots = [];
+    const dot = (wx, wz, col, label) => { const [sx, sy] = proj(wx, wz); if (Math.hypot(sx - MM.cx, sy - MM.cy) > MM.r) return; ctx.fillStyle = '#000'; ctx.fillRect(sx - 2, sy - 2, 4, 4); ctx.fillStyle = col; ctx.fillRect(sx - 1.5, sy - 1.5, 3, 3); dots.push([sx, sy, label]); };
+    for (const g of st.ground) if (inRange(g.x, g.z)) dot(g.x + 0.5, g.z + 0.5, '#ff2020', ITEMS[g.id].name + (g.qty > 1 ? ' (' + g.qty + ')' : ''));
+    for (const n of st.npcs) if (!n.dead && inRange(n.x, n.z)) dot(n.rx ?? n.x + 0.5, n.rz ?? n.z + 0.5, n.def.pker ? '#ffffff' : '#ffff00', n.def.name + (n.def.level ? ' (level-' + n.def.level + ')' : ''));
+    for (const b of st.bots) if (inRange(b.x, b.z)) dot(b.rx ?? b.x + 0.5, b.rz ?? b.z + 0.5, '#ffffff', b.name);
+    // --- destination flag ---
+    if (st.flag) { const [fx, fy] = proj(st.flag[0] + 0.5, st.flag[1] + 0.5); ctx.fillStyle = '#000'; ctx.fillRect(fx - 1, fy - 12, 2, 13); ctx.fillStyle = '#ff2020'; ctx.beginPath(); ctx.moveTo(fx + 1, fy - 12); ctx.lineTo(fx + 9, fy - 9); ctx.lineTo(fx + 1, fy - 6); ctx.fill(); }
+    // --- you: facing arrow ---
+    { const f = (p.face || 0), ux = Math.sin(f), uz = Math.cos(f); const rx = ux * cs - uz * sn, rz = ux * sn + uz * cs; const tri = (k) => { ctx.beginPath(); ctx.moveTo(MM.cx + rx * 6 * k, MM.cy + rz * 6 * k); ctx.lineTo(MM.cx - rx * 3 * k + rz * 4 * k, MM.cy - rz * 3 * k - rx * 4 * k); ctx.lineTo(MM.cx - rx * 3 * k - rz * 4 * k, MM.cy - rz * 3 * k + rx * 4 * k); ctx.closePath(); ctx.fill(); };
+      ctx.fillStyle = '#000'; tri(1); ctx.fillStyle = '#fff'; tri(0.7); }
+    // --- map icons ---
+    let iconHover = null;
+    for (const ic of World.mapIcons) { const [x, y] = proj(ic.x, ic.z); if (Math.hypot(x - MM.cx, y - MM.cy) > MM.r + 6) continue; mapIcon(ic.icon, x, y); if (hover && Math.hypot(mouse.x - x, mouse.y - y) < 6) iconHover = ic; }
+    // --- edge shading ---
+    const vg = ctx.createRadialGradient(MM.cx, MM.cy, MM.r * 0.72, MM.cx, MM.cy, MM.r);
+    vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.45)');
+    ctx.fillStyle = vg; ctx.fillRect(MM.cx - MM.r, MM.cy - MM.r, MM.r * 2, MM.r * 2);
     ctx.restore();
-    ctx.strokeStyle = '#3a3226'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(MM.cx, MM.cy, MM.r + 0.5, 0, 7); ctx.stroke(); ctx.lineWidth = 1;
-    if (mmZ !== 4) T('x' + (mmZ / 4).toFixed(1).replace('.0', ''), MM.cx + MM.r - 18, MM.cy + MM.r - 4, '#ffff00', F11);
-    ctx.save(); ctx.beginPath(); ctx.arc(COMPASS.cx, COMPASS.cy, COMPASS.r, 0, Math.PI * 2); ctx.clip();
-    ctx.fillStyle = '#5a5040'; ctx.fillRect(COMPASS.cx - 20, COMPASS.cy - 20, 40, 40);
-    ctx.fillStyle = '#7a6e58'; ctx.beginPath(); ctx.arc(COMPASS.cx, COMPASS.cy, COMPASS.r - 3, 0, Math.PI * 2); ctx.fill();
-    ctx.translate(COMPASS.cx, COMPASS.cy); ctx.rotate(a);
-    ctx.fillStyle = '#c02020'; ctx.beginPath(); ctx.moveTo(0, -13); ctx.lineTo(4, 0); ctx.lineTo(-4, 0); ctx.fill();
-    ctx.fillStyle = '#e8e8e8'; ctx.beginPath(); ctx.moveTo(0, 13); ctx.lineTo(4, 0); ctx.lineTo(-4, 0); ctx.fill();
-    ctx.restore();
-    { const nx = COMPASS.cx + Math.sin(a) * (COMPASS.r - 5), ny = COMPASS.cy - Math.cos(a) * (COMPASS.r - 5); T('N', nx, ny + 4, '#ffff00', 'bold 10px Arial', 'center'); }
-    // orbs
-    const orb = (o, frac, col, txt, glyph) => {
-      ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(o.cx, o.cy, 12, 0, 7); ctx.fill();
-      ctx.fillStyle = '#2a241b'; ctx.beginPath(); ctx.arc(o.cx, o.cy, 11, 0, 7); ctx.fill();
-      ctx.save(); ctx.beginPath(); ctx.arc(o.cx, o.cy, 11, 0, 7); ctx.clip(); ctx.fillStyle = col; ctx.fillRect(o.cx - 11, o.cy + 11 - 22 * Math.max(0, Math.min(1, frac)), 22, 22); ctx.restore();
-      ctx.strokeStyle = '#8a7a5a'; ctx.beginPath(); ctx.arc(o.cx, o.cy, 11.5, 0, 7); ctx.stroke();
+    // hover tooltip: dots first, then icons
+    if (hover && !tooltip) {
+      let best = null, bd = 6; for (const d of dots) { const dd = Math.hypot(mouse.x - d[0], mouse.y - d[1]); if (dd < bd) { bd = dd; best = d; } }
+      if (best) tooltip = { x: mouse.x + 12, y: mouse.y + 4, lines: [best[2]] };
+      else if (iconHover) tooltip = { x: mouse.x + 12, y: mouse.y + 4, lines: [ICON_NAMES[iconHover.icon] || iconHover.icon] };
+    }
+    // --- stone frame ---
+    ctx.lineWidth = 6; ctx.strokeStyle = '#4a4034'; ctx.beginPath(); ctx.arc(MM.cx, MM.cy, MM.r + 3, 0, 7); ctx.stroke();
+    ctx.lineWidth = 2; ctx.strokeStyle = '#7a6e58'; ctx.beginPath(); ctx.arc(MM.cx, MM.cy, MM.r + 5, Math.PI * 0.75, Math.PI * 1.75); ctx.stroke();
+    ctx.strokeStyle = '#1e1a14'; ctx.beginPath(); ctx.arc(MM.cx, MM.cy, MM.r + 5, Math.PI * 1.75, Math.PI * 2.75); ctx.stroke();
+    ctx.lineWidth = 1; ctx.strokeStyle = '#000'; ctx.beginPath(); ctx.arc(MM.cx, MM.cy, MM.r + 0.5, 0, 7); ctx.stroke();
+    for (let i = 0; i < 4; i++) { const ang = Math.PI / 4 + i * Math.PI / 2, rx = MM.cx + Math.cos(ang) * (MM.r + 3), ry = MM.cy + Math.sin(ang) * (MM.r + 3); ctx.fillStyle = '#2a241b'; ctx.beginPath(); ctx.arc(rx, ry, 2.5, 0, 7); ctx.fill(); ctx.fillStyle = '#9a8a6a'; ctx.beginPath(); ctx.arc(rx - 0.5, ry - 0.5, 1.2, 0, 7); ctx.fill(); }
+    // zoom buttons
+    for (const [k, lbl] of [['zin', '+'], ['zout', '-']]) { const z = ZOOMBTN[k], hov = Math.hypot(mouse.x - z.cx, mouse.y - z.cy) <= z.r; ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(z.cx, z.cy, z.r + 1, 0, 7); ctx.fill(); ctx.fillStyle = hov ? '#5a4e3c' : '#3a3226'; ctx.beginPath(); ctx.arc(z.cx, z.cy, z.r, 0, 7); ctx.fill(); ctx.strokeStyle = '#8a7a5a'; ctx.beginPath(); ctx.arc(z.cx, z.cy, z.r - 0.5, 0, 7); ctx.stroke(); T(lbl, z.cx, z.cy + 5, C.orange, 'bold 13px Arial', 'center'); }
+    if (mmZ !== 4) T('x' + (mmZ / 4).toFixed(2).replace(/0$/, '').replace(/\.0$/, ''), 742, 122, '#ffff00', F11, 'center');
+    // --- compass ---
+    { const c = COMPASS;
+      ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(c.cx, c.cy, c.r + 1, 0, 7); ctx.fill();
+      const cg = ctx.createRadialGradient(c.cx - 4, c.cy - 4, 2, c.cx, c.cy, c.r); cg.addColorStop(0, '#8a7e66'); cg.addColorStop(1, '#4a4034');
+      ctx.fillStyle = cg; ctx.beginPath(); ctx.arc(c.cx, c.cy, c.r, 0, 7); ctx.fill();
+      ctx.fillStyle = '#c8bc9c'; ctx.beginPath(); ctx.arc(c.cx, c.cy, c.r - 4, 0, 7); ctx.fill();
+      ctx.strokeStyle = '#5a5040'; ctx.beginPath(); ctx.arc(c.cx, c.cy, c.r - 4, 0, 7); ctx.stroke();
+      ctx.save(); ctx.translate(c.cx, c.cy); ctx.rotate(a);
+      ctx.strokeStyle = '#6a5e48'; for (let i = 0; i < 8; i++) { ctx.save(); ctx.rotate(i * Math.PI / 4); ctx.beginPath(); ctx.moveTo(0, -(c.r - 5)); ctx.lineTo(0, -(c.r - (i % 2 ? 7 : 9))); ctx.stroke(); ctx.restore(); }
+      ctx.fillStyle = '#c01818'; ctx.beginPath(); ctx.moveTo(0, -11); ctx.lineTo(3.5, 0); ctx.lineTo(-3.5, 0); ctx.fill();
+      ctx.fillStyle = '#f0f0f0'; ctx.beginPath(); ctx.moveTo(0, 11); ctx.lineTo(3.5, 0); ctx.lineTo(-3.5, 0); ctx.fill();
+      ctx.strokeStyle = '#000'; ctx.beginPath(); ctx.moveTo(0, -11); ctx.lineTo(3.5, 0); ctx.lineTo(0, 11); ctx.lineTo(-3.5, 0); ctx.closePath(); ctx.stroke();
+      ctx.fillStyle = '#e8c030'; ctx.beginPath(); ctx.arc(0, 0, 1.6, 0, 7); ctx.fill();
+      ctx.restore();
+      const nx = c.cx + Math.sin(a) * c.r, ny = c.cy - Math.cos(a) * c.r;
+      ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(nx, ny, 5.5, 0, 7); ctx.fill(); T('N', nx, ny + 4, '#ffff00', 'bold 10px Arial', 'center');
+    }
+    // --- orbs ---
+    const orb = (o, frac, col, txt) => {
+      frac = Math.max(0, Math.min(1, frac));
+      ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(o.cx, o.cy, 12.5, 0, 7); ctx.fill();
+      ctx.fillStyle = '#1e1a14'; ctx.beginPath(); ctx.arc(o.cx, o.cy, 11, 0, 7); ctx.fill();
+      ctx.save(); ctx.beginPath(); ctx.arc(o.cx, o.cy, 11, 0, 7); ctx.clip();
+      const og = ctx.createLinearGradient(o.cx - 11, o.cy - 11, o.cx + 11, o.cy + 11); og.addColorStop(0, Icons.shade(col, 1.35)); og.addColorStop(1, Icons.shade(col, 0.7));
+      ctx.fillStyle = og; ctx.fillRect(o.cx - 11, o.cy + 11 - 22 * frac, 22, 22);
+      ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.beginPath(); ctx.ellipse(o.cx - 3, o.cy - 5, 6, 3.5, -0.5, 0, 7); ctx.fill();
+      ctx.restore();
+      ctx.lineWidth = 1.5; ctx.strokeStyle = '#8a7a5a'; ctx.beginPath(); ctx.arc(o.cx, o.cy, 11.5, 0, 7); ctx.stroke(); ctx.lineWidth = 1;
       T(txt, o.cx, o.cy + 4, frac < 0.3 ? C.red : C.white, 'bold 10px Arial', 'center');
+      if (Math.hypot(mouse.x - o.cx, mouse.y - o.cy) <= 12) { ctx.strokeStyle = 'rgba(255,255,200,0.6)'; ctx.beginPath(); ctx.arc(o.cx, o.cy, 13, 0, 7); ctx.stroke(); }
     };
-    orb(ORB.hp, Game.cur('hitpoints') / Game.lvl('hitpoints'), '#a01818', String(Game.cur('hitpoints')));
-    orb(ORB.pr, Game.cur('prayer') / Game.lvl('prayer'), '#1a8a9a', String(Math.ceil(Game.cur('prayer'))));
-    orb(ORB.run, p.energy / 100, p.run ? '#c0a020' : '#6a6050', String(Math.floor(p.energy)));
+    orb(ORB.hp, Game.cur('hitpoints') / Game.lvl('hitpoints'), '#b01c1c', String(Game.cur('hitpoints')));
+    orb(ORB.pr, Game.cur('prayer') / Game.lvl('prayer'), '#1a9aaa', String(Math.ceil(Game.cur('prayer'))));
+    orb(ORB.run, p.energy / 100, (p.run || p.tempRun) ? '#d0b020' : '#6a6050', String(Math.floor(p.energy)));
     const g = MAPBTN;
     ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(g.cx, g.cy, g.r + 1, 0, 7); ctx.fill();
     ctx.fillStyle = '#2a5aa0'; ctx.beginPath(); ctx.arc(g.cx, g.cy, g.r - 1, 0, 7); ctx.fill();
     ctx.fillStyle = '#4a9a3a'; ctx.beginPath(); ctx.ellipse(g.cx - 3, g.cy - 3, 5, 4, 0.5, 0, 7); ctx.fill(); ctx.beginPath(); ctx.ellipse(g.cx + 4, g.cy + 4, 4, 3, -0.3, 0, 7); ctx.fill();
-    ctx.strokeStyle = '#c8b070'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(g.cx, g.cy, g.r, 0, 7); ctx.stroke(); ctx.lineWidth = 1;
+    ctx.strokeStyle = Math.hypot(mouse.x - g.cx, mouse.y - g.cy) <= g.r ? '#ffe090' : '#c8b070'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(g.cx, g.cy, g.r, 0, 7); ctx.stroke(); ctx.lineWidth = 1;
   }
 
   function drawPanel() {
