@@ -6,7 +6,7 @@ const UI = (() => {
   let menu = null, tab = 3, crosses = [], chatInput = '', loginName = '', tooltip = null, drag = null, mapDrag = null;
   let bankScroll = 0, chatScroll = 0, guideScroll = 0, frameCv, parchCv, mmCv, mmBridge = null, hoverOpts = [];
   const worldMap = { open: false, zoom: 2.6, cx: 90, cz: 82, filter: null };
-  let mmZ = 4, prompt = null, tracker = false, ctrlHeld = false, lastMapClick = null;
+  let mmZ = 4, prompt = null, tracker = false, ctrlHeld = false, lastMapClick = null, rDrag = null, holdWalk = null, banner = null, lastArea = null;
   const ORB = { hp: { cx: 532, cy: 64 }, pr: { cx: 532, cy: 90 }, run: { cx: 532, cy: 116 } };
   const F12 = 'bold 12px Arial', F11 = '11px Arial', F11B = 'bold 11px Arial', F13 = 'bold 13px Arial';
   const VP = { x: 4, y: 4, w: 512, h: 334 };
@@ -289,7 +289,7 @@ const UI = (() => {
         exam.push(O(act('Examine', ITEMS[g.id].name, C.itemc), () => Game.msg(ITEMS[g.id].examine)));
       }
     }
-    if (tile) opts.push(O(act('Walk here'), () => { st.spellSel = null; Game.walkTo(tile[0], tile[1], { run: ctrlHeld }); }, { cross: 'yellow' }));
+    if (tile) opts.push(O(act('Walk here'), () => { st.spellSel = null; Game.walkTo(tile[0], tile[1], { run: ctrlHeld }); }, { cross: 'yellow', walk: true }));
     return opts.concat(exam);
   }
 
@@ -415,7 +415,7 @@ const UI = (() => {
 
   function minimapOptions(x, y) {
     const p = S().player;
-    if (Math.hypot(x - COMPASS.cx, y - COMPASS.cy) <= COMPASS.r) return [O(act('Face North'), () => { Render.cam.yaw = 0; })];
+    if (Math.hypot(x - COMPASS.cx, y - COMPASS.cy) <= COMPASS.r) return [O(act('Face North'), () => { Render.cam.yawTo = 0; })];
     if (Math.hypot(x - MAPBTN.cx, y - MAPBTN.cy) <= MAPBTN.r) return [O(act('World Map'), () => { worldMap.open = true; worldMap.cx = p.x; worldMap.cz = p.z; })];
     const dx0 = x - MM.cx, dy0 = y - MM.cy;
     if (Math.hypot(dx0, dy0) > MM.r) return null;
@@ -650,6 +650,14 @@ const UI = (() => {
     if (inR(x, y, CHAT) || (y >= 480 && x < 516)) return chatOptions(x, y);
     return [];
   }
+  function openMenu(opts, x, y) {
+    const st = S();
+    const all = opts.concat([O(act('Cancel'), () => { st.spellSel = null; })]);
+    const w = Math.max(W('Choose Option', F12), ...all.map(o => richW(o.segs, F12))) + 8;
+    const h = 19 + all.length * 15 + 2;
+    const mx = Math.max(0, Math.min(765 - w, Math.round(x - w / 2))), my = Math.max(0, Math.min(503 - h, Math.round(y)));
+    menu = { x: mx, y: my, w, h, opts: all, ox: x, oy: y };
+  }
   function exec(o, x, y) {
     const st = S();
     if (!o.keepSel) st.selected = -1;
@@ -674,14 +682,9 @@ const UI = (() => {
       menu = null; return;
     }
     const opts = optionsAt(x, y);
-    if (e.button === 2) {
-      const all = opts.concat([O(act('Cancel'), () => { st.spellSel = null; })]);
-      const w = Math.max(W('Choose Option', F12), ...all.map(o => richW(o.segs, F12))) + 8;
-      const h = 19 + all.length * 15 + 2;
-      const mx = Math.max(0, Math.min(765 - w, Math.round(x - w / 2))), my = Math.max(0, Math.min(503 - h, Math.round(y)));
-      menu = { x: mx, y: my, w, h, opts: all, ox: x, oy: y };
-      return;
-    }
+    if (e.button === 2 && inR(x, y, VP) && !rDrag) { rDrag = { x, y, yaw: Render.cam.yaw, pitch: Render.cam.pitch, moved: false, opts, e }; return; }
+    if (e.button === 2) { openMenu(opts, x, y); return; }
+    if (e.button === 0 && opts[0] && opts[0].walk && inR(x, y, VP)) holdWalk = { t: performance.now(), last: 0 };
     if (tab === 3 && inR(x, y, PANEL) && !st.iface && !st.spellSel) {
       const s = invSlotAt(x, y);
       if (s >= 0 && st.inv[s]) { drag = { slot: s, x0: x, y0: y, moved: false, opt: opts[0] }; return; }
@@ -692,6 +695,8 @@ const UI = (() => {
   function onUp(e) {
     const [x, y] = toCanvas(e);
     if (e.button === 1) { midDrag = null; return; }
+    holdWalk = null;
+    if (e.button === 2 && rDrag) { const r = rDrag; rDrag = null; if (!r.moved) openMenu(optionsAt(r.x, r.y), r.x, r.y); return; }
     mapDrag = null;
     if (drag) {
       const d = drag; drag = null;
@@ -703,7 +708,8 @@ const UI = (() => {
     const [x, y] = toCanvas(e);
     mouse.x = x; mouse.y = y;
     if (mapDrag) { worldMap.cx = mapDrag.cx - (x - mapDrag.x) / worldMap.zoom; worldMap.cz = mapDrag.cz - (y - mapDrag.y) / worldMap.zoom; return; }
-    if (midDrag) { Render.cam.yaw = midDrag.yaw - (x - midDrag.x) * 0.012; Render.cam.pitch = Math.max(0.3, Math.min(1.3, midDrag.pitch + (y - midDrag.y) * 0.01)); }
+    if (rDrag) { if (Math.hypot(x - rDrag.x, y - rDrag.y) > 6) rDrag.moved = true; if (rDrag.moved) { Render.cam.yawTo = null; Render.cam.yaw = rDrag.yaw - (x - rDrag.x) * 0.012; Render.cam.pitch = Math.max(0.3, Math.min(1.3, rDrag.pitch + (y - rDrag.y) * 0.01)); } return; }
+    if (midDrag) { Render.cam.yawTo = null; Render.cam.yaw = midDrag.yaw - (x - midDrag.x) * 0.012; Render.cam.pitch = Math.max(0.3, Math.min(1.3, midDrag.pitch + (y - midDrag.y) * 0.01)); }
     if (drag && Math.hypot(x - drag.x0, y - drag.y0) > 5) drag.moved = true;
     if (menu && (x < menu.x - 10 || x > menu.x + menu.w + 10 || y < menu.y - 10 || y > menu.y + menu.h + 10)) menu = null;
   }
@@ -716,7 +722,7 @@ const UI = (() => {
     if (st.iface && st.iface.type === 'guide' && inR(x, y, WIN)) { guideScroll = Math.max(0, guideScroll + Math.sign(e.deltaY)); return; }
     if (Math.hypot(x - MM.cx, y - MM.cy) <= MM.r) { mmZ = Math.max(2, Math.min(8, mmZ + (e.deltaY > 0 ? -0.5 : 0.5))); return; }
     if (inR(x, y, CHAT)) { chatScroll = Math.max(0, Math.min(st.messages.length - 7, chatScroll - Math.sign(e.deltaY))); return; }
-    Render.cam.dist = Math.max(4.5, Math.min(16, Render.cam.dist + Math.sign(e.deltaY) * 0.8));
+    Render.cam.tDist = Math.max(4.5, Math.min(16, (Render.cam.tDist ?? Render.cam.dist) + Math.sign(e.deltaY) * 0.9));
   }
   function onKey(e, down) {
     const st = S();
@@ -780,7 +786,7 @@ const UI = (() => {
     if (!n) return;
     Game.load(n.charAt(0).toUpperCase() + n.slice(1));
     Render.setBrightness(S().settings.brightness);
-    Render.cam.pitch = 0.62; Render.cam.dist = 9.5; Render.cam.yaw = 0;
+    Render.cam.pitch = 0.62; Render.cam.dist = 9.5; Render.cam.tDist = 9.5; Render.cam.yaw = 0; lastArea = null;
     Sfx.playTrack('Ardenvale');
   }
   function autoLogin(name) { loginName = name; doLogin(name); }
@@ -1074,6 +1080,9 @@ const UI = (() => {
     ctx.drawImage(mmCv, -p.rx * 4, -p.rz * 4);
     if (p.x >= 162 && p.z >= 134 && p.z <= 185) { ctx.fillStyle = '#000'; ctx.beginPath(); ctx.rect(-2000, -2000, 4000, 4000); ctx.rect((162 - p.rx) * 4, (134 - p.rz) * 4, 78 * 4, 51 * 4); ctx.fill('evenodd'); }
     if (st.flag) { const fx = (st.flag[0] + 0.5 - p.rx) * 4, fz = (st.flag[1] + 0.5 - p.rz) * 4; ctx.save(); ctx.translate(fx, fz); ctx.rotate(-a); const k = 4 / mmZ; ctx.scale(k, k); ctx.fillStyle = '#000'; ctx.fillRect(-1, -12, 2, 13); ctx.fillStyle = '#ff2020'; ctx.beginPath(); ctx.moveTo(1, -12); ctx.lineTo(9, -9); ctx.lineTo(1, -6); ctx.fill(); ctx.restore(); }
+    { const dx0 = mouse.x - MM.cx, dy0 = mouse.y - MM.cy;
+      if (!menu && Math.hypot(dx0, dy0) <= MM.r) { const cs0 = Math.cos(a), sn0 = Math.sin(a); const ddx = dx0 * cs0 + dy0 * sn0, ddz = -dx0 * sn0 + dy0 * cs0; const hx = Math.floor(p.rx + ddx / mmZ), hz = Math.floor(p.rz + ddz / mmZ);
+        ctx.strokeStyle = World.walkable(hx, hz) ? 'rgba(255,255,255,0.9)' : 'rgba(255,80,80,0.9)'; ctx.lineWidth = 4 / mmZ; ctx.strokeRect((hx - p.rx) * 4, (hz - p.rz) * 4, 4, 4); ctx.lineWidth = 1; } }
     if (st.flag && p.path.length) { ctx.fillStyle = 'rgba(255,255,255,0.75)'; for (let i = 0; i < p.path.length; i += 2) { const [tx, tz] = p.path[i]; ctx.fillRect((tx + 0.5 - p.rx) * 4 - 0.75, (tz + 0.5 - p.rz) * 4 - 0.75, 1.5, 1.5); } }
     for (const g of st.ground) { if (Math.abs(g.x - p.x) > 22 || Math.abs(g.z - p.z) > 22) continue; ctx.fillStyle = '#000'; ctx.fillRect((g.x + 0.5 - p.rx) * 4 - 1.5, (g.z + 0.5 - p.rz) * 4 - 1.5, 4, 4); ctx.fillStyle = '#ff0000'; ctx.fillRect((g.x + 0.5 - p.rx) * 4 - 1, (g.z + 0.5 - p.rz) * 4 - 1, 3, 3); }
     for (const b of st.bots) { if (Math.abs(b.x - p.x) > 22 || Math.abs(b.z - p.z) > 22) continue; const x = ((b.rx ?? b.x + 0.5) - p.rx) * 4, z = ((b.rz ?? b.z + 0.5) - p.rz) * 4; ctx.fillStyle = '#000'; ctx.fillRect(x - 1.5, z - 1.5, 4, 4); ctx.fillStyle = '#ffffff'; ctx.fillRect(x - 1, z - 1, 3, 3); }
@@ -1299,7 +1308,19 @@ const UI = (() => {
     ctx.drawImage(frameCv, 0, 0);
     Render.setHoverTile(null);
     hoverOpts = (mouse.x >= 0 && !menu) ? optionsAt(mouse.x, mouse.y) : [];
+    if (holdWalk && !menu && !st.dialog && !st.iface) {
+      const nowT = performance.now();
+      if (nowT - holdWalk.t > 300 && nowT - holdWalk.last > 250 && hoverOpts[0] && hoverOpts[0].walk) { holdWalk.last = nowT; hoverOpts[0].fn(); }
+    }
+    { const p = st.player, ug = p.x >= 162 && p.z >= 134 && p.z <= 185; let best = null, bd = ug ? 14 : 30;
+      for (const [nm, lx, lz, big] of World.labels) { if (!big && !ug) continue; if (ug !== (lx >= 162 && lz >= 134 && lz <= 185)) continue; const d = Math.hypot(lx - p.x, lz - p.z); if (d < bd) { bd = d; best = nm; } }
+      if (best && best !== lastArea) { if (lastArea !== null || !banner) banner = { name: best, t: performance.now() }; lastArea = best; } }
     drawViewportOverlays();
+    if (banner) {
+      const age = (performance.now() - banner.t) / 1000;
+      if (age > 3.2) banner = null;
+      else { const a = Math.min(1, age * 3, (3.2 - age) * 2); ctx.save(); ctx.globalAlpha = a; T(banner.name, VP.x + VP.w / 2 + 2, VP.y + 58, '#000', 'bold 22px Georgia, serif', 'center', false); T(banner.name, VP.x + VP.w / 2, VP.y + 56, '#ffb040', 'bold 22px Georgia, serif', 'center', false); ctx.restore(); }
+    }
     drawMinimap();
     drawTabs();
     drawPanel();

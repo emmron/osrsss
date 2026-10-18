@@ -103,7 +103,7 @@ const Sfx = (() => {
 })();
 
 const Render = (() => {
-  let renderer, scene, camera, ambient, sun, seaMesh, underground = false;
+  let renderer, scene, camera, ambient, sun, seaMesh, underground = false, camTY = null;
   const cam = { yaw: 0, pitch: 0.62, dist: 9.5, keys: {} };
   const raycaster = new THREE.Raycaster();
   const groundTex = {};
@@ -243,7 +243,14 @@ const Render = (() => {
     if (k.ArrowDown) cam.pitch = Math.max(0.3, cam.pitch - dt * 1.2);
     let tx, tz, ty;
     if (p && S.loggedIn) { updateEntity(p, t, dt); tx = p.rx; tz = p.rz; ty = World.heightAt(tx, tz) + 0.9; }
-    else { cam.yaw += dt * 0.08; tx = 90; tz = 81; ty = 1.5; cam.pitch = 0.5; cam.dist = 14; }
+    else { cam.yaw += dt * 0.08; tx = 90; tz = 81; ty = 1.5; cam.pitch = 0.5; cam.dist = 14; cam.tDist = 14; }
+    if (cam.tDist == null) cam.tDist = cam.dist;
+    cam.dist += (cam.tDist - cam.dist) * Math.min(1, dt * 10);
+    if (cam.yawTo != null) {
+      if (k.ArrowLeft || k.ArrowRight) cam.yawTo = null;
+      else { let d = cam.yawTo - cam.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); if (Math.abs(d) < 0.01) { cam.yaw = cam.yawTo; cam.yawTo = null; } else cam.yaw += d * Math.min(1, dt * 8); }
+    }
+    camTY = camTY == null || Math.abs(camTY - ty) > 3 ? ty : camTY + (ty - camTY) * Math.min(1, dt * 7); ty = camTY;
     const ug = !!(p && S.loggedIn && tx >= 162 && tz >= 134 && tz <= 185);
     if (ug !== underground) {
       underground = ug;
@@ -264,6 +271,7 @@ const Render = (() => {
       if (near) updateEntity(b, t, dt);
     }
     camera.position.set(tx + Math.sin(cam.yaw) * Math.cos(cam.pitch) * cam.dist, ty + Math.sin(cam.pitch) * cam.dist, tz + Math.cos(cam.yaw) * Math.cos(cam.pitch) * cam.dist);
+    { const gh = World.heightAt(Math.max(0, Math.min(World.W - 0.01, camera.position.x)), Math.max(0, Math.min(World.H - 0.01, camera.position.z))) + 0.7; if (camera.position.y < gh) camera.position.y = gh; }
     camera.lookAt(tx, ty, tz);
     const inside = p && S.loggedIn ? World.roofAt(p.x, p.z) : -1;
     World.roofMeshes.forEach((m, i) => { m.visible = i !== inside; });
