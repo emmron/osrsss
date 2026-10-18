@@ -55,6 +55,8 @@ defItem('willow_logs', { name: 'Willow logs', value: 32, icon: { t: 'logs', c: '
 defItem('maple_logs', { name: 'Maple logs', value: 50, icon: { t: 'logs', c: '#a0562a' }, examine: 'Logs cut from a maple tree.' });
 defItem('yew_logs', { name: 'Yew logs', value: 160, icon: { t: 'logs', c: '#6a5a30' }, examine: 'Logs cut from a yew tree.' });
 defItem('magic_logs', { name: 'Magic logs', value: 320, icon: { t: 'logs', c: '#3a6aa0' }, examine: 'Logs made from magic wood.' });
+defItem('teak_logs', { name: 'Teak logs', value: 80, icon: { t: 'logs', c: '#8a6a3a' }, examine: 'Some well-cut teak logs.' });
+defItem('mahogany_logs', { name: 'Mahogany logs', value: 200, icon: { t: 'logs', c: '#7a3a20' }, examine: 'Some well-cut mahogany logs.' });
 defItem('ashes', { name: 'Ashes', value: 2, icon: { t: 'ashes' }, examine: 'A heap of ashes.' });
 defItem('arrow_shaft', { name: 'Arrow shaft', stackable: true, value: 1, icon: { t: 'shafts' }, examine: 'A wooden arrow shaft.' });
 defItem('headless_arrow', { name: 'Headless arrow', stackable: true, value: 1, icon: { t: 'arrows', c: null }, examine: 'An arrow shaft with feathers.' });
@@ -98,6 +100,18 @@ defItem('adamantite_bar', { name: 'Adamantite bar', value: 640, icon: { t: 'bar'
 defItem('runite_bar', { name: 'Runite bar', value: 3200, icon: { t: 'bar', c: '#40a0c0' }, examine: "It's a bar of runite." });
 defItem('gold_ring', { name: 'Gold ring', value: 350, icon: { t: 'ring', c: '#e8c030' }, equip: EQ('ring', {}), examine: 'A valuable ring.' });
 defItem('gold_amulet', { name: 'Gold amulet', value: 350, icon: { t: 'amulet', c: '#e8c030' }, equip: EQ('neck', { att: 1, str: 1, def: 1 }), examine: 'A plain gold amulet.' });
+defItem('chisel', { name: 'Chisel', value: 1, icon: { t: 'chisel' }, examine: 'Good for detailed crafting.' });
+const GEMS = [['sapphire', 'Sapphire', '#3050e0', 20, 50, 20, 24], ['emerald', 'Emerald', '#20b040', 27, 67.5, 27, 31], ['ruby', 'Ruby', '#d02020', 34, 85, 34, 50], ['diamond', 'Diamond', '#e8e8f8', 43, 107.5, 43, 70]];
+const JEWEL = [];
+for (const [id, name, col, cutLv, cutXp, ringLv, amLv] of GEMS) {
+  defItem('uncut_' + id, { name: 'Uncut ' + name.toLowerCase(), value: cutLv * 8, icon: { t: 'gem', c: col, uncut: true }, examine: 'An uncut ' + name.toLowerCase() + '.' });
+  defItem(id, { name, value: cutLv * 20, icon: { t: 'gem', c: col }, cut: { from: 'uncut_' + id, level: cutLv, xp: cutXp }, examine: 'This looks valuable.' });
+  const tier = GEMS.findIndex(g => g[0] === id) + 1;
+  defItem(id + '_ring', { name: name + ' ring', value: cutLv * 40, icon: { t: 'ring', c: col }, equip: EQ('ring', { def: tier, mag: tier }), examine: 'A valuable ring.' });
+  defItem(id + '_amulet', { name: name + ' amulet', value: cutLv * 50, icon: { t: 'amulet', c: col }, equip: EQ('neck', { att: tier * 2, str: tier * 2, def: tier * 2, mag: tier * 2, rng: tier * 2 }), examine: 'A very nice amulet.' });
+  JEWEL.push({ out: id + '_ring', gem: id, level: ringLv, xp: cutXp * 0.8 }, { out: id + '_amulet', gem: id, level: amLv, xp: cutXp * 1.3 });
+}
+const GEM_TABLE = [['uncut_sapphire', 0.5], ['uncut_emerald', 0.27], ['uncut_ruby', 0.17], ['uncut_diamond', 0.06]];
 defItem('ancient_skull', { name: 'Ancient skull', value: 0, icon: { t: 'skull' }, examine: 'It belongs to a restless soul.' });
 defItem('strange_talisman', { name: 'Strange talisman', value: 0, icon: { t: 'talisman', c: '#a0a0a0' }, examine: 'A dull stone talisman from Orla.' });
 defItem('charged_talisman', { name: 'Charged talisman', value: 0, icon: { t: 'talisman', c: '#e8e8f8' }, examine: 'It hums with the power of air.' });
@@ -124,6 +138,26 @@ defItem('mithril_arrow', { name: 'Mithril arrow', stackable: true, value: 32, ic
 const ARROWS = [['bronze', 1, 1.3], ['iron', 15, 2.5], ['steel', 30, 5], ['mithril', 45, 7.5]];
 
 // fishing / cooking / food
+defItem('fishing_rod', { name: 'Fishing rod', value: 5, icon: { t: 'rod' }, examine: 'Useful for catching sardine or herring.' });
+defItem('fly_fishing_rod', { name: 'Fly fishing rod', value: 5, icon: { t: 'rod', fly: true }, examine: 'Useful for fly fishing.' });
+defItem('fishing_bait', { name: 'Fishing bait', stackable: true, value: 3, icon: { t: 'bait' }, examine: 'For use with a fishing rod.' });
+defItem('harpoon', { name: 'Harpoon', value: 5, icon: { t: 'harpoon' }, examine: 'Useful for catching really big fish.' });
+defItem('lobster_pot', { name: 'Lobster pot', value: 20, icon: { t: 'pot' }, examine: 'Useful for catching lobsters.' });
+const FISH = [
+  // id, name, colour raw, colour cooked, fish level, fish xp, cook level, cook xp, heal, stopBurn, icon
+  ['sardine', 'Sardine', '#a0b0b8', '#8a7050', 5, 20, 1, 40, 4, 38, 'fish'],
+  ['herring', 'Herring', '#8a9a80', '#7a6040', 10, 30, 5, 50, 5, 41, 'fish'],
+  ['trout', 'Trout', '#9a8a70', '#a06a40', 20, 50, 15, 70, 7, 50, 'fish'],
+  ['salmon', 'Salmon', '#c08070', '#c0603a', 30, 70, 25, 90, 9, 58, 'fish'],
+  ['tuna', 'Tuna', '#7080a0', '#906050', 35, 80, 30, 100, 10, 63, 'fish'],
+  ['lobster', 'Lobster', '#5a5a8a', '#d04020', 40, 90, 40, 120, 12, 74, 'lobster'],
+  ['swordfish', 'Swordfish', '#8090c0', '#a07060', 50, 100, 45, 140, 14, 86, 'swordfish'],
+];
+for (const [id, name, cr, cc, fl, fx, cl, cx, heal, sb, ic] of FISH) {
+  defItem('raw_' + id, { name: 'Raw ' + name.toLowerCase(), value: fl * 3, icon: { t: ic, c: cr }, examine: 'I should try cooking this.' });
+  defItem(id, { name, value: fl * 4, icon: { t: ic, c: cc }, food: heal, examine: `Some nicely cooked ${name.toLowerCase()}.` });
+}
+defItem('burnt_lobster', { name: 'Burnt lobster', value: 1, icon: { t: 'lobster', c: '#2a2020' }, examine: 'Oops!' });
 defItem('raw_shrimps', { name: 'Raw shrimps', value: 5, icon: { t: 'shrimp', c: '#c89080' }, examine: 'I should try cooking this.' });
 defItem('shrimps', { name: 'Shrimps', value: 5, icon: { t: 'shrimp', c: '#e07040' }, food: 3, examine: 'Some nicely cooked shrimp.' });
 defItem('burnt_shrimp', { name: 'Burnt shrimp', value: 1, icon: { t: 'shrimp', c: '#3a2a20' }, examine: 'Oops!' });
@@ -145,6 +179,8 @@ defItem('cabbage', { name: 'Cabbage', value: 1, icon: { t: 'veg', c: '#6aa040', 
 // drops / misc
 defItem('bones', { name: 'Bones', value: 1, icon: { t: 'bones' }, bury: 4.5, examine: 'Bones are for burying!' });
 defItem('big_bones', { name: 'Big bones', value: 1, icon: { t: 'bones', big: true }, bury: 15, examine: 'Ooh, those are big bones!' });
+defItem('jogre_bones', { name: 'Jogre bones', value: 1, icon: { t: 'bones', big: true }, bury: 15, examine: 'Bones of a jungle ogre.' });
+defItem('dragon_bones', { name: 'Dragon bones', value: 1500, icon: { t: 'bones', big: true, c: '#e8e0b0' }, bury: 72, examine: 'These would feed a dogfish for a month!' });
 defItem('cowhide', { name: 'Cowhide', value: 1, icon: { t: 'hide' }, examine: 'I should take this to a tanner.' });
 defItem('leather', { name: 'Leather', value: 1, icon: { t: 'leather' }, examine: 'It\'s a piece of leather.' });
 defItem('feather', { name: 'Feather', stackable: true, value: 2, icon: { t: 'feather' }, examine: 'Used for fly-fishing and fletching.' });
@@ -161,7 +197,7 @@ defItem('wizard_hat', { name: 'Wizard hat', value: 2, icon: { t: 'wizhat', c: '#
 defItem('wizard_robe', { name: 'Wizard robe top', value: 15, icon: { t: 'robe', c: '#2a3a9a' }, equip: EQ('body', { mag: 3, color: '#2a3a9a' }), examine: 'I can do magic better in this.' });
 
 // herblore
-const HERBS = [['guam', 'Guam leaf', '#4a9a2a', 3, 2.5], ['tarromin', 'Tarromin', '#5a8a3a', 11, 5], ['harralander', 'Harralander', '#6a8a1a', 20, 6.3]];
+const HERBS = [['guam', 'Guam leaf', '#4a9a2a', 3, 2.5], ['marrentill', 'Marrentill', '#3a8a4a', 5, 3.8], ['tarromin', 'Tarromin', '#5a8a3a', 11, 5], ['harralander', 'Harralander', '#6a8a1a', 20, 6.3], ['ranarr', 'Ranarr weed', '#2a7a2a', 25, 7.5], ['irit', 'Irit leaf', '#8a9a2a', 40, 8.8]];
 for (const [id, name, col, lv, xp] of HERBS) {
   defItem('grimy_' + id, { name: 'Grimy ' + name.toLowerCase().replace(' leaf', ''), value: 10, icon: { t: 'herb', c: '#5a5a2a' }, herb: { clean: id + '_leaf', level: lv, xp }, examine: 'I need to clean this herb before I can use it.' });
   defItem(id + '_leaf', { name, value: 15, icon: { t: 'herb', c: col }, examine: 'A fresh herb.' });
@@ -169,11 +205,17 @@ for (const [id, name, col, lv, xp] of HERBS) {
 }
 defItem('eye_of_newt', { name: 'Eye of newt', value: 3, icon: { t: 'eye' }, examine: 'It seems to be looking at me.' });
 defItem('limpwurt_root', { name: 'Limpwurt root', value: 7, icon: { t: 'root' }, examine: 'The root of a limpwurt plant.' });
+defItem('snape_grass', { name: 'Snape grass', value: 30, icon: { t: 'root', c: '#4a9a3a' }, examine: 'Strange spiky grass.' });
+defItem('unicorn_horn_dust', { name: 'Unicorn horn dust', value: 20, icon: { t: 'ashes', c: '#f0f0f0' }, examine: 'Finely ground horn of unicorn.' });
 defItem('white_berries', { name: 'White berries', value: 10, icon: { t: 'berries' }, examine: 'Poisonous berries.' });
 const POTIONS = [
   { id: 'attack_potion', name: 'Attack potion', col: '#40c0d0', unf: 'guam_unf', sec: 'eye_of_newt', level: 3, xp: 25, boost: 'attack', base: 3, pct: 0.1 },
   { id: 'strength_potion', name: 'Strength potion', col: '#c0c040', unf: 'tarromin_unf', sec: 'limpwurt_root', level: 12, xp: 50, boost: 'strength', base: 3, pct: 0.1 },
   { id: 'defence_potion', name: 'Defence potion', col: '#40c040', unf: 'harralander_unf', sec: 'white_berries', level: 30, xp: 75, boost: 'defence', base: 3, pct: 0.1 },
+  { id: 'restore_potion', name: 'Restore potion', col: '#e04080', unf: 'marrentill_unf', sec: 'unicorn_horn_dust', level: 5, xp: 37.5, restore: true },
+  { id: 'prayer_potion', name: 'Prayer potion', col: '#30c0b0', unf: 'ranarr_unf', sec: 'snape_grass', level: 38, xp: 87.5, prayer: true },
+  { id: 'super_attack', name: 'Super attack', col: '#3050e0', unf: 'irit_unf', sec: 'eye_of_newt', level: 45, xp: 100, boost: 'attack', base: 5, pct: 0.15 },
+  { id: 'super_strength', name: 'Super strength', col: '#e8e8e8', unf: 'irit_unf', sec: 'limpwurt_root', level: 55, xp: 125, boost: 'strength', base: 5, pct: 0.15 },
 ];
 for (const p of POTIONS) for (let d = 1; d <= 4; d++) defItem(`${p.id}${d}`, { name: `${p.name}(${d})`, value: 20 * d, icon: { t: 'vial', c: p.col, dose: d }, potion: { p, dose: d }, examine: `${d} dose${d > 1 ? 's' : ''} of ${p.name.toLowerCase()}.` });
 
@@ -184,6 +226,9 @@ const SEEDS = {
   cabbage_seed: { name: 'Cabbage seed', crop: 'cabbage', level: 7, plantXp: 10, harvestXp: 11.5, need: 3, patch: 'allotment', col: '#6aa040' },
   guam_seed: { name: 'Guam seed', crop: 'grimy_guam', level: 9, plantXp: 11, harvestXp: 12.5, need: 1, patch: 'herb', col: '#4a9a2a' },
   tarromin_seed: { name: 'Tarromin seed', crop: 'grimy_tarromin', level: 19, plantXp: 19, harvestXp: 21.5, need: 1, patch: 'herb', col: '#5a8a3a' },
+  marrentill_seed: { name: 'Marrentill seed', crop: 'grimy_marrentill', level: 14, plantXp: 13.5, harvestXp: 15, need: 1, patch: 'herb', col: '#3a8a4a' },
+  ranarr_seed: { name: 'Ranarr seed', crop: 'grimy_ranarr', level: 32, plantXp: 27, harvestXp: 30.5, need: 1, patch: 'herb', col: '#2a7a2a' },
+  irit_seed: { name: 'Irit seed', crop: 'grimy_irit', level: 44, plantXp: 43, harvestXp: 48.5, need: 1, patch: 'herb', col: '#8a9a2a' },
   harralander_seed: { name: 'Harralander seed', crop: 'grimy_harralander', level: 26, plantXp: 21.5, harvestXp: 27, need: 1, patch: 'herb', col: '#6a8a1a' },
 };
 for (const id in SEEDS) defItem(id, { name: SEEDS[id].name, stackable: true, value: 4, icon: { t: 'seed', c: SEEDS[id].col }, examine: 'Plant this in a farming patch.' });
@@ -226,6 +271,10 @@ for (const [m, a] of [['steel', 5], ['mithril', 20], ['adamant', 30], ['rune', 4
 defItem('ember_amulet', { name: 'Ember amulet', value: 400, icon: { t: 'amulet', c: '#e04020' }, equip: EQ('neck', { att: 5, str: 4, def: 3, mag: 4, rng: 4 }), examine: 'It feels warm to the touch.' });
 defItem('wooden_shield', { name: 'Wooden shield', value: 20, icon: { t: 'woodshield' }, equip: EQ('shield', { def: 4 }), examine: 'A solid wooden shield.' });
 
+defItem('wk_helm', { name: 'White full helm', value: 1000, icon: { t: 'helm', c: '#e8e8e8' }, equip: EQ('head', { def: 15, req: { defence: 30 } }), examine: 'A full helm of the White Knights.' });
+defItem('wk_body', { name: 'White platebody', value: 4000, icon: { t: 'platebody', c: '#e8e8e8' }, equip: EQ('body', { def: 45, req: { defence: 30 }, color: '#e8e8e8' }), examine: 'A platebody of the White Knights.' });
+defItem('wk_legs', { name: 'White platelegs', value: 2000, icon: { t: 'platelegs', c: '#e8e8e8' }, equip: EQ('legs', { def: 25, req: { defence: 30 }, color: '#e8e8e8' }), examine: 'Platelegs of the White Knights.' });
+defItem('wk_shield', { name: 'White kiteshield', value: 1700, icon: { t: 'kiteshield', c: '#e8e8e8' }, equip: EQ('shield', { def: 25, req: { defence: 30 } }), examine: 'A kiteshield of the White Knights.' });
 const EQUIP_SLOTS = ['head', 'cape', 'neck', 'ammo', 'weapon', 'body', 'shield', 'legs', 'hands', 'feet', 'ring'];
 
 // ---- Smithing ----
@@ -246,12 +295,13 @@ const SMELTING = [
   { out: 'runite_bar', level: 85, xp: 50, needs: { runite_ore: 1, coal: 8 }, success: 1 },
 ];
 const COOKING = {
+  ...Object.fromEntries(FISH.map(([id, , , , , , cl, cx, , sb, ic]) => ['raw_' + id, { out: id, burnt: ic === 'lobster' ? 'burnt_lobster' : 'burnt_fish', level: cl, xp: cx, stopBurn: sb }])),
   raw_shrimps: { out: 'shrimps', burnt: 'burnt_shrimp', level: 1, xp: 30, stopBurn: 34 },
   raw_anchovies: { out: 'anchovies', burnt: 'burnt_fish', level: 1, xp: 30, stopBurn: 34 },
   raw_beef: { out: 'cooked_meat', burnt: 'burnt_meat', level: 1, xp: 30, stopBurn: 31 },
   raw_chicken: { out: 'cooked_chicken', burnt: 'burnt_chicken', level: 1, xp: 30, stopBurn: 31 },
 };
-const FIREMAKING = { logs: { level: 1, xp: 40 }, oak_logs: { level: 15, xp: 60 }, willow_logs: { level: 30, xp: 90 }, maple_logs: { level: 45, xp: 135 }, yew_logs: { level: 60, xp: 202.5 }, magic_logs: { level: 75, xp: 303.8 } };
+const FIREMAKING = { logs: { level: 1, xp: 40 }, oak_logs: { level: 15, xp: 60 }, willow_logs: { level: 30, xp: 90 }, maple_logs: { level: 45, xp: 135 }, teak_logs: { level: 35, xp: 105 }, mahogany_logs: { level: 50, xp: 157.5 }, yew_logs: { level: 60, xp: 202.5 }, magic_logs: { level: 75, xp: 303.8 } };
 const SHAFTS = { logs: { level: 1, xp: 5, qty: 15 }, oak_logs: { level: 15, xp: 10, qty: 30 }, willow_logs: { level: 30, xp: 15, qty: 45 } };
 
 const TREES = {
@@ -259,6 +309,8 @@ const TREES = {
   oak: { name: 'Oak', level: 15, xp: 37.5, log: 'oak_logs', deplete: 0.125, respawn: [14, 20], base: 0.2 },
   willow: { name: 'Willow', level: 30, xp: 67.5, log: 'willow_logs', deplete: 0.125, respawn: [14, 20], base: 0.16 },
   maple: { name: 'Maple tree', level: 45, xp: 100, log: 'maple_logs', deplete: 0.1, respawn: [50, 60], base: 0.12 },
+  teak: { name: 'Teak', level: 35, xp: 85, log: 'teak_logs', deplete: 0.12, respawn: [40, 50], base: 0.12 },
+  mahogany: { name: 'Mahogany', level: 50, xp: 125, log: 'mahogany_logs', deplete: 0.1, respawn: [60, 80], base: 0.09 },
   yew: { name: 'Yew', level: 60, xp: 175, log: 'yew_logs', deplete: 0.1, respawn: [80, 100], base: 0.08 },
   magic: { name: 'Magic tree', level: 75, xp: 250, log: 'magic_logs', deplete: 0.1, respawn: [150, 200], base: 0.05 },
 };
@@ -350,10 +402,30 @@ const NPCS = {
     drops: [{ id: 'gold_ore', chance: 0.05 }, { id: 'nature_rune', qty: [1, 3], chance: 0.06 }], examine: 'An extremely vicious scorpion.' },
   lesser_demon: { name: 'Lesser demon', level: 82, hp: 79, att: 68, str: 70, def: 71, maxHit: 8, speed: 4, model: 'demon', wander: 3, aggressive: true,
     drops: [{ id: 'ashes', always: true }, { id: 'coins', qty: [100, 600], always: true }, { id: 'rune_full_helm', chance: 0.02 }, { id: 'adamant_scimitar', chance: 0.04 }, { id: 'rune_scimitar', chance: 0.008 }, { id: 'runite_ore', chance: 0.03 }, { id: 'fire_rune', qty: [30, 80], chance: 0.3 }], examine: 'Lesser, but still pretty scary.' },
-  kharid_warrior: { name: 'Al Kharid warrior', level: 9, hp: 19, att: 7, str: 8, def: 6, maxHit: 2, speed: 4, model: 'kharid', wander: 4,
+  kharid_warrior: { name: 'Al Kharid warrior', level: 9, hp: 19, att: 7, str: 8, def: 6, maxHit: 2, speed: 4, model: 'kharid', wander: 4, pickpocket: { level: 25, xp: 26, coins: 18, stun: 2 },
     drops: [{ id: 'bones', always: true }, { id: 'coins', qty: [5, 30], chance: 0.7 }, { id: 'bronze_scimitar', chance: 0.04 }, { id: 'iron_scimitar', chance: 0.02 }, ...HERB_DROPS], examine: 'A warrior of Al Kharid.' },
   zeke: { name: 'Zeke', level: 0, model: 'zeke', wander: 1, talk: 'generic', shop: 'scimitars', examine: 'A sharp-dressed merchant.', greet: 'A thousand greetings! Can I interest you in a superior scimitar?' },
   kharid_banker: { name: 'Banker', level: 0, model: 'banker', wander: 0, talk: 'banker', bank: true, examine: 'Good with money.' },
+  farmer_npc: { name: 'Farmer', level: 7, hp: 12, att: 6, str: 6, def: 5, maxHit: 1, speed: 4, model: 'farmer', wander: 4, talk: 'man', pickpocket: { level: 10, xp: 14.5, coins: 9, stun: 1, extra: 'potato_seed' },
+    drops: [{ id: 'bones', always: true }, { id: 'potato_seed', qty: [1, 4], chance: 0.4 }, { id: 'onion_seed', qty: [1, 3], chance: 0.2 }], examine: 'He grows the crops in this area.' },
+  white_knight: { name: 'White Knight', level: 36, hp: 52, att: 30, str: 30, def: 32, maxHit: 5, speed: 4, model: 'white_knight', wander: 3, pickpocket: { level: 55, xp: 84.3, coins: 50, stun: 3 },
+    drops: [{ id: 'bones', always: true }, { id: 'coins', qty: [20, 120], chance: 0.8 }, { id: 'steel_platebody', chance: 0.03 }, { id: 'mithril_full_helm', chance: 0.02 }, { id: 'uncut_sapphire', chance: 0.04 }, { id: 'ranarr_seed', chance: 0.03 }], examine: 'A knight of Whitecliff.' },
+  jogre: { name: 'Jogre', level: 53, hp: 60, att: 43, str: 45, def: 40, maxHit: 6, speed: 4, model: 'jogre', wander: 4, aggressive: true,
+    drops: [{ id: 'jogre_bones', always: true }, { id: 'coins', qty: [30, 200], chance: 0.6 }, { id: 'uncut_emerald', chance: 0.05 }, { id: 'irit_seed', chance: 0.04 }, { id: 'teak_logs', qty: [2, 6], chance: 0.1 }, { id: 'nature_rune', qty: [5, 15], chance: 0.1 }], examine: 'An aggressive humanoid from the jungle.' },
+  jungle_spider: { name: 'Jungle spider', level: 44, hp: 50, att: 38, str: 38, def: 34, maxHit: 5, speed: 4, model: 'spider', wander: 4, aggressive: true,
+    drops: [{ id: 'coins', qty: [10, 80], chance: 0.5 }, { id: 'snape_grass', chance: 0.06 }, { id: 'uncut_ruby', chance: 0.02 }], examine: 'A barbarous jungle spider.' },
+  crawling_hand: { name: 'Crawling Hand', level: 8, hp: 16, att: 6, str: 6, def: 6, maxHit: 2, speed: 4, model: 'hand', wander: 3, aggressive: true, slayerReq: 5,
+    drops: [{ id: 'bones', always: true }, { id: 'coins', qty: [5, 40], chance: 0.6 }, { id: 'leather_gloves', chance: 0.05 }, { id: 'uncut_sapphire', chance: 0.03 }], examine: 'The cadaver of a hand. Crawling.' },
+  banshee: { name: 'Banshee', level: 23, hp: 22, att: 20, str: 18, def: 16, maxHit: 3, speed: 4, model: 'banshee', wander: 3, aggressive: true, slayerReq: 15,
+    drops: [{ id: 'coins', qty: [20, 100], chance: 0.7 }, { id: 'grimy_ranarr', chance: 0.06 }, { id: 'uncut_emerald', chance: 0.04 }, { id: 'ranarr_seed', chance: 0.05 }], examine: 'A tortured screaming soul.' },
+  green_dragon: { name: 'Green dragon', level: 79, hp: 75, att: 68, str: 68, def: 68, maxHit: 9, speed: 4, model: 'dragon', wander: 3, aggressive: true,
+    drops: [{ id: 'dragon_bones', always: true }, { id: 'coins', qty: [100, 700], chance: 0.8 }, { id: 'rune_full_helm', chance: 0.02 }, { id: 'uncut_diamond', chance: 0.04 }, { id: 'adamantite_bar', chance: 0.06 }, { id: 'runite_ore', chance: 0.02 }], examine: 'It\'s a dragon.' },
+  armourer: { name: 'Sir Vyvin\'s Armourer', level: 0, model: 'smith', wander: 1, talk: 'generic', shop: 'armour', examine: 'He keeps the knights well equipped.', greet: 'Welcome to the Whitecliff Armoury. Only the finest steel and mithril!' },
+  gem_trader: { name: 'Gem trader', level: 0, model: 'shopkeeper', wander: 1, talk: 'generic', shop: 'gems', examine: 'He deals in precious stones.', greet: 'Gems, chisels and moulds! Cut them yourself and make your own jewellery at a furnace.' },
+  fishmonger: { name: 'Gerrant the Fishmonger', level: 0, model: 'sailor', wander: 1, talk: 'generic', shop: 'fishing', examine: 'He smells like he lives up to his name.', greet: 'Fishing gear for every catch! Rods, harpoons and lobster pots.' },
+  sailor_sarrow: { name: 'Captain Tobias', level: 0, model: 'sailor', wander: 0, talk: 'sail', examine: 'A seasoned captain.', sail: 'saltreach' },
+  sailor_saltreach: { name: 'Customs officer', level: 0, model: 'sailor', wander: 0, talk: 'sail', examine: 'She checks passengers coming and going.', sail: 'sarrow' },
+  island_shop: { name: 'Luthas', level: 0, model: 'shopkeeper', wander: 1, talk: 'generic', shop: 'jungle', examine: 'He runs the plantation store.', greet: 'Welcome to Saltreach! Bananas, supplies and the best fishing in the realm.' },
   priest: { name: 'Father Aldous', level: 0, model: 'priest', wander: 1, talk: 'priest', examine: 'A kindly man of the cloth.' },
   harbourmaster: { name: 'Captain Rourke', level: 0, model: 'sailor', wander: 1, talk: 'harbour', examine: 'He runs the harbour of Port Sarrow.' },
   sailor: { name: 'Sailor', level: 0, model: 'sailor', wander: 2, talk: 'generic', examine: 'He smells of salt and fish.', greet: 'Fancy a spot of fishing off the pier? The shrimp and anchovies are biting.' },
@@ -372,15 +444,29 @@ const NPCS = {
 
 const SHOPS = {
   scimitars: { name: 'Zeke\'s Superior Scimitars', stock: [['bronze_scimitar', 5], ['iron_scimitar', 3], ['steel_scimitar', 2], ['mithril_scimitar', 1], ['adamant_scimitar', 1]] },
+  armour: { name: 'Whitecliff Armoury', stock: [['wk_helm', 1], ['wk_body', 1], ['wk_legs', 1], ['wk_shield', 1], ['steel_full_helm', 3], ['steel_platebody', 2], ['steel_platelegs', 2], ['steel_kiteshield', 2], ['mithril_full_helm', 1], ['mithril_platebody', 1], ['mithril_kiteshield', 1], ['steel_scimitar', 2]] },
+  gems: { name: 'Whitecliff Gem Store', stock: [['chisel', 10], ['uncut_sapphire', 5], ['uncut_emerald', 3], ['sapphire', 2], ['gold_bar', 5]] },
+  fishing: { name: 'Gerrant\'s Fishy Business', stock: [['small_net', 5], ['fishing_rod', 5], ['fly_fishing_rod', 5], ['fishing_bait', 500], ['feather', 500], ['harpoon', 5], ['lobster_pot', 5], ['raw_shrimps', 0]] },
+  jungle: { name: 'Saltreach Supplies', stock: [['banana', 20], ['bird_snare', 5], ['harpoon', 2], ['lobster_pot', 2], ['unicorn_horn_dust', 5], ['snape_grass', 3]] },
   hunter: { name: 'Garrick\'s Hunting Supplies', stock: [['bird_snare', 20], ['box_trap', 10], ['knife', 5]] },
   general: { name: 'Ardenvale General Store', stock: [['vial', 10], ['bird_snare', 10], ['bronze_axe', 5], ['bronze_pickaxe', 5], ['small_net', 5], ['tinderbox', 5], ['hammer', 5], ['knife', 5], ['shrimps', 10], ['bronze_dagger', 3], ['wooden_shield', 2], ['spade', 5]] },
   smith: { name: 'Hilda\'s Forge', stock: [['iron_axe', 2], ['iron_pickaxe', 2], ['hammer', 10], ['bronze_bar', 10], ['iron_bar', 5], ['bronze_scimitar', 2], ['iron_scimitar', 1], ['bronze_platebody', 1]] },
   magic: { name: 'Orla\'s Rune Emporium', stock: [['air_rune', 500], ['mind_rune', 500], ['water_rune', 300], ['earth_rune', 300], ['fire_rune', 300], ['body_rune', 100], ['chaos_rune', 50], ['law_rune', 20], ['nature_rune', 20], ['staff', 5], ['staff_of_air', 1], ['wizard_hat', 5], ['wizard_robe', 5]] },
   archery: { name: 'Bryn\'s Archery Supplies', stock: [['shortbow', 4], ['longbow', 3], ['oak_shortbow', 2], ['bronze_arrow', 800], ['iron_arrow', 300], ['feather', 500], ['bow_string', 20], ['leather_cowl', 3]] },
-  herbs: { name: 'Wren\'s Herbs & Vials', stock: [['vial', 50], ['vial_water', 30], ['eye_of_newt', 50], ['limpwurt_root', 10], ['white_berries', 10], ['grimy_guam', 10], ['attack_potion4', 2]] },
-  farming: { name: 'Ada\'s Farming Supplies', stock: [['rake', 5], ['seed_dibber', 5], ['spade', 5], ['potato_seed', 100], ['onion_seed', 50], ['cabbage_seed', 50], ['guam_seed', 10], ['tarromin_seed', 5]] },
+  herbs: { name: 'Wren\'s Herbs & Vials', stock: [['unicorn_horn_dust', 10], ['snape_grass', 5], ['vial', 50], ['vial_water', 30], ['eye_of_newt', 50], ['limpwurt_root', 10], ['white_berries', 10], ['grimy_guam', 10], ['attack_potion4', 2]] },
+  farming: { name: 'Ada\'s Farming Supplies', stock: [['marrentill_seed', 10], ['rake', 5], ['seed_dibber', 5], ['spade', 5], ['potato_seed', 100], ['onion_seed', 50], ['cabbage_seed', 50], ['guam_seed', 10], ['tarromin_seed', 5]] },
   crafting: { name: 'Ellis\'s Leatherworks', stock: [['needle', 10], ['thread', 200], ['leather', 20], ['leather_gloves', 3], ['leather_boots', 3]] },
 };
+
+// Fishing spot kinds and what each option catches: [fish id, level, xp]
+const FISHING = {
+  Net: { tool: 'small_net', anim: 'fish', fish: [['raw_shrimps', 1, 10], ['raw_anchovies', 15, 40]] },
+  Bait: { tool: 'fishing_rod', bait: 'fishing_bait', anim: 'fish', fish: [['raw_sardine', 5, 20], ['raw_herring', 10, 30]] },
+  Lure: { tool: 'fly_fishing_rod', bait: 'feather', anim: 'fish', fish: [['raw_trout', 20, 50], ['raw_salmon', 30, 70]] },
+  Cage: { tool: 'lobster_pot', anim: 'fish', fish: [['raw_lobster', 40, 90]] },
+  Harpoon: { tool: 'harpoon', anim: 'fish', fish: [['raw_tuna', 35, 80], ['raw_swordfish', 50, 100]] },
+};
+const SPOT_OPS = { coast: ['Net', 'Bait'], river: ['Lure', 'Bait'], sea: ['Cage', 'Harpoon'] };
 
 const QUESTS = [
   { id: 'bridge', name: 'Bridge to the West', giver: 'Elder Brannoc in his house in Ardenvale' },
@@ -402,5 +488,5 @@ const HUNTER = {
 
 const SLAYER_TASKS = [
   { npc: 'chicken', min: 0, n: [10, 20] }, { npc: 'cow', min: 0, n: [10, 20] }, { npc: 'goblin', min: 0, n: [10, 20] },
-  { npc: 'rat', min: 0, n: [10, 20] }, { npc: 'bandit', min: 15, n: [10, 20] }, { npc: 'scorpion', min: 18, n: [10, 20] }, { npc: 'skeleton', min: 25, n: [10, 20] }, { npc: 'lesser_demon', min: 60, n: [5, 12] }, { npc: 'guard', min: 25, n: [8, 15] }, { npc: 'ogre', min: 40, n: [3, 6] },
+  { npc: 'rat', min: 0, n: [10, 20] }, { npc: 'bandit', min: 15, n: [10, 20] }, { npc: 'scorpion', min: 18, n: [10, 20] }, { npc: 'skeleton', min: 25, n: [10, 20] }, { npc: 'lesser_demon', min: 60, n: [5, 12] }, { npc: 'crawling_hand', min: 3, n: [10, 25], slayer: 5 }, { npc: 'banshee', min: 15, n: [10, 25], slayer: 15 }, { npc: 'jogre', min: 45, n: [10, 20] }, { npc: 'jungle_spider', min: 40, n: [10, 20] }, { npc: 'green_dragon', min: 70, n: [5, 10] }, { npc: 'guard', min: 25, n: [8, 15] }, { npc: 'ogre', min: 40, n: [3, 6] },
 ];

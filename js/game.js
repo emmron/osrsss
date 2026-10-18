@@ -223,6 +223,7 @@ const Game = (() => {
     if (n.dead) return;
     if (!n.def.hp) return;
     if (n.target && n.target !== p) { msg('Someone else is fighting that.'); return; }
+    if (n.def.slayerReq && lvl('slayer') < n.def.slayerReq) { msg(`You need a Slayer level of ${n.def.slayerReq} to know how to wound this monster.`); return; }
     p.combat = n;
     const mode = attackMode();
     if (mode.type === 'melee') pathToNpc(n);
@@ -285,6 +286,7 @@ const Game = (() => {
       if (st === 'ready') return [loc.type === 'herbpatch' ? 'Pick' : 'Harvest', 'Inspect'];
       return ['Inspect'];
     }
+    if (loc.type === 'fishing_spot') return SPOT_OPS[loc.kind || 'coast'];
     return loc.def.ops;
   }
   function locAction(loc, op) {
@@ -308,20 +310,19 @@ const Game = (() => {
       return;
     }
     if (loc.def.rune) return craftRunes(loc);
-    if (T === 'fishing_spot') {
-      if (!has('small_net')) { msg('You need a net to catch these fish.'); return; }
-      if (!freeSlots()) { msg('You can\'t carry any more fish.'); return; }
-      msg('You cast out your net...');
-      startLoop('fish', 'small_net', 5, () => {
-        if (World.locs.indexOf(loc) < 0 || !locReach(p, loc)) return false;
-        if (!freeSlots()) { msg('You can\'t carry any more fish.'); return false; }
-        if (Math.random() < Math.min(0.85, 0.3 + lvl('fishing') * 0.01)) {
-          const anch = lvl('fishing') >= 15 && Math.random() < 0.45;
-          invAdd(anch ? 'raw_anchovies' : 'raw_shrimps'); addXp('fishing', anch ? 40 : 10);
-          msg(anch ? 'You catch some anchovies.' : 'You catch some shrimps.'); Sfx.play('splash');
-        }
-        return true;
-      });
+    if (T === 'fishing_spot') return fish(loc, op);
+    if (T === 'banana') {
+      if (loc.depletedUntil > S.tick) { msg('There are no bananas left on the tree.'); return; }
+      if (!freeSlots()) { msg('You don\'t have enough inventory space.'); return; }
+      setAnim(p, 'pickup'); invAdd('banana'); msg('You pick a banana.');
+      if (Math.random() < 0.2) loc.depletedUntil = S.tick + 50;
+      return;
+    }
+    if (T === 'guild_door') {
+      if (lvl('mining') < 60) { msg('You need a Mining level of 60 to enter the Mining Guild.'); return; }
+      const inside = p.x < loc.x;
+      p.x = inside ? loc.x + 1 : loc.x - 1; p.z = loc.z; p.from = null; p.steps = [];
+      msg(inside ? 'You leave the Mining Guild.' : 'You enter the Mining Guild.'); Sfx.play('equip');
       return;
     }
     if (T === 'furnace') return smeltMenu();
@@ -351,6 +352,30 @@ const Game = (() => {
     if (T === 'snare' || T === 'boxtrap') return trapAction(loc, op);
   }
 
+  function fish(loc, op) {
+    const p = S.player, f = FISHING[op];
+    if (!f) return;
+    const minLv = f.fish[0][1];
+    if (lvl('fishing') < minLv) { msg(`You need a Fishing level of ${minLv} to fish here.`); return; }
+    if (!has(f.tool)) { msg(`You need a ${ITEMS[f.tool].name.toLowerCase()} to fish here.`); return; }
+    if (f.bait && !has(f.bait)) { msg(`You don't have any ${ITEMS[f.bait].name.toLowerCase()}${f.bait === 'feather' ? 's' : ''} left.`); return; }
+    if (!freeSlots()) { msg('You can\'t carry any more fish.'); return; }
+    msg({ Net: 'You cast out your net...', Bait: 'You cast out your line...', Lure: 'You cast out your line...', Cage: 'You attempt to catch a lobster.', Harpoon: 'You start harpooning fish.' }[op]);
+    startLoop('fish', f.tool, 5, () => {
+      if (World.locs.indexOf(loc) < 0 || !locReach(p, loc)) return false;
+      if (!freeSlots()) { msg('You can\'t carry any more fish.'); return false; }
+      if (f.bait && !has(f.bait)) { msg('You have run out of bait.'); return false; }
+      if (Math.random() < Math.min(0.85, 0.28 + (lvl('fishing') - minLv) * 0.012)) {
+        const avail = f.fish.filter(x => lvl('fishing') >= x[1]);
+        const pickF = avail.length > 1 && Math.random() < 0.45 ? avail[avail.length - 1] : avail[Math.floor(Math.random() * avail.length)];
+        if (f.bait) invRemove(f.bait, 1);
+        invAdd(pickF[0]); addXp('fishing', pickF[2]);
+        const nm = ITEMS[pickF[0]].name.replace('Raw ', '');
+        msg(`You catch ${/s$/.test(nm) ? 'some' : /^[aeiou]/.test(nm) ? 'an' : 'a'} ${nm}.`); Sfx.play('splash');
+      }
+      return true;
+    });
+  }
   function woodcut(loc) {
     if (loc.depletedUntil > S.tick) return;
     const tr = TREES[loc.type], axe = bestTool('wc');
@@ -384,6 +409,7 @@ const Game = (() => {
       Sfx.play('mine');
       if (Math.random() < Math.min(0.9, rk.base + (lvl('mining') - rk.level) * 0.01 + ITEMS[pick].tool.power * 0.08)) {
         invAdd(rk.ore); addXp('mining', rk.xp);
+        if (Math.random() < 1 / 60) gemFound();
         msg(`You manage to mine some ${ITEMS[rk.ore].name.replace(' ore', '').toLowerCase()}.`);
         loc.depletedUntil = S.tick + rk.respawn;
         return false;
@@ -391,6 +417,8 @@ const Game = (() => {
       return true;
     });
   }
+  function rollGem() { let r = Math.random(); for (const [id, w] of GEM_TABLE) { if ((r -= w) <= 0) return id; } return GEM_TABLE[0][0]; }
+  function gemFound() { const g = rollGem(); invAddOrDrop(g, 1); msg('You just found ' + (/^[AEIOU]/i.test(ITEMS[g].name.replace('Uncut ', '')) ? 'an ' : 'a ') + ITEMS[g].name.replace('Uncut ', '') + '!', '#000080'); }
   function craftRunes(loc) {
     const k = loc.def.rune, a = RC_ALTARS[k];
     if (lvl('runecrafting') < a.level) { msg(`You need a Runecrafting level of ${a.level} to craft ${k} runes.`); return; }
@@ -404,6 +432,12 @@ const Game = (() => {
   function stealStall(loc) {
     const p = S.player;
     const cake = loc.type === 'bakery_stall';
+    if (loc.type === 'gem_stall') {
+      if (lvl('thieving') < 75) { msg('You need a Thieving level of 75 to steal from this stall.'); return; }
+      if (loc.depletedUntil > S.tick) { msg('The stall has nothing left to steal right now.'); return; }
+      if (!freeSlots()) { msg('You don\'t have enough inventory space.'); return; }
+      setAnim(p, 'pickup'); invAdd(rollGem()); addXp('thieving', 160); msg('You steal a gem from the stall.'); loc.depletedUntil = S.tick + 30; return;
+    }
     const req = cake ? 5 : 20;
     if (lvl('thieving') < req) { msg(`You need a Thieving level of ${req} to steal from this stall.`); return; }
     if (loc.depletedUntil > S.tick) { msg('The stall has nothing left to steal right now.'); return; }
@@ -555,10 +589,12 @@ const Game = (() => {
     }, 2);
   }
   function craftGold() {
-    options('What would you like to make?', [['gold_ring', 5, 15], ['gold_amulet', 8, 30]].map(([id, lv, xp]) => ({
-      text: ITEMS[id].name, fn: () => {
-        if (lvl('crafting') < lv) { msg(`You need a Crafting level of ${lv} to make this.`); return; }
-        startLoop('smelt', null, 3, () => { if (!has('gold_bar')) return false; invRemove('gold_bar'); invAdd(id); addXp('crafting', xp); msg(`You make a ${ITEMS[id].name.toLowerCase()}.`); return has('gold_bar'); }, 2);
+    const list = [{ out: 'gold_ring', gem: null, level: 5, xp: 15 }, { out: 'gold_amulet', gem: null, level: 8, xp: 30 }].concat(JEWEL.filter(j => has(j.gem)));
+    options('What would you like to make?', list.slice(0, 6).map(j => ({
+      text: `${ITEMS[j.out].name} (lvl ${j.level})`, fn: () => {
+        if (lvl('crafting') < j.level) { msg(`You need a Crafting level of ${j.level} to make this.`); return; }
+        const ok = () => has('gold_bar') && (!j.gem || has(j.gem));
+        startLoop('smelt', null, 3, () => { if (!ok()) return false; invRemove('gold_bar'); if (j.gem) invRemove(j.gem); invAdd(j.out); addXp('crafting', j.xp); msg(`You make ${/^[aeiou]/i.test(ITEMS[j.out].name) ? 'an' : 'a'} ${ITEMS[j.out].name.toLowerCase()}.`); return ok(); }, 2);
       },
     })));
   }
@@ -675,6 +711,11 @@ const Game = (() => {
       if (lvl('fletching') < ar[1]) return msg(`You need a Fletching level of ${ar[1]} to make these arrows.`);
       return makeLoop('fletch', null, () => has('headless_arrow') && has(o), () => { const n = Math.min(15, invCount(o), invCount('headless_arrow')); invRemove(o, n); invRemove('headless_arrow', n); invAdd(m + '_arrow', n); addXp('fletching', n * ar[2]); msg(`You attach arrow heads to ${n} arrows.`); });
     }
+    if ((o = pair('chisel', id => /^uncut_/.test(id)))) {
+      const cut = o.replace('uncut_', ''), c = ITEMS[cut].cut;
+      if (lvl('crafting') < c.level) return msg(`You need a Crafting level of ${c.level} to cut this gem.`);
+      return makeLoop('craft', 'chisel', () => has(o), () => { invRemove(o); invAdd(cut); addXp('crafting', c.xp); msg(`You cut the ${ITEMS[cut].name.toLowerCase()}.`); });
+    }
     if (pair('needle', id => id === 'leather')) { if (!has('thread')) return msg('You need some thread to sew with.'); return craftLeather(); }
     // herblore
     const herb = ids.find(id => /_leaf$/.test(id)), unf = ids.find(id => /_unf$/.test(id));
@@ -725,8 +766,9 @@ const Game = (() => {
     if (op === 'Drink') {
       if (p.eatDelay > 0) return;
       const { p: pot, dose } = d.potion;
-      const k = pot.boost, L = lvl(k);
-      S.skills[k].cur = Math.max(cur(k), L + Math.floor(pot.base + L * pot.pct));
+      if (pot.boost) { const k = pot.boost, L = lvl(k); S.skills[k].cur = Math.max(cur(k), L + Math.floor(pot.base + L * pot.pct)); }
+      if (pot.restore) for (const k of ['attack', 'strength', 'defence', 'ranged', 'magic']) S.skills[k].cur = Math.max(cur(k), Math.min(lvl(k), cur(k) + 10 + Math.floor(lvl(k) * 0.3)));
+      if (pot.prayer) S.skills.prayer.cur = Math.min(lvl('prayer'), cur('prayer') + 7 + Math.floor(lvl('prayer') * 0.25));
       S.inv[slot] = dose > 1 ? { id: pot.id + (dose - 1), qty: 1 } : { id: 'vial', qty: 1 };
       msg(`You drink some of your ${pot.name.toLowerCase()}.`); msg(dose > 1 ? `You have ${dose - 1} dose${dose > 2 ? 's' : ''} of potion left.` : 'You have finished your potion.');
       setAnim(p, 'eat'); p.eatDelay = 3; Sfx.play('eat');
@@ -873,6 +915,16 @@ const Game = (() => {
     else if (t === 'priest') bonesQuest(n);
     else if (t === 'harbour') catchQuest(n);
     else if (t === 'slayer') slayerTalk(n);
+    else if (t === 'sail') {
+      const dest = n.def.sail === 'saltreach' ? { name: 'Saltreach Isle', x: 183, z: 86 } : { name: 'Port Sarrow', x: 169, z: 82 };
+      chat(n, [['npc', `Would you like to sail to ${dest.name}? It'll cost you 30 coins.`], { options: [
+        { text: 'Yes please.', fn: () => {
+          if (invCount('coins') < 30) { chat(n, [['npc', 'You don\'t have enough money, landlubber!']]); return; }
+          invRemove('coins', 30); const p = S.player; p.x = dest.x; p.z = dest.z; p.from = null; p.steps = []; p.path = [];
+          S.dialog = { kind: 'msg', lines: ['You board the ship and sail across the sea.', `The ship arrives at ${dest.name}.`] }; Sfx.play('splash');
+        } },
+        { text: 'No thanks.', fn: end }] }]);
+    }
   }
   function elderDialog(n) {
     const q = S.quests.bridge;
@@ -932,7 +984,7 @@ const Game = (() => {
     const st = S.slayer;
     const assign = () => {
       const cl = combatLevel();
-      const pool = SLAYER_TASKS.filter(t => cl >= t.min);
+      const pool = SLAYER_TASKS.filter(t => cl >= t.min && lvl('slayer') >= (t.slayer || 1));
       const t = pool[ri(0, pool.length - 1)];
       S.slayer = { npc: t.npc, left: ri(t.n[0], t.n[1]) };
       chat(n, [['npc', `Your new task is to kill ${S.slayer.left} ${NPCS[t.npc].name.toLowerCase()}${/s$/.test(NPCS[t.npc].name) ? '' : 's'}.`]]);
@@ -950,7 +1002,7 @@ const Game = (() => {
     msg(`You attempt to pick the ${n.def.name.toLowerCase()}'s pocket.`);
     setAnim(p, 'pickup');
     p.task = { timer: 2, interval: 2, fn: () => {
-      if (Math.random() < Math.min(0.95, 0.55 + (lvl('thieving') - pp.level) * 0.02)) { invAddOrDrop('coins', pp.coins); addXp('thieving', pp.xp); msg(`You pick the ${n.def.name.toLowerCase()}'s pocket.`); }
+      if (Math.random() < Math.min(0.95, 0.55 + (lvl('thieving') - pp.level) * 0.02)) { invAddOrDrop('coins', pp.coins); if (pp.extra && Math.random() < 0.3) invAddOrDrop(pp.extra, 1); addXp('thieving', pp.xp); msg(`You pick the ${n.def.name.toLowerCase()}'s pocket.`); }
       else { msg(`You fail to pick the ${n.def.name.toLowerCase()}'s pocket.`); say(n, 'What do you think you\'re doing?'); faceEnt(n, p); setAnim(n, 'punch'); damagePlayer(pp.stun, null); p.stun = 5; p.path = []; msg('You have been stunned.'); }
       return false;
     } };
@@ -1284,19 +1336,19 @@ const Game = (() => {
     if (S.tick % 30 === 0) moveFishingSpot();
     if (S.tick % 50 === 0) growPatches();
     trapTick();
-    if (S.tick % 10 === 0) save();
+    if (S.tick % 2 === 0) save();
     S.lastTick = now();
   }
   function moveFishingSpot() {
     const spots = World.locs.filter(l => l.type === 'fishing_spot');
     if (!spots.length || Math.random() < 0.5) return;
     const s = spots[ri(0, spots.length - 1)];
-    const free = World.fishTiles.filter(([x, z]) => !World.locAt(x, z));
+    const free = World.fishTiles.filter(([x, z, k]) => k === s.kind && !World.locAt(x, z));
     if (!free.length) return;
-    const [x, z] = free[ri(0, free.length - 1)];
-    World.removeLocLive(s); World.fishTiles.push([s.x, s.z]);
-    World.fishTiles.splice(World.fishTiles.findIndex(t => t[0] === x && t[1] === z), 1);
-    World.addLocLive('fishing_spot', x, z);
+    const t = free[ri(0, free.length - 1)];
+    World.removeLocLive(s); World.fishTiles.push([s.x, s.z, s.kind]);
+    World.fishTiles.splice(World.fishTiles.indexOf(t), 1);
+    World.addLocLive('fishing_spot', t[0], t[1], { kind: s.kind });
   }
 
   // ---------- save / load (persists in browser storage, auto-login on refresh) ----------

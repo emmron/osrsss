@@ -1,10 +1,10 @@
 // ===== World: big tile map, textured terrain, walls, roofs, locs, chunks, pathfinding =====
 const World = (() => {
-  const W = 176, H = 168;
+  const W = 240, H = 168;
   const OX = 40, OZ = 36; // offset of the original Ardenvale village layout
   const WATER_H = -0.35;
-  const U = { GRASS: 1, FOREST: 2, DIRT: 3, SAND: 4, DARK: 5, SWAMP: 6, DESERT: 7 };
-  const UCOL = { 1: [84, 114, 40], 2: [66, 94, 32], 3: [108, 90, 62], 4: [172, 156, 100], 5: [58, 50, 42], 6: [70, 80, 44], 7: [196, 170, 108] };
+  const U = { GRASS: 1, FOREST: 2, DIRT: 3, SAND: 4, DARK: 5, SWAMP: 6, DESERT: 7, JUNGLE: 8 };
+  const UCOL = { 1: [84, 114, 40], 2: [66, 94, 32], 3: [108, 90, 62], 4: [172, 156, 100], 5: [58, 50, 42], 6: [70, 80, 44], 7: [196, 170, 108], 8: [50, 98, 28] };
   const O = { PATH: 1, WATER: 2, WOOD: 3, STONE: 4, BRIDGE: 5, MUD: 6, COBBLE: 7, LAVA: 8, PIER: 9, SANDPATH: 10 };
   const OCOL = { 1: [122, 100, 66], 2: [40, 66, 120], 3: [104, 72, 40], 4: [96, 92, 86], 5: [40, 66, 120], 6: [80, 66, 46], 7: [112, 108, 100], 8: [220, 90, 20], 9: [40, 66, 120], 10: [170, 140, 90] };
 
@@ -54,6 +54,9 @@ const World = (() => {
       if (dv < r) { const w = dv < r * 0.6 ? 1 : 1 - (dv - r * 0.6) / (r * 0.4); h = h * (1 - w) + 0.1 * w; }
     }
     if (z > 130) h += Math.sin(x * 0.15) * Math.cos(z * 0.2) * 0.4;
+    const dvol = Math.hypot(x - 216, z - 58);
+    if (dvol < 11) h += (11 - dvol) * 0.55 - (dvol < 3 ? (3 - dvol) * 1.2 : 0);
+    for (const [cx, cz, r] of [[77, 20, 14], [196, 88, 9]]) { const dv = Math.hypot(x - cx, z - cz); if (dv < r) { const w = dv < r * 0.7 ? 1 : 1 - (dv - r * 0.7) / (r * 0.3); h = h * (1 - w) + 0.15 * w; } }
     if (x < 36) h += 0.3 * Math.sin(z * 0.2) + 0.2;
     const de = Math.min(x, z, H - z);
     if (de < 6) h += (6 - de) * 0.45;
@@ -74,6 +77,11 @@ const World = (() => {
   // ---------- loc definitions ----------
   const LOCDEF = {
     tree: { name: 'Tree', ops: ['Chop down'], examine: 'A commonly found tree.' },
+    teak: { name: 'Teak', ops: ['Chop down'], examine: 'A beautiful old teak tree.' },
+    mahogany: { name: 'Mahogany', ops: ['Chop down'], examine: 'A strong old mahogany tree.' },
+    banana: { name: 'Banana tree', ops: ['Pick'], examine: 'A tree full of bananas.' },
+    guild_door: { name: 'Door', ops: ['Open'], examine: 'The door to the Mining Guild. Mining level 60 required.' },
+    gem_stall: { name: 'Gem stall', w: 2, d: 1, ops: ['Steal-from'], examine: 'A stall selling fine gems.' },
     maple: { name: 'Maple tree', ops: ['Chop down'], examine: 'It\'ll be nice and colourful in autumn.' },
     yew: { name: 'Yew', ops: ['Chop down'], examine: 'A tough looking yew tree.' },
     magic: { name: 'Magic tree', ops: ['Chop down'], examine: 'The tree shimmers with a magical force.' },
@@ -172,7 +180,11 @@ const World = (() => {
       if (Math.hypot(x - 71, z - 47) < 5.6) setO(x, z, O.WATER);
       if (Math.hypot((x - 62) / 1.4, z - 145) < 6) setO(x, z, O.WATER);
       if (x >= 160) setO(x, z, O.WATER);
+      // Saltreach Isle
+      const ie = Math.hypot((x - 209) / 25, (z - 86) / 46) + Math.sin(z * 0.3 + x * 0.1) * 0.04;
+      if (ie < 1) { setO(x, z, 0); setU(x, z, U.JUNGLE); }
     }
+    rectU(64, 6, 90, 34, U.GRASS);
     for (let z = 44; z < 50; z++) for (let x = 62; x < 68; x++) if (Math.abs(z - 47) < 1.6) setO(x, z, O.WATER);
     // swamp pools & mud
     for (let i = 0; i < 40; i++) { const cx = 128 + rnd() * 28, cz = 6 + rnd() * 40, r = 1 + rnd() * 2.4; for (let z = cz - 4; z < cz + 4; z++) for (let x = cx - 4; x < cx + 4; x++) { const d = Math.hypot(x - cx, z - cz); if (d < r) setO(Math.floor(x), Math.floor(z), i % 3 ? O.MUD : O.WATER); } }
@@ -199,11 +211,18 @@ const World = (() => {
     for (let z = 82; z < 104; z++) setO(140, z, O.PATH);
     for (let x = 128; x < 140; x++) setO(x, 104, O.PATH);
     rectO(86, 76, 95, 85, O.COBBLE);
+    // Whitecliff streets
+    rectO(67, 19, 87, 21, O.COBBLE); rectO(76, 9, 78, 31, O.COBBLE); rectO(77, 32, 78, 40, O.PATH); for (let x = 79; x < 90; x++) setO(x, 20, O.PATH);
+    // Saltreach paths & volcano lava
+    rectO(188, 85, 205, 87, O.PATH); rectO(203, 88, 205, 112, O.PATH);
+    for (let z = 52; z < 65; z++) for (let x = 210; x < 223; x++) if (Math.hypot(x - 216, z - 58) < 2.6) setO(x, z, O.LAVA);
+    for (let x = 176; x < 186; x++) for (const z of [86, 87]) setO(x, z, O.PIER);
     rectO(136, 76, 152, 86, O.COBBLE);
     // bridge over the river
     for (const z of [80, 81]) for (let x = 0; x < W; x++) if (ov(x, z) === O.WATER && x > 52 && x < 70) { setO(x, z, O.BRIDGE); bridgeTiles.push([x, z]); }
     // pier into the sea
     for (let x = 160; x < 171; x++) for (const z of [82, 83]) setO(x, z, O.PIER);
+    for (let z = 0; z < H; z++) for (let x = 180; x < W; x++) if (under[idx(x, z)] === U.JUNGLE && !ov(x, z)) { let nearSea = false; for (let dz = -2; dz <= 2; dz++) for (let dx = -2; dx <= 2; dx++) if (ov(x + dx, z + dz) === O.WATER) nearSea = true; if (nearSea) setU(x, z, U.SAND); }
   }
 
   function building(b) {
@@ -333,9 +352,37 @@ const World = (() => {
     for (let z = 134; z < 156; z++) { if (z < 142 || z > 145) { addWall(122, z, 'W', fenceSegs); } }
     // Wilderness ditch
     for (let z = 3; z < H - 3; z++) if (!isLiquid(36, z) && !ov(36, z)) setO(36, z, O.MUD);
+    // ===== Whitecliff (walled white city) =====
+    for (let x = 66; x <= 88; x++) { addWall(x, 8, 'N', wallSegs, 'white'); if (x !== 77 && x !== 78) addWall(x, 32, 'S', wallSegs, 'white'); }
+    for (let z = 8; z <= 32; z++) { addWall(66, z, 'W', wallSegs, 'white'); if (z !== 20) addWall(88, z, 'E', wallSegs, 'white'); }
+    building({ name: 'Whitecliff Castle', x0: 68, z0: 10, x1: 75, z1: 17, style: 'white', roof: 'slate', floor: O.STONE, doors: [{ x: 75, z: 14, s: 'E' }] });
+    building({ name: 'Whitecliff Bank', x0: 80, z0: 10, x1: 86, z1: 14, style: 'white', roof: 'slate', floor: O.STONE, doors: [{ x: 83, z: 14, s: 'S' }] });
+    for (const x of [81, 83, 85]) addLoc('bank_booth', x, 11);
+    mapIcons.push({ x: 83, z: 12, icon: 'bank' });
+    building({ name: 'Armoury', x0: 80, z0: 23, x1: 86, z1: 27, style: 'white', roof: 'rooftile', floor: O.WOOD, doors: [{ x: 80, z: 25, s: 'W' }] });
+    mapIcons.push({ x: 83, z: 25, icon: 'armour' });
+    building({ name: 'Gem Store', x0: 68, z0: 23, x1: 73, z1: 27, style: 'white', roof: 'rooftile', floor: O.WOOD, doors: [{ x: 73, z: 25, s: 'E' }] });
+    mapIcons.push({ x: 70.5, z: 25, icon: 'gem' });
+    building({ name: 'Mining Guild', x0: 68, z0: 28, x1: 74, z1: 31, style: 'stone', roof: 'slate', floor: O.STONE, doors: [{ x: 74, z: 29, s: 'E' }] });
+    addLoc('guild_door', 74, 29);
+    for (const [t, x, z] of [['coal', 69, 29], ['coal', 70, 31], ['mithril', 72, 29], ['adamantite', 71, 31], ['coal', 69, 31], ['mithril', 73, 31]]) addLoc(t, x, z);
+    mapIcons.push({ x: 71, z: 30, icon: 'guild' });
+    addLoc('furnace', 80, 29); addLoc('anvil', 83, 30); addLoc('gem_stall', 74, 21); addLoc('fountain', 77, 21, { rot: 0 });
+    mapIcons.push({ x: 81, z: 30, icon: 'furnace' }, { x: 75, z: 21.5, icon: 'stall' });
+    for (const [x, z] of [[67, 18], [87, 18], [67, 22], [87, 22]]) addLoc('lamp', x, z);
+    // ===== Saltreach Isle =====
+    building({ name: 'Saltreach Store', x0: 191, z0: 79, x1: 196, z1: 83, style: 'wood', roof: 'thatch', floor: O.WOOD, doors: [{ x: 193, z: 83, s: 'S' }] });
+    building({ name: 'Saltreach Bank', x0: 198, z0: 79, x1: 202, z1: 83, style: 'wood', roof: 'thatch', floor: O.WOOD, doors: [{ x: 200, z: 83, s: 'S' }] });
+    addLoc('bank_booth', 199, 80); addLoc('bank_booth', 201, 80);
+    building({ name: 'Fishing Hut', x0: 191, z0: 89, x1: 196, z1: 93, style: 'wood', roof: 'thatch', floor: O.WOOD, doors: [{ x: 193, z: 89, s: 'N' }] });
+    addLoc('range', 192, 92);
+    mapIcons.push({ x: 193.5, z: 81, icon: 'store' }, { x: 200, z: 81, icon: 'bank' }, { x: 192.5, z: 92.5, icon: 'range' }, { x: 181, z: 86.5, icon: 'boat' }, { x: 166, z: 81, icon: 'boat' });
+    addLoc('boat', 178, 88, { w: 3, d: 5 });
+    for (let z = 100; z < 112; z += 3) for (let x = 207; x < 216; x += 3) addLoc('banana', x, z);
+    mapIcons.push({ x: 211, z: 105, icon: 'farm' });
     // labels for the world map
     labels.push(['Ardenvale', 90, 74, 1], ['Port Sarrow', 144, 66, 1], ['Elderwood', 85, 8, 0], ['Runestone Circle', 100, 34, 0], ['Duskmoor Swamp', 140, 14, 0],
-      ['Kharidian Desert', 100, 136, 1], ['Al Kharid', 135, 133, 1], ['Wilderness', 18, 30, 1], ['Western Woods', 49, 64, 0], ['Ardenvale Mine', 87, 120, 0], ['Goblin Camp', 112, 122, 0],
+      ['Kharidian Desert', 100, 136, 1], ['Al Kharid', 135, 133, 1], ['Wilderness', 18, 30, 1], ['Whitecliff', 77, 4, 1], ['Saltreach Isle', 209, 44, 1], ['Mount Ember', 216, 66, 0], ['Saltreach', 196, 76, 0], ['Mining Guild', 71, 36, 0], ['Western Woods', 49, 64, 0], ['Ardenvale Mine', 87, 120, 0], ['Goblin Camp', 112, 122, 0],
       ['Cinder Lair', 50, 122, 0], ['Demon Pit', 18, 140, 0], ['Agility Course', 74, 106, 0], ['Farm', 75, 90, 0], ['Oasis', 62, 156, 0]);
 
     // ===== NPCs =====
@@ -357,6 +404,16 @@ const World = (() => {
     npc('huntsman', 92, 30); npc('lesser_demon', 14, 128); npc('lesser_demon', 22, 134);
     for (const [x, z] of [[131, 144], [136, 143], [142, 144], [128, 152], [140, 153]]) npc('kharid_warrior', x, z);
     npc('zeke', 128, 148); for (const x of [127, 129, 130, 132]) npc('kharid_banker', x, 137);
+    for (const [x, z] of [[72, 20], [80, 21], [77, 15], [84, 19], [70, 19]]) npc('white_knight', x, z);
+    npc('armourer', 83, 25); npc('gem_trader', 70, 25); npc('man', 79, 26); npc('woman', 75, 23);
+    for (const [x, z] of [[76, 88], [80, 88], [72, 91]]) npc('farmer_npc', x, z);
+    npc('fishmonger', 149, 90); npc('sailor_sarrow', 168, 82);
+    npc('sailor_saltreach', 184, 86); npc('island_shop', 194, 81); npc('banker', 199, 79); npc('banker', 201, 79);
+    for (const [x, z] of [[210, 120], [200, 126], [218, 112], [222, 95], [196, 110]]) npc('jogre', x, z);
+    for (const [x, z] of [[206, 72], [220, 80], [198, 64], [224, 106]]) npc('jungle_spider', x, z);
+    for (const [x, z] of [[130, 30], [138, 22], [144, 40], [150, 30]]) npc('crawling_hand', x, z);
+    for (const [x, z] of [[134, 12], [146, 16], [140, 46]]) npc('banshee', x, z);
+    npc('green_dragon', 10, 20); npc('green_dragon', 18, 14);
     npc('harbourmaster', 148, 72); npc('sailor', 166, 82); npc('man', 145, 82); npc('woman', 150, 79); npc('guard', 140, 80); npc('man', 143, 86);
   }
 
@@ -367,16 +424,17 @@ const World = (() => {
       if (de <= 2) { blocked[idx(x, z)] = 1; if (de >= 1 && !isWater(x, z) && rnd() < 0.55) addLoc(under[idx(x, z)] === U.DESERT ? 'cactus' : under[idx(x, z)] === U.DARK ? 'deadtree' : 'pine', x, z); }
     }
     const nearRC = (x, z) => Math.hypot(x - 100, z - 21) < 11;
-    for (let z = 3; z < H - 3; z++) for (let x = 3; x < 158; x++) {
+    for (let z = 3; z < H - 3; z++) for (let x = 3; x < W - 3; x++) {
       if (!free(x, z)) continue;
       const u = under[idx(x, z)], r = rnd();
-      if (Math.hypot(x - 90, z - 82) < 15 || Math.hypot(x - 144, z - 81) < 13 || nearRC(x, z)) continue;
+      if (Math.hypot(x - 90, z - 82) < 15 || Math.hypot(x - 144, z - 81) < 13 || nearRC(x, z) || (x >= 64 && x <= 90 && z >= 6 && z <= 34) || (x >= 186 && x <= 206 && z >= 76 && z <= 96)) continue;
       if (x >= 64 && x <= 81 && z >= 82 && z <= 104) continue; // farm + agility
       if (x >= 103 && x <= 121 && z >= 63 && z <= 103) continue; // pens
       if (u === U.FOREST) { if (r < 0.1) addLoc('tree', x, z); else if (r < 0.125) addLoc('oak', x, z); else if (r < 0.15) addLoc('pine', x, z); else if (r < 0.17) addLoc('bush', x, z); }
       else if (u === U.GRASS) { if (r < 0.018) addLoc('tree', x, z); else if (r < 0.024) addLoc('oak', x, z); else if (r < 0.034) addLoc('flowers', x, z); else if (r < 0.04) addLoc('bush', x, z); }
       else if (u === U.DARK) { if (r < 0.04) addLoc('deadtree', x, z); else if (r < 0.05) addLoc('bonepile', x, z); }
       else if (u === U.SWAMP) { if (r < 0.06) addLoc('deadtree', x, z); else if (r < 0.1) addLoc('willow', x, z); }
+      else if (u === U.JUNGLE) { if (r < 0.06) addLoc('palm', x, z); else if (r < 0.1) addLoc('teak', x, z); else if (r < 0.12) addLoc('mahogany', x, z); else if (r < 0.16) addLoc('bush', x, z); }
       else if (u === U.DESERT) { if (r < 0.012) addLoc('cactus', x, z); else if (r < 0.016) addLoc('bonepile', x, z); }
     }
     // special trees
@@ -495,9 +553,10 @@ const World = (() => {
       const grp = chunkFor(ax, az);
       const h = Math.min(V(ax, az), V(bx, bz));
       const horiz = az === bz;
-      const stone = s.style === 'stone';
+      const white = s.style === 'white';
+      const stone = s.style === 'stone' || white;
       const mx = (ax + bx) / 2, mz = (az + bz) / 2;
-      Models.box(horiz ? 1.0 : 0.14, WH, horiz ? 0.14 : 1.0, stone ? brick : plaster, mx, h + WH / 2, mz, grp);
+      Models.box(horiz ? 1.0 : 0.14, white ? WH * 1.25 : WH, horiz ? 0.14 : 1.0, white ? Models.tmat('whitestone', '#ffffff') : stone ? brick : plaster, mx, h + (white ? WH * 1.25 : WH) / 2, mz, grp);
       if (!stone) {
         Models.box(horiz ? 1.02 : 0.16, 0.1, horiz ? 0.16 : 1.02, '#5a3a1e', mx, h + WH - 0.05, mz, grp);
         Models.box(horiz ? 1.02 : 0.16, 0.1, horiz ? 0.16 : 1.02, '#5a3a1e', mx, h + 0.05, mz, grp);
@@ -594,12 +653,14 @@ const World = (() => {
   function locModel(loc) {
     const r = () => rnd();
     const t = loc.type;
-    if (TREES[t] || ['pine', 'deadtree', 'palm', 'cactus'].includes(t)) return Models.tree(t, r);
+    if (TREES[t] || ['pine', 'deadtree', 'palm', 'cactus', 'banana'].includes(t)) return Models.tree(t, r);
     if (ROCKS[t]) return Models.rock(t, r);
     if (t.startsWith('rc_')) return Models.runeAltar(t.slice(3));
     if (t.startsWith('agility')) return Models.agility(['log', 'net', 'rope', 'pipe', 'swing'][+t.slice(7)]);
     switch (t) {
       case 'essence': return Models.essenceRock();
+      case 'guild_door': return Models.guildDoor();
+      case 'gem_stall': return Models.stall('#8040c0');
       case 'fishing_spot': return Models.fishingSpot();
       case 'furnace': return Models.furnace();
       case 'anvil': return Models.anvil();
@@ -660,11 +721,15 @@ const World = (() => {
     placeStructures();
     scatterNature();
     const spots = [];
-    for (let z = 50; z < 76; z++) { const cx = riverX(z); const x = Math.floor(cx + 1.4); if (isWater(x, z) && !isWater(x + 1, z) && ov(x, z) === O.WATER) spots.push([x, z]); }
-    for (let z = 42; z < 53; z++) for (let x = 73; x < 78; x++) if (ov(x, z) === O.WATER && !isWater(x + 1, z)) spots.push([x, z]);
-    for (let x = 161; x < 171; x++) for (const z of [81, 84]) spots.push([x, z]);
+    for (let z = 50; z < 76; z++) { const cx = riverX(z); const x = Math.floor(cx + 1.4); if (isWater(x, z) && !isWater(x + 1, z) && ov(x, z) === O.WATER) spots.push([x, z, 'river']); }
+    for (let z = 42; z < 53; z++) for (let x = 73; x < 78; x++) if (ov(x, z) === O.WATER && !isWater(x + 1, z)) spots.push([x, z, 'river']);
+    for (let z = 64; z < 100; z += 2) spots.push([160, z, 'coast']);
+    for (let x = 161; x < 171; x++) for (const z of [81, 84]) spots.push([x, z, 'sea']);
+    for (let x = 177; x < 186; x++) for (const z of [85, 88]) if (ov(x, z) === O.WATER) spots.push([x, z, 'sea']);
+    for (let z = 70; z < 110; z += 3) for (let x = 182; x < 192; x++) if (ov(x, z) === O.WATER && !isWater(x + 1, z)) { spots.push([x, z, 'coast']); break; }
     World.fishTiles = spots;
-    for (let i = 0; i < 10 && spots.length; i++) { const [x, z] = spots.splice(Math.floor(rnd() * spots.length), 1)[0]; addLoc('fishing_spot', x, z); }
+    const want = { river: 6, coast: 6, sea: 6 };
+    for (const k in want) for (let i = 0; i < want[k]; i++) { const pool = spots.filter(s => s[2] === k); if (!pool.length) break; const s = pool[Math.floor(rnd() * pool.length)]; spots.splice(spots.indexOf(s), 1); addLoc('fishing_spot', s[0], s[1], { kind: k }); }
     buildTerrain();
     buildWalls();
     buildRoofs();

@@ -230,6 +230,17 @@ const Icons = (() => {
     snare(ctx) { rect(ctx, 9, 8, 2, 18, '#6b4a2a'); rect(ctx, 21, 8, 2, 18, '#6b4a2a'); rect(ctx, 9, 8, 14, 2, '#6b4a2a'); ctx.strokeStyle = '#e8d8b0'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.ellipse(16, 22, 6, 3, 0, 0, 7); ctx.stroke(); },
     boxtrap(ctx) { poly(ctx, [5, 12, 22, 12, 27, 8, 10, 8], '#a07a48'); rect(ctx, 5, 12, 17, 13, '#8a6238'); poly(ctx, [22, 12, 27, 8, 27, 21, 22, 25], '#6b4a2a'); for (let i = 0; i < 3; i++) rect(ctx, 7 + i * 5, 14, 1, 10, '#5a3a1a'); },
     ferret(ctx, ic) { ell(ctx, 16, 19, 10, 5, ic.c); ell(ctx, 7, 16, 4, 3.5, ic.c); ell(ctx, 5, 15, 1, 1, '#101010'); poly(ctx, [25, 18, 30, 12, 28, 20], ic.c); rect(ctx, 9, 22, 2, 4, Icons.shade(ic.c, 0.7)); rect(ctx, 20, 22, 2, 4, Icons.shade(ic.c, 0.7)); },
+    rod(ctx, ic) { diag(ctx, () => { rect(ctx, -0.8, -14, 1.6, 28, ic.fly ? '#a07040' : '#6b4523'); rect(ctx, -2, 8, 4, 4, '#404040'); }); ctx.strokeStyle = '#e0e0e0'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(26, 5); ctx.quadraticCurveTo(30, 18, 24, 26); ctx.stroke(); },
+    bait(ctx) { for (const [x, y] of [[12, 14], [18, 18], [14, 21], [20, 12]]) { ctx.strokeStyle = '#c07060'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(x, y, 3, 0, 4); ctx.stroke(); } },
+    harpoon(ctx) { diag(ctx, () => { rect(ctx, -1, -6, 2, 20, '#6b4523'); poly(ctx, [-3, -6, 3, -6, 0, -15], '#a0a0a8'); poly(ctx, [-3, -6, -6, -2, -2, -6], '#a0a0a8'); poly(ctx, [3, -6, 6, -2, 2, -6], '#a0a0a8'); }); },
+    pot(ctx) { ctx.strokeStyle = '#6b4523'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(16, 18, 10, Math.PI, 0); ctx.lineTo(26, 26); ctx.lineTo(6, 26); ctx.closePath(); ctx.stroke(); for (let i = 9; i < 25; i += 4) { ctx.beginPath(); ctx.moveTo(i, 10); ctx.lineTo(i, 26); ctx.stroke(); } },
+    lobster(ctx, ic) { ell(ctx, 16, 18, 5, 9, ic.c); for (const s of [-1, 1]) { ell(ctx, 16 + s * 8, 8, 3.5, 5, ic.c); rect(ctx, 16 + s * 5 - 1, 10, 2, 5, ic.c); } ell(ctx, 15, 16, 2, 5, Icons.shade(ic.c, 1.3)); poly(ctx, [12, 26, 20, 26, 16, 30], ic.c); },
+    swordfish(ctx, ic) { diag(ctx, () => { ell(ctx, 0, 2, 5, 11, ic.c); poly(ctx, [-1, -9, 1, -9, 0, -16], '#d0d0d8'); poly(ctx, [-5, 12, 5, 12, 0, 8], ic.c); ell(ctx, -1, 0, 1.5, 6, Icons.shade(ic.c, 1.3)); }); },
+    chisel(ctx) { diag(ctx, () => { rect(ctx, -2, 2, 4, 10, '#6b4523'); poly(ctx, [-1.5, 2, 1.5, 2, 1, -12, -1, -12], '#a0a0a8'); }); },
+    gem(ctx, ic) {
+      if (ic.uncut) { poly(ctx, [9, 12, 15, 7, 23, 10, 24, 19, 17, 25, 9, 21], Icons.shade(ic.c, 0.8)); poly(ctx, [15, 7, 23, 10, 17, 14], Icons.shade(ic.c, 1.2)); return; }
+      poly(ctx, [10, 12, 16, 7, 22, 12, 16, 26], ic.c); poly(ctx, [10, 12, 16, 7, 16, 12], Icons.shade(ic.c, 1.5)); poly(ctx, [16, 12, 22, 12, 16, 26], Icons.shade(ic.c, 0.7));
+    },
     needle(ctx) { diag(ctx, () => { rect(ctx, -0.8, -12, 1.6, 24, '#c8c8d0'); rect(ctx, -0.4, -11, 0.8, 3, '#202020'); }); },
     thread(ctx) { ell(ctx, 16, 16, 9, 9, '#e8e0c8'); for (let i = -6; i <= 6; i += 3) rect(ctx, 8, 16 + i, 16, 1, '#b8b098'); rect(ctx, 6, 5, 20, 3, '#8a5a2a'); rect(ctx, 6, 24, 20, 3, '#8a5a2a'); },
     rake(ctx) { diag(ctx, () => { rect(ctx, -1, -6, 2, 20, WOOD); rect(ctx, -8, -8, 16, 2.5, '#808088'); for (let i = -7; i <= 7; i += 3.5) rect(ctx, i - 0.5, -13, 1.5, 6, '#808088'); }); },

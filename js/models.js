@@ -21,6 +21,7 @@ const Tex = (() => {
     slate: (g, r) => { noise(g, r, [84, 90, 104], 14); for (let row = 0; row < 8; row++) { g.fillStyle = 'rgba(20,22,30,0.7)'; g.fillRect(0, row * 8 + 7, 64, 1); const off = row % 2 ? 6 : 0; for (let x = off; x < 64; x += 12) g.fillRect(x, row * 8, 1, 7); } },
     thatch: (g, r) => { noise(g, r, [168, 140, 76], 20); for (let i = 0; i < 260; i++) { const x = r() * 64, y = r() * 64; g.fillStyle = r() < 0.5 ? 'rgba(90,70,30,0.6)' : 'rgba(220,200,120,0.5)'; g.fillRect(x, y, 1, 4 + r() * 5); } for (let row = 0; row < 4; row++) { g.fillStyle = 'rgba(70,52,20,0.6)'; g.fillRect(0, row * 16 + 15, 64, 1); } },
     planks: (g, r) => { noise(g, r, [126, 88, 50], 14); for (let row = 0; row < 8; row++) { g.fillStyle = 'rgba(40,24,10,0.8)'; g.fillRect(0, row * 8 + 7, 64, 1); g.fillRect(((row * 23) % 48) + 8, row * 8, 1, 7); } for (let i = 0; i < 40; i++) { g.fillStyle = 'rgba(70,44,20,0.35)'; g.fillRect(r() * 64, r() * 64, 6, 1); } },
+    whitestone: (g, r) => { noise(g, r, [226, 226, 222], 12); for (let row = 0; row < 4; row++) { g.fillStyle = 'rgba(120,120,130,0.6)'; g.fillRect(0, row * 16 + 15, 64, 1); for (let x = (row % 2) * 16; x < 64; x += 32) g.fillRect(x, row * 16, 1, 16); } },
     stonefloor: (g, r) => { noise(g, r, [104, 100, 94], 18); for (let row = 0; row < 4; row++) { g.fillStyle = 'rgba(36,34,30,0.7)'; g.fillRect(0, row * 16 + 15, 64, 1); for (let x = (row % 2) * 8; x < 64; x += 16) g.fillRect(x, row * 16, 1, 16); } },
     cobble: (g, r) => { noise(g, r, [92, 88, 82], 10); for (let i = 0; i < 46; i++) { const x = r() * 64, y = r() * 64, w = 5 + r() * 5; const v = 100 + r() * 34 | 0; g.fillStyle = `rgb(${v},${v - 3},${v - 8})`; g.beginPath(); g.ellipse(x, y, w / 2, w / 2.6, r() * 3, 0, 7); g.fill(); g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(x - 2, y + 2, 4, 1); } },
     water: (g, r) => { noise(g, r, [44, 74, 132], 10); for (let i = 0; i < 40; i++) { g.fillStyle = `rgba(150,190,240,${0.15 + r() * 0.25})`; g.fillRect(r() * 64, r() * 64, 4 + r() * 8, 1); } },
@@ -169,7 +170,12 @@ const Models = (() => {
       box(0.05, 0.05, 1.2, col, 0, 0, 0.1, g).rotation.x = 0;
       g.children[0].rotation.x = Math.PI / 2 * 0; g.rotation.x = -Math.PI / 2 + 0.2;
       if (def.icon.orb) mesh(G('orb', () => new THREE.IcosahedronGeometry(0.07, 0)), mat(def.icon.orb, { emissive: def.icon.orb }), 0, 0, 0.72, g);
-    } else if (t === 'knife' || t === 'tinderbox' || t === 'rake' || t === 'spade' || t === 'dibber') {
+    } else if (t === 'rod' || t === 'harpoon') {
+      const r = box(0.03, 0.03, t === 'rod' ? 1.3 : 0.9, t === 'rod' ? '#6b4523' : '#7a5a3a', 0, 0, 0.5, g); r.rotation.x = -0.6; r.position.y = 0.3;
+      if (t === 'harpoon') box(0.08, 0.08, 0.15, '#a0a0a8', 0, 0.55, 0.85, g);
+    } else if (t === 'pot') {
+      box(0.35, 0.3, 0.35, '#7a5530', 0, -0.1, 0.15, g);
+    } else if (t === 'knife' || t === 'tinderbox' || t === 'rake' || t === 'spade' || t === 'dibber' || t === 'chisel') {
       box(0.04, 0.04, t === 'knife' ? 0.25 : 0.6, t === 'knife' ? '#b0b0b8' : '#6b4523', 0, 0, 0.15, g);
       if (t === 'spade') box(0.16, 0.02, 0.18, '#8a8a92', 0, 0, 0.5, g);
       if (t === 'rake') box(0.3, 0.04, 0.04, '#808088', 0, 0, 0.45, g);
@@ -410,6 +416,17 @@ const Models = (() => {
       case 'slayer': { const g = humanoid({ skin: '#b07a4c', hair: '#202020', shirt: '#2a2a2a', pants: '#2a2a2a', cape: '#5a0a0a', beard: '#202020' }); applyEquipment(g, { body: 'iron_platebody', weapon: 'iron_scimitar' }); return g; }
       case 'kharid': return humanoid({ skin: '#a06a40', hair: '#1a1a1a', shirt: '#6a2a7a', pants: '#e8e0c8', hood: '#e8e0c8' });
       case 'zeke': return humanoid({ skin: '#a06a40', hair: '#1a1a1a', shirt: '#c08020', pants: '#e8e0c8', beard: '#1a1a1a', hat: '#c02020' });
+      case 'white_knight': { const g = humanoid({ skin: '#c8915c', hair: '#4a2e16', shirt: '#e8e8e8', pants: '#e0e0e0', boots: '#d0d0d0' }); applyEquipment(g, { head: 'wk_helm', body: 'wk_body', legs: 'wk_legs', weapon: 'mithril_sword', shield: 'wk_shield' }); return g; }
+      case 'jogre': return humanoid({ skin: '#6a8a3a', hair: null, shirt: '#5a4a2a', pants: '#4a3a1a', boots: '#3a2a1a', scale: 1.45, ears: true, sleeves: false });
+      case 'banshee': { const g = humanoid({ skin: '#c0c8d8', hair: '#e8e8f0', shirt: '#a0a8b8', pants: '#a0a8b8', robe: '#909aac' }); g.traverse(o => { if (o.material) { o.material = o.material.clone(); o.material.transparent = true; o.material.opacity = 0.75; } }); return g; }
+      case 'hand': { const [root, body, P] = quadBase(); box(0.3, 0.12, 0.35, '#c8a888', 0, 0.12, 0, body); for (let i = 0; i < 4; i++) { const f = pivot(body, -0.12 + i * 0.08, 0.1, 0.18); box(0.05, 0.05, 0.25, '#c8a888', 0, -0.03, 0.1, f); P.legs.push(f); } box(0.07, 0.05, 0.18, '#c8a888', 0.2, 0.1, 0.05, body).rotation.y = -0.6; return root; }
+      case 'spider': { const [root, body, P] = quadBase(); box(0.5, 0.3, 0.6, '#2a2a1a', 0, 0.4, -0.15, body); P.head = pivot(body, 0, 0.4, 0.25); box(0.32, 0.24, 0.3, '#3a3a20', 0, 0, 0, P.head); box(0.05, 0.05, 0.02, '#ff2020', -0.08, 0.05, 0.15, P.head); box(0.05, 0.05, 0.02, '#ff2020', 0.08, 0.05, 0.15, P.head);
+        for (let i = 0; i < 8; i++) { const s = i < 4 ? -1 : 1, k = i % 4; const l = pivot(body, s * 0.22, 0.42, 0.2 - k * 0.15); const seg = box(0.55, 0.05, 0.05, '#1a1a10', s * 0.25, 0.05, 0, l); seg.rotation.z = -s * 0.5; P.legs.push(l); } return root; }
+      case 'dragon': { const [root, body, P] = quadBase(); const c = '#2a7a2a';
+        box(0.9, 0.8, 2.0, c, 0, 1.2, 0, body); P.head = pivot(body, 0, 1.6, 1.1); box(0.45, 0.45, 0.8, c, 0, 0.1, 0.4, P.head); box(0.4, 0.15, 0.4, '#e0d0a0', 0, -0.1, 0.65, P.head); for (const s of [-1, 1]) box(0.06, 0.3, 0.06, '#e0d0a0', s * 0.15, 0.4, 0.1, P.head).rotation.x = -0.5;
+        box(0.3, 0.3, 0.7, c, 0, 1.45, 0.7, body).rotation.x = -0.6; P.tail = box(0.3, 0.3, 1.6, c, 0, 1.0, -1.6, body);
+        for (const s of [-1, 1]) { const w = box(1.8, 0.05, 1.2, '#3a8a3a', s * 1.2, 1.8, 0, body); w.rotation.z = s * 0.4; }
+        for (const [x, z] of [[-0.35, 0.7], [0.35, 0.7], [-0.35, -0.7], [0.35, -0.7]]) { const l = pivot(body, x, 0.9, z); box(0.25, 0.9, 0.25, c, 0, -0.45, 0, l); P.legs.push(l); } return root; }
       case 'priest': return humanoid({ skin: '#d0a070', hair: '#5a4a3a', shirt: '#1a1a1a', pants: '#1a1a1a', robe: '#1a1a1a' });
       case 'hunter': return humanoid({ skin: '#b07a4c', hair: '#5a3a18', shirt: '#6a5a2a', pants: '#4a3a1a', hood: null, cape: '#3a5a2a', beard: '#5a3a18' });
       case 'demon': { const d = humanoid({ skin: '#a01a10', hair: null, shirt: '#a01a10', pants: '#801408', boots: '#401008', scale: 1.5, sleeves: false, ears: true });
@@ -455,6 +472,17 @@ const Models = (() => {
       mesh(cyl(0.16, 0.26, 1.8, 7), barkMat('#8a8a7a'), 0, 0.9, 0, g);
       for (let i = 0; i < 5; i++) { const b = mesh(cyl(0.04, 0.08, 0.9, 5), barkMat('#8a8a7a'), 0, 1.6, 0, g); b.rotation.z = 0.9; b.rotation.y = i * 1.25; b.position.set(Math.cos(i * 1.25) * 0.3, 1.8, -Math.sin(i * 1.25) * 0.3); }
       for (let i = 0; i < 7; i++) { const a = i / 7 * Math.PI * 2; const b = mesh(blobGeo, mat(i % 2 ? '#40a0d0' : '#5ac0e8', { map: Tex.get('leaves'), emissive: '#103048' }), Math.cos(a) * 0.6, 2.1 + r() * 0.5, Math.sin(a) * 0.6, g); b.scale.setScalar(0.38 + r() * 0.15); }
+    } else if (type === 'teak') {
+      mesh(cyl(0.13, 0.2, 1.8, 6), barkMat('#7a6040'), 0, 0.9, 0, g);
+      for (let i = 0; i < 6; i++) { const b = mesh(blobGeo, leafMat(i % 2 ? '#3a6a20' : '#4a7a24'), (r() - 0.5) * 0.7, 1.9 + r() * 0.5, (r() - 0.5) * 0.7, g); b.scale.set(0.55 + r() * 0.2, 0.3, 0.55 + r() * 0.2); }
+    } else if (type === 'mahogany') {
+      mesh(cyl(0.16, 0.26, 2.0, 7), barkMat('#6a3a24'), 0, 1.0, 0, g);
+      for (let i = 0; i < 7; i++) { const a = i / 7 * Math.PI * 2; const b = mesh(blobGeo, leafMat(i % 2 ? '#2a5a1a' : '#36681e'), Math.cos(a) * 0.55, 2.2 + r() * 0.4, Math.sin(a) * 0.55, g); b.scale.set(0.6, 0.35, 0.6); }
+    } else if (type === 'banana') {
+      for (let i = 0; i < 4; i++) mesh(cyl(0.08, 0.1, 0.4, 5), barkMat('#7a8a3a'), 0, 0.2 + i * 0.4, 0, g);
+      for (let i = 0; i < 6; i++) { const f = box(0.3, 0.03, 1.1, leafMat('#5aa030'), Math.sin(i * 1.05) * 0.45, 1.75, Math.cos(i * 1.05) * 0.45, g); f.rotation.y = i * 1.05; f.rotation.x = 0.5; }
+      const fr = new THREE.Group(); g.add(fr); g.userData.goods = fr;
+      for (let i = 0; i < 4; i++) box(0.06, 0.18, 0.06, '#f0d040', Math.cos(i * 1.6) * 0.12, 1.45, Math.sin(i * 1.6) * 0.12, fr);
     } else if (type === 'pine') {
       mesh(cyl(0.1, 0.15, 0.8, 5), barkMat('#4a3420'), 0, 0.4, 0, g);
       for (let i = 0; i < 3; i++) mesh(cone(0.75 - i * 0.18, 1.0, 6), leafMat(i % 2 ? '#2a5a26' : '#244e22'), 0, 1.0 + i * 0.6, 0, g);
@@ -671,11 +699,12 @@ const Models = (() => {
     }
     return g;
   }
+  function guildDoor() { const g = new THREE.Group(); box(0.12, 1.75, 0.95, tmat('planks', '#c09060'), 0, 0.88, 0, g); box(0.16, 0.08, 0.08, '#e8c030', 0.05, 0.9, 0.3, g); return g; }
   function bones() { const g = new THREE.Group(); for (let i = 0; i < 4; i++) { const b = box(0.4, 0.05, 0.05, '#e0dccc', (i - 1.5) * 0.12, 0.03, (i % 2) * 0.15, g); b.rotation.y = i * 0.8; } mesh(G('skull', () => new THREE.IcosahedronGeometry(0.1, 0)), '#e0dccc', 0.1, 0.08, -0.1, g); return g; }
 
   return {
     mat, tmat, box, mesh, taper, cyl, cone, humanoid, applyEquipment, setHeldTool, npcModel, animate, weaponMesh,
     tree, stump, rock, essenceRock, runeAltar, furnace, anvil, range, bankBooth, altar, fountain, fishingSpot, fire, crate, barrel, signpost,
-    flowers, bush, trap, stall, spinningWheel, flaxPlant, patch, agility, tent, boat, well, lamp, bones,
+    flowers, bush, trap, stall, guildDoor, spinningWheel, flaxPlant, patch, agility, tent, boat, well, lamp, bones,
   };
 })();

@@ -146,7 +146,7 @@ const UI = (() => {
     range: ['#d0d0d0', '#5a2a10', 'C'], altar: ['#ffffff', '#3a3a8a', '+'], quest: ['#6aa0ff', '#0a1a5a', '?'], fish: ['#80c0ff', '#103060', '~'], mine: ['#c0a080', '#3a2a1a', 'M'],
     rune: ['#ff6040', '#3a0a40', 'R'], archery: ['#e0c080', '#2a4a1a', 'B'], herb: ['#80e060', '#1a3a10', 'H'], tanner: ['#e0a060', '#4a2a10', 'T'], spin: ['#f0e0c0', '#4a3a2a', 'W'],
     stall: ['#ffd060', '#4a1a1a', '$'], farm: ['#a0e060', '#3a2a10', 'F'], agility: ['#60c0ff', '#1a2a4a', 'A'], slayer: ['#ff4040', '#200000', 'S'], rc: ['#ffffff', '#2a2a6a', 'O'],
-    essence: ['#d0d0ff', '#30305a', 'E'], scimitar: ['#e0e0e0', '#6a1a1a', 'Z'] };
+    essence: ['#d0d0ff', '#30305a', 'E'], scimitar: ['#e0e0e0', '#6a1a1a', 'Z'], boat: ['#ffffff', '#1a3a6a', 'P'], gem: ['#60e0ff', '#1a2a4a', 'G'], armour: ['#e0e0e0', '#3a3a5a', 'A'], guild: ['#e8c030', '#3a2a1a', 'M'] };
   function mapIcon(type, x, y, r) {
     const [fg, bg, ch] = ICONS[type] || ICONS.quest;
     r = r || 6;
@@ -206,17 +206,17 @@ const UI = (() => {
       case 'magic': for (const s of SPELLS) add(s.level || 1, s.name, null); add(1, 'Staves let you autocast combat spells', 'staff'); break;
       case 'runecrafting': for (const k in RC_ALTARS) { add(RC_ALTARS[k].level, `${cap(k)} runes`, k + '_rune'); add(RC_ALTARS[k].multi, `Two ${k} runes per essence`, k + '_rune'); } break;
       case 'woodcutting': for (const k in TREES) add(TREES[k].level, TREES[k].name + 's', TREES[k].log); break;
-      case 'mining': for (const k in ROCKS) add(ROCKS[k].level, ITEMS[ROCKS[k].ore].name, ROCKS[k].ore); add(1, 'Rune essence', 'rune_essence'); break;
+      case 'mining': for (const k in ROCKS) add(ROCKS[k].level, ITEMS[ROCKS[k].ore].name, ROCKS[k].ore); add(1, 'Rune essence', 'rune_essence'); add(1, 'Chance of finding gems', 'uncut_sapphire'); add(60, 'Enter the Mining Guild (Whitecliff)', 'coal'); break;
       case 'smithing': for (const r of SMELTING) add(r.level, ITEMS[r.out].name, r.out); for (const r of SMITHING) add(r.level, ITEMS[r.out].name, r.out); break;
-      case 'fishing': add(1, 'Shrimps', 'raw_shrimps'); add(15, 'Anchovies', 'raw_anchovies'); break;
+      case 'fishing': for (const op in FISHING) for (const [id, lv] of FISHING[op].fish) add(lv, `${ITEMS[id].name.replace('Raw ', '')} (${op}, ${ITEMS[FISHING[op].tool].name.toLowerCase()})`, id); break;
       case 'cooking': for (const k in COOKING) add(COOKING[k].level, ITEMS[COOKING[k].out].name, COOKING[k].out); break;
       case 'firemaking': for (const k in FIREMAKING) add(FIREMAKING[k].level, ITEMS[k].name, k); break;
       case 'fletching': for (const k in SHAFTS) add(SHAFTS[k].level, `Arrow shafts (${ITEMS[k].name})`, 'arrow_shaft'); for (const b of FLETCH_BOW) add(b.level, ITEMS[b.bow].name, b.bow); for (const a of ARROWS) add(a[1], ITEMS[a[0] + '_arrow'].name + 's', a[0] + '_arrow'); break;
-      case 'crafting': for (const r of CRAFT_LEATHER) add(r.level, ITEMS[r.out].name, r.out); add(5, 'Gold ring', 'gold_ring'); add(8, 'Gold amulet', 'gold_amulet'); add(10, 'Spin bow string', 'bow_string'); break;
+      case 'crafting': for (const r of CRAFT_LEATHER) add(r.level, ITEMS[r.out].name, r.out); add(5, 'Gold ring', 'gold_ring'); add(8, 'Gold amulet', 'gold_amulet'); add(10, 'Spin bow string', 'bow_string'); for (const g of GEMS) add(g[3], 'Cut ' + g[1].toLowerCase(), g[0]); for (const j of JEWEL) add(j.level, ITEMS[j.out].name, j.out); break;
       case 'herblore': for (const [id, , , lv] of HERBS) add(lv, 'Clean ' + ITEMS[id + '_leaf'].name, 'grimy_' + id); for (const p of POTIONS) add(p.level, p.name, p.id + '3'); break;
       case 'agility': add(1, 'Ardenvale Agility Course', null); add(1, 'Faster run energy restore', null); break;
-      case 'thieving': add(1, 'Pickpocket men and women', 'coins'); add(5, 'Steal from bakery stalls', 'cake'); add(20, 'Steal from silk stalls', 'silk'); add(25, 'Pickpocket guards', 'coins'); break;
-      case 'slayer': for (const t of SLAYER_TASKS) add(1, `${NPCS[t.npc].name} tasks (combat ${t.min}+)`, null); break;
+      case 'thieving': add(1, 'Pickpocket men and women', 'coins'); add(5, 'Steal from bakery stalls', 'cake'); add(20, 'Steal from silk stalls', 'silk'); add(10, 'Pickpocket farmers', 'potato_seed'); add(25, 'Pickpocket guards & Al Kharid warriors', 'coins'); add(55, 'Pickpocket White Knights', 'coins'); add(75, 'Steal from gem stalls', 'uncut_ruby'); break;
+      case 'slayer': for (const t of SLAYER_TASKS) add(t.slayer || 1, `${NPCS[t.npc].name} tasks (combat ${t.min}+)`, null); break;
       case 'farming': for (const k in SEEDS) add(SEEDS[k].level, ITEMS[SEEDS[k].crop].name, k); break;
       case 'hunter': for (const k in HUNTER) for (const c of HUNTER[k].catches) add(c.level, `${c.name} (${c.region})`, k); break;
     }
@@ -520,7 +520,7 @@ const UI = (() => {
     T('Key', L.x + 69, L.y + 16, C.orange, F13, 'center');
     const names = { bank: 'Bank', store: 'General store', furnace: 'Furnace', anvil: 'Anvil', range: 'Cooking range', altar: 'Altar', quest: 'Quest start', fish: 'Fishing spot', mine: 'Mining site',
       rune: 'Rune shop', archery: 'Archery shop', herb: 'Herbalist', tanner: 'Tannery', spin: 'Spinning wheel', stall: 'Market stall', farm: 'Farming patch', agility: 'Agility course', slayer: 'Slayer master',
-      rc: 'Runecrafting altar', essence: 'Rune essence', scimitar: 'Scimitar shop' };
+      rc: 'Runecrafting altar', essence: 'Rune essence', scimitar: 'Scimitar shop', boat: 'Ship / travel', gem: 'Gem store', armour: 'Armour shop', guild: 'Mining Guild' };
     Object.keys(names).forEach((k, i) => { mapIcon(k, L.x + 14, L.y + 34 + i * 18); T(names[k], L.x + 26, L.y + 38 + i * 18, C.white, F11); });
     button(632, 462, 114, 26, 'Close map', false, F12);
     T('Drag to move, scroll to zoom', 310, 501, '#c0b090', F11, 'center');
@@ -654,7 +654,15 @@ const UI = (() => {
 
   // ---------- login ----------
   const LOGIN_BOX = { x: 202, y: 200, w: 360, h: 200 };
-  function loginClick(x, y) { if (inR(x, y, { x: LOGIN_BOX.x + 110, y: LOGIN_BOX.y + 140, w: 140, h: 34 })) doLogin(); }
+  function savedChars() {
+    const out = [];
+    try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k.startsWith('ardenvale_') && k !== 'ardenvale_last') { const d = JSON.parse(localStorage.getItem(k)); out.push({ key: k.slice(10), total: d && d.skills ? Object.values(d.skills).reduce((a, s) => a + levelForXp(s.xp), 0) : 0 }); } } } catch (e) { }
+    return out.slice(0, 5);
+  }
+  function loginClick(x, y) {
+    if (inR(x, y, { x: LOGIN_BOX.x + 110, y: LOGIN_BOX.y + 140, w: 140, h: 34 })) return doLogin();
+    savedChars().forEach((c, i) => { if (inR(x, y, { x: 222 + i * 66, y: 420, w: 62, h: 34 })) { loginName = c.key; doLogin(c.key); } });
+  }
   function doLogin(name) {
     const n = (name || loginName).trim();
     if (!n) return;
@@ -693,6 +701,8 @@ const UI = (() => {
     ctx.strokeStyle = '#6a604e'; ctx.strokeRect(b.x + 115.5, b.y + 80.5, 199, 21);
     T(loginName + ((Math.floor(t * 2) % 2) ? '*' : ''), b.x + 122, b.y + 96, C.yellow, F12);
     button(b.x + 110, b.y + 140, 140, 34, 'Play', false, F13);
+    const chars = savedChars();
+    if (chars.length) { T('Saved characters (click to play):', 382, 414, '#e0c080', F11, 'center'); chars.forEach((c, i) => { button(222 + i * 66, 420, 62, 34, '', false); T(c.key.charAt(0).toUpperCase() + c.key.slice(1), 253 + i * 66, 434, C.orange, F11B, 'center'); T('Total ' + c.total, 253 + i * 66, 448, C.yellow, '10px Arial', 'center'); }); }
     T('Arrow keys / middle mouse: camera   Scroll: zoom', 382, 470, '#c0b090', F11, 'center');
   }
 
