@@ -95,11 +95,13 @@ const Models = (() => {
     P.legL = pivot(body, -0.1, 0.74, 0);
     P.legR = pivot(body, 0.1, 0.74, 0);
     for (const leg of [P.legL, P.legR]) {
-      leg.userData.upper = part(cyl(0.095, 0.065, 0.68, 8), o.pants, 0, -0.33, 0, leg);
-      leg.userData.knee = part(sph(0.075, 8, 6), o.pants, 0, -0.33, 0.01, leg);
-      leg.userData.foot = part(sph(0.08, 8, 6), o.boots, 0, -0.7, 0.06, leg, 1, 0.7, 1.9);
+      leg.userData.upper = part(cyl(0.095, 0.078, 0.37, 8), o.pants, 0, -0.18, 0, leg);
+      leg.userData.kneeP = pivot(leg, 0, -0.36, 0);
+      leg.userData.knee = part(sph(0.078, 8, 6), o.pants, 0, 0, 0.01, leg.userData.kneeP);
+      leg.userData.shin = part(cyl(0.076, 0.06, 0.34, 8), o.pants, 0, -0.17, 0, leg.userData.kneeP);
+      leg.userData.foot = part(sph(0.08, 8, 6), o.boots, 0, -0.34, 0.06, leg.userData.kneeP, 1, 0.7, 1.9);
     }
-    if (o.robe) { P.skirt = part(cyl(0.2, 0.34, 0.72, 10), o.robe, 0, 0.38, 0, body); P.legL.userData.upper.visible = P.legR.userData.upper.visible = false; P.legL.userData.knee.visible = P.legR.userData.knee.visible = false; }
+    if (o.robe) { P.skirt = part(cyl(0.2, 0.34, 0.72, 10), o.robe, 0, 0.38, 0, body); for (const l of [P.legL, P.legR]) { l.userData.upper.visible = false; l.userData.knee.visible = false; l.userData.shin.visible = false; } }
     P.torso = part(cyl(0.26, 0.19, 0.56, 10), o.shirt, 0, 1.0, 0, body, 1, 1, 0.62);
     P.chest = part(sph(0.2, 10, 8), o.shirt, 0, 1.12, 0.03, body, 1.25, 0.8, 0.75);
     P.belt = part(cyl(0.2, 0.2, 0.07, 10), Icons.shade(o.pants, 0.7), 0, 0.74, 0, body, 1, 1, 0.7);
@@ -109,11 +111,13 @@ const Models = (() => {
     for (const arm of [P.armL, P.armR]) {
       const c = o.sleeves ? o.shirt : o.skin;
       arm.userData.shoulder = part(sph(0.095, 8, 6), c, 0, 0, 0, arm);
-      arm.userData.upper = part(cyl(0.075, 0.055, 0.5, 8), c, 0, -0.24, 0, arm);
-      arm.userData.hand = part(sph(0.065, 8, 6), o.skin, 0, -0.53, 0, arm, 1, 1.3, 1);
+      arm.userData.upper = part(cyl(0.075, 0.064, 0.28, 8), c, 0, -0.13, 0, arm);
+      arm.userData.elbow = pivot(arm, 0, -0.27, 0);
+      arm.userData.fore = part(cyl(0.064, 0.052, 0.25, 8), c, 0, -0.12, 0, arm.userData.elbow);
+      arm.userData.hand = part(sph(0.065, 8, 6), o.skin, 0, -0.26, 0, arm.userData.elbow, 1, 1.3, 1);
     }
-    P.handR = pivot(P.armR, 0, -0.55, 0.02);
-    P.handL = pivot(P.armL, 0, -0.42, 0);
+    P.handR = pivot(P.armR.userData.elbow, 0, -0.28, 0.02);
+    P.handL = pivot(P.armL.userData.elbow, 0, -0.15, 0);
     P.head = pivot(body, 0, 1.28, 0);
     P.neck = part(cyl(0.06, 0.07, 0.12, 8), o.skin, 0, 0.0, 0, P.head);
     P.face = part(sph(0.15, 12, 10), o.skin, 0, 0.19, 0, P.head, 1, 1.2, 1.08);
@@ -195,10 +199,10 @@ const Models = (() => {
     P.torso.material = cmat(bodyCol); P.chest.material = cmat(bodyCol);
     for (const a of [P.armL, P.armR]) {
       const ac = equip.body ? bodyCol : (o.sleeves ? o.shirt : o.skin);
-      a.userData.upper.material = cmat(ac); a.userData.shoulder.material = cmat(ac);
+      a.userData.upper.material = cmat(ac); a.userData.shoulder.material = cmat(ac); a.userData.fore.material = cmat(ac);
       a.userData.hand.material = cmat(equip.hands ? '#7a4a24' : o.skin);
     }
-    for (const l of [P.legL, P.legR]) { l.userData.upper.material = cmat(legCol); l.userData.knee.material = cmat(legCol); l.userData.foot.material = cmat(equip.feet ? ((ITEMS[equip.feet].equip && ITEMS[equip.feet].equip.color) || '#6a3a1a') : o.boots); }
+    for (const l of [P.legL, P.legR]) { l.userData.upper.material = cmat(legCol); l.userData.knee.material = cmat(legCol); l.userData.shin.material = cmat(legCol); l.userData.foot.material = cmat(equip.feet ? ((ITEMS[equip.feet].equip && ITEMS[equip.feet].equip.color) || '#6a3a1a') : o.boots); }
     P.hips.material = cmat(legCol);
     if (P.equip.head) { P.head.remove(P.equip.head); P.equip.head = null; }
     if (P.hair) P.hair.visible = !equip.head;
@@ -236,66 +240,110 @@ const Models = (() => {
     const P = root.userData.parts;
     if (P.tool) { P.handR.remove(P.tool); P.tool = null; }
     if (P.equip.weapon) P.equip.weapon.visible = !id;
+    P.toolId = id || null;
     if (id) { P.tool = weaponMesh(id); P.handR.add(P.tool); }
   }
 
+  // Pose channels: arms (shoulder x/z, elbow), legs (hip, knee), body lean/twist/height, head.
+  const POSE0 = { aRx: 0, aRz: -0.05, eR: -0.12, aLx: 0, aLz: 0.05, eL: -0.12, lLx: 0, kL: 0.04, lRx: 0, kR: 0.04, bX: 0, bY: 0, bZ: 0, bH: 0, hX: 0, hY: 0 };
+  const ease = u => u * u * (3 - 2 * u);
+  function keyed(t, frames) { // frames: [[time, pose], ...] looping over the last frame's time
+    const T = frames[frames.length - 1][0], c = t % T;
+    for (let i = 0; i < frames.length - 1; i++) { const [t0, p0] = frames[i], [t1, p1] = frames[i + 1]; if (c >= t0 && c <= t1) return mixPose(p0, p1, ease((c - t0) / Math.max(1e-6, t1 - t0))); }
+    return frames[0][1];
+  }
+  function mixPose(p, q, u) { const o = {}; for (const k in POSE0) { const a = p[k] ?? POSE0[k], b = q[k] ?? POSE0[k]; o[k] = a + (b - a) * u; } return o; }
+  function applyPose(P, q) {
+    const g = k => q[k] ?? POSE0[k];
+    P.armR.rotation.set(g('aRx'), 0, g('aRz')); P.armL.rotation.set(g('aLx'), 0, g('aLz'));
+    P.armR.userData.elbow.rotation.set(g('eR'), 0, 0); P.armL.userData.elbow.rotation.set(g('eL'), 0, 0);
+    P.legL.rotation.set(g('lLx'), 0, 0); P.legR.rotation.set(g('lRx'), 0, 0);
+    P.legL.userData.kneeP.rotation.set(g('kL'), 0, 0); P.legR.userData.kneeP.rotation.set(g('kR'), 0, 0);
+    P.body.rotation.set(g('bX'), g('bY'), g('bZ')); P.body.position.y = g('bH'); P.body.position.z = 0;
+    P.head.rotation.set(g('hX'), g('hY'), 0);
+  }
+  // crouch helper: bends hips and knees together so the feet stay planted
+  const crouch = (d, extra) => Object.assign({ lLx: -0.9 * d, kL: 1.7 * d, lRx: -0.9 * d, kR: 1.7 * d, bH: -0.2 * d, bX: 0.35 * d }, extra || {});
+  function walkPose(time, moving, moveAnim) {
+    const run = moving === 2, sp = run ? 10.5 : 7.9, ph = time * sp, s = Math.sin(ph), c = Math.cos(ph);
+    if (moveAnim === 'crawl') return { bX: 1.3, bH: -0.55, aLx: -2.6 + s * 0.4, aRx: -2.6 - s * 0.4, lLx: s * 0.3, lRx: -s * 0.3, kL: 0.6, kR: 0.6 };
+    if (moveAnim === 'climb') return { aLx: -2.6 + s * 0.5, aRx: -2.6 - s * 0.5, eL: -0.4, eR: -0.4, lLx: -0.6 + s * 0.5, lRx: -0.6 - s * 0.5, kL: 0.8, kR: 0.8, bH: 0.3 + Math.abs(s) * 0.2 };
+    if (moveAnim === 'swing') return { aLx: -3.0, aRx: -3.0, lLx: -0.4, lRx: -0.4, kL: 0.5, kR: 0.5, bH: 0.2 + Math.sin(time * 4) * 0.15, bX: Math.sin(time * 4) * 0.3 };
+    const amp = run ? 0.8 : 0.5;
+    const q = {
+      lLx: s * amp, lRx: -s * amp,
+      kL: 0.08 + Math.max(0, -c) * (run ? 1.5 : 0.85), kR: 0.08 + Math.max(0, c) * (run ? 1.5 : 0.85),
+      aLx: -s * amp * 0.75, aRx: s * amp * 0.75,
+      eL: -(run ? 1.25 : 0.3) - Math.max(0, s) * 0.3, eR: -(run ? 1.25 : 0.3) - Math.max(0, -s) * 0.3,
+      bH: Math.abs(c) * (run ? 0.07 : 0.035) - (run ? 0.03 : 0.01), bY: s * (run ? 0.1 : 0.06), bX: run ? 0.16 : 0.03, hY: -s * 0.05,
+    };
+    if (moveAnim === 'balance') Object.assign(q, { aLz: -1.4 + s * 0.15, aRz: 1.4 + s * 0.15, aLx: 0, aRx: 0, eL: 0, eR: 0, lLx: q.lLx * 0.5, lRx: q.lRx * 0.5, bZ: s * 0.08 });
+    return q;
+  }
+  function actionPose(P, a, t, time) {
+    const once = (d, frames) => { const tt = Math.min(t, d - 1e-3); return keyed(tt, frames); };
+    switch (a) {
+      case 'attack': case 'slash': return once(0.6, [[0, {}], [0.22, { aRx: -2.6, aRz: -0.5, eR: -1.3, bY: 0.4, aLx: -0.4 }], [0.36, { aRx: -1.0, aRz: 0.5, eR: -0.2, bY: -0.35, bX: 0.1, aLx: -0.2 }], [0.6, {}]]);
+      case 'stab': return once(0.55, [[0, {}], [0.2, { aRx: -1.1, eR: -1.6, bY: 0.25 }], [0.32, { aRx: -1.55, eR: -0.05, bY: -0.3, bX: 0.12, lLx: -0.3, kL: 0.4 }], [0.55, {}]]);
+      case 'punch': return once(0.45, [[0, {}], [0.15, { aRx: -1.2, eR: -1.8, bY: 0.2 }], [0.25, { aRx: -1.55, eR: 0, bY: -0.35 }], [0.45, {}]]);
+      case 'block': return once(0.5, [[0, {}], [0.2, { aLx: -1.3, eL: -1.0, bX: -0.08 }], [0.5, {}]]);
+      case 'shoot': return once(0.7, [[0, {}], [0.15, { aLx: -1.55, eL: 0, aRx: -1.55, eR: -0.6, bY: -0.45, hY: 0.45 }], [0.45, { aLx: -1.55, eL: 0, aRx: -1.5, aRz: 0.2, eR: -2.1, bY: -0.45, hY: 0.45 }], [0.55, { aLx: -1.55, eL: 0, aRx: -1.3, eR: -0.8, bY: -0.45, hY: 0.45 }], [0.7, {}]]);
+      case 'cast': return once(0.8, [[0, {}], [0.25, { aRx: -2.4, eR: -0.8, aLx: -2.2, eL: -0.8, bX: -0.12 }], [0.45, { aRx: -1.5, eR: 0, aLx: -1.4, eL: 0, bX: 0.08 }], [0.8, {}]]);
+      case 'chop': return keyed(t, [[0, { aRx: -1.25, aRz: 0.35, eR: -0.25, aLx: -1.2, aLz: -0.45, eL: -0.3, bY: -0.3, lLx: -0.25, kL: 0.3 }],
+        [0.55, { aRx: -2.4, aRz: -0.2, eR: -1.25, aLx: -2.2, aLz: 0.35, eL: -1.2, bY: 0.55, bX: -0.08, lLx: -0.25, kL: 0.3, hY: -0.3 }],
+        [0.75, { aRx: -1.2, aRz: 0.4, eR: -0.15, aLx: -1.15, aLz: -0.45, eL: -0.25, bY: -0.35, bX: 0.12, lLx: -0.25, kL: 0.3 }],
+        [1.2, { aRx: -1.25, aRz: 0.35, eR: -0.25, aLx: -1.2, aLz: -0.45, eL: -0.3, bY: -0.3, lLx: -0.25, kL: 0.3 }]]);
+      case 'mine': return keyed(t, [[0, { aRx: -0.9, eR: -0.3, aLx: -0.85, eL: -0.35, bX: 0.35, lLx: -0.35, kL: 0.5, kR: 0.2, bH: -0.04 }],
+        [0.6, { aRx: -2.95, eR: -0.7, aLx: -2.8, eL: -0.7, bX: -0.15, lLx: -0.35, kL: 0.5, kR: 0.2, hX: -0.2 }],
+        [0.82, { aRx: -0.8, eR: -0.2, aLx: -0.75, eL: -0.25, bX: 0.45, lLx: -0.35, kL: 0.5, kR: 0.2, bH: -0.06 }],
+        [1.2, { aRx: -0.9, eR: -0.3, aLx: -0.85, eL: -0.35, bX: 0.35, lLx: -0.35, kL: 0.5, kR: 0.2, bH: -0.04 }]]);
+      case 'fish': {
+        const tool = P.toolId || '';
+        if (/net/.test(tool)) return keyed(t, [[0, crouch(0.35, { aRx: -0.7, eR: -0.5, aLx: -0.7, eL: -0.5, hX: 0.3 })], [1.0, crouch(0.6, { aRx: -0.35, eR: -0.2, aLx: -0.35, eL: -0.2, bX: 0.6, hX: 0.4 })], [2.0, crouch(0.35, { aRx: -0.7, eR: -0.5, aLx: -0.7, eL: -0.5, hX: 0.3 })]]);
+        if (/harpoon/.test(tool)) return keyed(t, [[0, { aRx: -1.4, eR: -0.6, aLx: -1.0, eL: -0.8, bX: 0.15 }], [0.7, { aRx: -2.6, eR: -1.4, aLx: -1.0, eL: -0.8, bX: -0.1, bY: 0.2 }], [0.9, { aRx: -1.0, eR: -0.1, aLx: -0.9, eL: -0.6, bX: 0.4, bY: -0.15, lLx: -0.3, kL: 0.4 }], [1.6, { aRx: -1.4, eR: -0.6, aLx: -1.0, eL: -0.8, bX: 0.15 }]]);
+        if (/pot/.test(tool)) return keyed(t, [[0, crouch(0.3, { aRx: -1.0, eR: -0.4, aLx: -1.0, eL: -0.4 })], [1.4, crouch(0.6, { aRx: -0.5, eR: -0.1, aLx: -0.5, eL: -0.1, bX: 0.55 })], [2.8, crouch(0.3, { aRx: -1.0, eR: -0.4, aLx: -1.0, eL: -0.4 })]]);
+        // rod: hold it out, with a flick every few seconds
+        return keyed(t, [[0, { aRx: -1.0, eR: -0.7, aLx: -0.5, eL: -0.9, bX: 0.08, hX: 0.15 }], [2.2, { aRx: -1.05, eR: -0.75, aLx: -0.5, eL: -0.9, bX: 0.1, hX: 0.15 }], [2.45, { aRx: -1.7, eR: -1.1, aLx: -0.5, eL: -0.9, bX: -0.05 }], [2.7, { aRx: -0.9, eR: -0.5, aLx: -0.5, eL: -0.9, bX: 0.1 }], [3.2, { aRx: -1.0, eR: -0.7, aLx: -0.5, eL: -0.9, bX: 0.08, hX: 0.15 }]]);
+      }
+      case 'cook': return Object.assign(crouch(0.15), { aRx: -1.05, eR: -0.55, aRz: Math.sin(time * 3) * 0.15, aLx: -0.4, eL: -0.6, bX: 0.2, hX: 0.35 });
+      case 'smith': return keyed(t, [[0, { aRx: -0.8, eR: -0.3, aLx: -0.9, eL: -0.9, bX: 0.25, hX: 0.35 }], [0.5, { aRx: -2.3, eR: -1.4, aLx: -0.9, eL: -0.9, bX: 0.05, hX: 0.3 }], [0.62, { aRx: -0.7, eR: -0.2, aLx: -0.9, eL: -0.9, bX: 0.3, hX: 0.4 }], [1.0, { aRx: -0.8, eR: -0.3, aLx: -0.9, eL: -0.9, bX: 0.25, hX: 0.35 }]]);
+      case 'smelt': return { aRx: -1.3 + Math.sin(time * 2) * 0.1, eR: -0.3, aLx: -1.3 + Math.sin(time * 2) * 0.1, eL: -0.3, bX: 0.2, lLx: -0.3, kL: 0.4 };
+      case 'fletch': return { aLx: -0.85, aLz: 0.2, eL: -1.0, aRx: -0.75 + Math.sin(time * 8) * 0.12, aRz: -0.25, eR: -1.1 + Math.sin(time * 8) * 0.3, hX: 0.45, bX: 0.08 };
+      case 'firemake': return { lLx: -1.45, kL: 1.5, lRx: 0.35, kR: 2.0, bH: -0.4, bX: 0.35, aRx: -0.8 + Math.sin(time * 11) * 0.2, eR: -0.6, aLx: -0.7, eL: -0.8, hX: 0.4 };
+      case 'craft': case 'herb': case 'spin': return { aRx: -0.85, aRz: 0.35, eR: -0.95 + Math.sin(time * 5) * 0.15, aLx: -0.85, aLz: -0.35, eL: -0.95 - Math.sin(time * 5) * 0.15, hX: 0.4, bX: 0.08 };
+      case 'rake': { const s = Math.sin(time * 5); return { aRx: -0.9 + s * 0.4, eR: -0.4, aLx: -0.8 + s * 0.4, eL: -0.5, bX: 0.3, lLx: -0.3, kL: 0.4 }; }
+      case 'harvest': case 'plant': return crouch(0.85, { aRx: -0.9 + Math.sin(time * 5) * 0.25, eR: -0.3, aLx: -0.9 - Math.sin(time * 5) * 0.25, eL: -0.3, bX: 0.65, hX: 0.3 });
+      case 'bury': case 'pickup': { const u = Math.sin(Math.min(1, t / 0.9) * Math.PI); return crouch(u, { aRx: -1.0 * u, eR: -0.2, aLx: -0.8 * u, eL: -0.2, bX: 0.55 * u, hX: 0.3 * u }); }
+      case 'eat': return once(0.9, [[0, {}], [0.3, { aRx: -1.6, eR: -2.0, aRz: 0.3, hX: -0.1 }], [0.6, { aRx: -1.6, eR: -2.0, aRz: 0.3 }], [0.9, {}]]);
+      case 'pray': case 'craftrune': return { aRx: -0.9, aRz: 0.45, eR: -1.3, aLx: -0.9, aLz: -0.45, eL: -1.3, hX: 0.35 };
+      case 'wave': return { aRx: -0.2, aRz: 2.6 + Math.sin(t * 10) * 0.35, eR: -0.5 };
+      case 'bow': { const u = Math.sin(Math.min(1, t / 1.6) * Math.PI); return { bX: 0.8 * u, aRx: -0.9 * u, aRz: -0.5 * u, eR: -1.2 * u }; }
+      case 'cheer': return { aLz: -2.7, aRz: 2.7, eL: -0.3, eR: -0.3, bH: Math.abs(Math.sin(t * 6)) * 0.18, kL: 0.3, kR: 0.3 };
+      case 'dance': { const s = Math.sin(t * 8); return { bY: s * 0.5, aLz: -1.5 + s * 0.6, aRz: 1.5 + s * 0.6, eL: -0.6, eR: -0.6, kL: Math.max(0, s) * 0.8, kR: Math.max(0, -s) * 0.8, bH: Math.abs(s) * 0.08 }; }
+      case 'yes': return { hX: Math.sin(t * 9) * 0.35 };
+      case 'no': return { hY: Math.sin(t * 9) * 0.5 };
+      case 'think': return { aRx: -1.5, aRz: 0.5, eR: -2.2, hX: 0.2 };
+      case 'stunned': return { bZ: Math.sin(time * 6) * 0.05, hX: 0.2, aRz: -0.3, aLz: 0.3 };
+      case 'death': { const p = Math.min(1, t / 1.0); return { bX: -p * Math.PI / 2, bH: p * 0.15, kL: p * 0.5, kR: p * 0.3, aRz: -p * 0.8, aLz: p * 0.8 }; }
+      case 'teleport': return { aLz: -2.4, aRz: 2.4, eL: -0.3, eR: -0.3, hX: -0.4, bH: Math.min(0.4, t * 0.2) };
+    }
+    return null;
+  }
   function animateHumanoid(root, anim, moving, time, moveAnim) {
     const P = root.userData.parts;
-    P.legL.rotation.set(0, 0, 0); P.legR.rotation.set(0, 0, 0);
-    P.armL.rotation.set(0, 0, 0); P.armR.rotation.set(0, 0, 0);
-    P.body.position.y = 0; P.body.position.z = 0; P.body.rotation.set(0, 0, 0); P.head.rotation.set(0, 0, 0);
-    if (P.cape) P.cape.rotation.x = moving ? 0.25 : 0.05;
-    if (moving) {
-      const sp = moving === 2 ? 13 : 8.3;
-      const amp = moving === 2 ? 0.85 : 0.55;
-      const s = Math.sin(time * sp);
-      if (moveAnim === 'crawl') { P.body.rotation.x = 1.3; P.body.position.y = -0.55; P.armL.rotation.x = -2.6 + s * 0.4; P.armR.rotation.x = -2.6 - s * 0.4; P.legL.rotation.x = s * 0.3; P.legR.rotation.x = -s * 0.3; return; }
-      if (moveAnim === 'climb') { P.armL.rotation.x = -2.6 + s * 0.5; P.armR.rotation.x = -2.6 - s * 0.5; P.legL.rotation.x = -0.6 + s * 0.5; P.legR.rotation.x = -0.6 - s * 0.5; P.body.position.y = 0.3 + Math.abs(s) * 0.2; return; }
-      if (moveAnim === 'swing') { P.armL.rotation.x = -3.0; P.armR.rotation.x = -3.0; P.legL.rotation.x = -0.4; P.legR.rotation.x = -0.4; P.body.position.y = 0.2 + Math.sin(time * 4) * 0.15; P.body.rotation.x = Math.sin(time * 4) * 0.3; return; }
-      P.legL.rotation.x = s * amp; P.legR.rotation.x = -s * amp;
-      if (moveAnim === 'balance') { P.armL.rotation.z = -1.4 + s * 0.15; P.armR.rotation.z = 1.4 + s * 0.15; P.legL.rotation.x *= 0.5; P.legR.rotation.x *= 0.5; P.body.rotation.z = s * 0.08; return; }
-      P.armL.rotation.x = -s * amp * 0.8; P.armR.rotation.x = s * amp * 0.8;
-      P.body.position.y = Math.abs(Math.cos(time * sp)) * (moving === 2 ? 0.06 : 0.03);
-      if (moving === 2) P.body.rotation.x = 0.12;
-      return;
-    }
+    const blend = root.userData.walkBlend ?? (moving ? 1 : 0), mv = moving || root.userData.lastMove || 1;
+    if (P.cape) P.cape.rotation.x = 0.05 + 0.25 * blend;
+    let q = { bH: Math.sin(time * 2) * 0.005, aRz: -0.06 + Math.sin(time * 1.6) * 0.01, aLz: 0.06 - Math.sin(time * 1.6) * 0.01 };
     const a = anim && anim.name;
-    const t = anim ? anim.t : 0;
-    P.armL.rotation.z = 0.05; P.armR.rotation.z = -0.05;
-    P.body.position.y = Math.sin(time * 2) * 0.005;
-    if (!a) return;
-    const sw1 = d => Math.sin(Math.min(1, t / d) * Math.PI);
-    switch (a) {
-      case 'attack': case 'slash': { const sw = sw1(0.45); P.armR.rotation.x = -2.6 * sw; P.armR.rotation.z = -0.4 * sw; P.body.rotation.y = 0.35 * sw; break; }
-      case 'stab': { const sw = sw1(0.45); P.armR.rotation.x = -1.4 - 0.3 * sw; P.body.rotation.y = -0.3 * sw; break; }
-      case 'punch': { const sw = sw1(0.35); P.armR.rotation.x = -1.5 * sw; P.body.rotation.y = -0.3 * sw; break; }
-      case 'shoot': { const p = Math.min(1, t / 0.5); P.armL.rotation.x = -1.55; P.armR.rotation.x = -1.55; P.armR.rotation.y = 0; P.armR.rotation.z = p < 0.7 ? 0.5 : 0.2; P.body.rotation.y = -0.4; P.head.rotation.y = 0.4; break; }
-      case 'cast': { const sw = sw1(0.6); P.armR.rotation.x = -1.6 * sw; P.armL.rotation.x = -1.2 * sw; P.body.rotation.x = -0.1 * sw; break; }
-      case 'block': { const sw = sw1(0.4); P.armL.rotation.x = -1.2 * sw; P.body.rotation.x = -0.1 * sw; break; }
-      case 'chop': { const c = (t % 1.2) / 1.2; const sw = c < 0.6 ? c / 0.6 : 1 - (c - 0.6) / 0.4; P.armR.rotation.x = -0.6 - 1.6 * (1 - sw); P.armR.rotation.z = 0.6; P.armL.rotation.x = -0.5 - 1.2 * (1 - sw); P.armL.rotation.z = -0.5; P.body.rotation.y = 0.5 * (1 - sw) - 0.2; break; }
-      case 'mine': { const c = (t % 1.2) / 1.2; const sw = c < 0.7 ? c / 0.7 : 1 - (c - 0.7) / 0.3; P.armR.rotation.x = -2.8 + sw * 2.2; P.armL.rotation.x = -2.6 + sw * 2.0; P.body.rotation.x = sw * 0.25; break; }
-      case 'rake': { const s = Math.sin(time * 5); P.armR.rotation.x = -0.9 + s * 0.4; P.armL.rotation.x = -0.8 + s * 0.4; P.body.rotation.x = 0.3; break; }
-      case 'fish': P.armR.rotation.x = -0.9 + Math.sin(time * 1.5) * 0.08; P.armL.rotation.x = -0.9 + Math.sin(time * 1.5) * 0.08; P.body.rotation.x = 0.2; break;
-      case 'cook': case 'smith': case 'smelt': case 'fletch': case 'firemake': case 'craft': case 'herb': case 'spin': {
-        const sw = Math.sin(time * (a === 'smith' ? 9 : 4));
-        P.armR.rotation.x = -0.9 + (a === 'smith' ? sw * 0.6 : sw * 0.15); P.armL.rotation.x = -0.8;
-        if (a === 'firemake') { P.legL.rotation.x = -1.4; P.legR.rotation.x = 1.2; P.body.position.y = -0.3; P.body.rotation.x = 0.3; P.armR.rotation.x = -0.6 + sw * 0.2; }
-        break;
-      }
-      case 'bury': case 'pickup': case 'plant': case 'harvest': { const sw = a === 'harvest' || a === 'plant' ? 0.7 + Math.sin(time * 5) * 0.3 : sw1(0.9); P.body.rotation.x = 0.7 * sw; P.armR.rotation.x = -1.2 * sw; P.armL.rotation.x = -1.2 * sw; P.legL.rotation.x = -0.5 * sw; P.legR.rotation.x = -0.5 * sw; P.body.position.y = -0.18 * sw; break; }
-      case 'eat': { const sw = sw1(0.9); P.armR.rotation.x = -2.2 * sw; P.armR.rotation.z = 0.4 * sw; break; }
-      case 'pray': case 'craftrune': P.armL.rotation.x = -1.4; P.armR.rotation.x = -1.4; P.armL.rotation.z = -0.3; P.armR.rotation.z = 0.3; P.head.rotation.x = 0.3; break;
-      case 'wave': P.armR.rotation.z = 2.6 + Math.sin(t * 10) * 0.35; break;
-      case 'bow': { const sw = sw1(1.6); P.body.rotation.x = 0.8 * sw; P.armR.rotation.x = -0.9 * sw; P.armR.rotation.z = -0.5 * sw; break; }
-      case 'cheer': P.armL.rotation.z = -2.7; P.armR.rotation.z = 2.7; P.body.position.y = Math.abs(Math.sin(t * 6)) * 0.18; break;
-      case 'dance': { const s = Math.sin(t * 8); P.body.rotation.y = s * 0.5; P.armL.rotation.z = -1.5 + s * 0.6; P.armR.rotation.z = 1.5 + s * 0.6; P.legL.rotation.z = Math.max(0, s) * 0.5; P.legR.rotation.z = Math.min(0, s) * 0.5; P.body.position.y = Math.abs(s) * 0.08; break; }
-      case 'yes': P.head.rotation.x = Math.sin(t * 9) * 0.35; break;
-      case 'no': P.head.rotation.y = Math.sin(t * 9) * 0.5; break;
-      case 'think': P.armR.rotation.x = -2.2; P.armR.rotation.z = 0.6; P.head.rotation.x = 0.2; break;
-      case 'stunned': P.head.rotation.z = Math.sin(time * 6) * 0.2; P.body.rotation.z = Math.sin(time * 6) * 0.05; break;
-      case 'death': { const p = Math.min(1, t / 1.0); P.body.rotation.x = -p * Math.PI / 2; P.body.position.y = p * 0.15; break; }
-      case 'teleport': P.armL.rotation.z = -2.4; P.armR.rotation.z = 2.4; P.head.rotation.x = -0.4; P.body.position.y = Math.min(0.4, t * 0.2); break;
+    if (a && !(moving && !['attack', 'slash', 'stab', 'punch', 'shoot', 'cast', 'block', 'eat'].includes(a))) { const ap = actionPose(P, a, anim.t, time); if (ap) q = Object.assign({}, POSE0, ap); }
+    if (blend > 0.001) {
+      const w = walkPose(time, mv, moveAnim);
+      if (a && moving) { // attacking while moving: legs walk, upper body acts
+        const ap = actionPose(P, a, anim.t, time) || {};
+        q = Object.assign({}, POSE0, w, { aRx: ap.aRx ?? w.aRx, aRz: ap.aRz ?? 0, eR: ap.eR ?? w.eR, aLx: ap.aLx ?? w.aLx, eL: ap.eL ?? w.eL, bY: ap.bY ?? w.bY });
+      } else q = mixPose(q, w, Math.min(1, blend));
     }
+    applyPose(P, q);
   }
 
   // ---------- Animals / monsters ----------
@@ -400,8 +448,8 @@ const Models = (() => {
       case 'skeleton': {
         const s = humanoid({ skin: '#e0dccc', hair: null, shirt: '#d8d4c4', pants: '#d0ccbc', boots: '#c8c4b4', scale: 1.0, sleeves: false });
         s.userData.parts.torso.scale.set(0.7, 1, 0.45); s.userData.parts.chest.scale.set(0.8, 0.7, 0.5);
-        for (const l of [s.userData.parts.legL, s.userData.parts.legR]) l.userData.upper.scale.set(0.55, 1, 0.55);
-        for (const a of [s.userData.parts.armL, s.userData.parts.armR]) a.userData.upper.scale.set(0.6, 1, 0.6);
+        for (const l of [s.userData.parts.legL, s.userData.parts.legR]) { l.userData.upper.scale.set(0.55, 1, 0.55); l.userData.shin.scale.set(0.55, 1, 0.55); }
+        for (const a of [s.userData.parts.armL, s.userData.parts.armR]) { a.userData.upper.scale.set(0.6, 1, 0.6); a.userData.fore.scale.set(0.6, 1, 0.6); }
         applyEquipment(s, { weapon: 'iron_scimitar' }); return s;
       }
       case 'guard': {

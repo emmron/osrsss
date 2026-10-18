@@ -221,7 +221,11 @@ const Render = (() => {
     e.rx = x; e.rz = z;
     e.model.position.set(x, World.heightAt(x, z), z);
     e.model.rotation.y = angLerp(e.model.rotation.y, e.face, Math.min(1, dt * 10));
-    const moving = (e.steps.length && t < 1) ? (e.steps.length >= 2 ? 2 : 1) : 0;
+    const S0 = Game.S;
+    const going = e.steps.length && (t < 1 || (e === S0.player && e.path && e.path.length > 0) || (e.moveTick !== undefined && e.moveTick >= S0.tick - 0));
+    const moving = going ? (e.steps.length >= 2 ? 2 : (e.runningStep ? 2 : 1)) : 0;
+    const ud = e.model.userData; if (moving) ud.lastMove = moving;
+    ud.walkBlend = (ud.walkBlend ?? 0) + ((moving ? 1 : 0) - (ud.walkBlend ?? 0)) * Math.min(1, dt * (moving ? 14 : 9));
     let anim = null;
     const nowT = performance.now();
     if (e.dead && e.anim) anim = { name: 'death', t: (nowT - e.anim.t0) / 1000 };
