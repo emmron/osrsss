@@ -127,6 +127,12 @@ defItem('chinchompa', { name: 'Chinchompa', stackable: true, value: 120, icon: {
 defItem('pure_essence', { name: 'Pure essence', value: 6, icon: { t: 'essence', pure: true }, examine: 'A pure, uncharged rune stone.' });
 defItem('rune_essence', { name: 'Rune essence', value: 4, icon: { t: 'essence' }, examine: 'An uncharged rune stone.' });
 defItem('bronze_bar', { name: 'Bronze bar', value: 8, icon: { t: 'bar', c: BRONZE }, examine: 'It\'s a bar of bronze.' });
+defItem('black_bar', { name: 'Black bar', value: 120, icon: { t: 'bar', c: '#2a2a2e' }, examine: 'A bar of black metal.' });
+defItem('silver_ore', { name: 'Silver ore', value: 40, icon: { t: 'ore', c: '#d8d8e0' }, examine: 'This needs refining.' });
+defItem('silver_bar', { name: 'Silver bar', value: 75, icon: { t: 'bar', c: '#e0e0e8' }, examine: 'It\'s a bar of silver.' });
+defItem('holy_symbol', { name: 'Holy symbol', value: 300, icon: { t: 'amulet', c: '#e0e0e8' }, equip: EQ('neck', { pray: 8, def: 1 }), examine: 'A blessed holy symbol of Saradomin.' });
+defItem('silver_sickle', { name: 'Silver sickle', value: 175, icon: { t: 'scimitar', c: '#e0e0e8' }, equip: EQ('weapon', { att: 2, str: 4, speed: 4 }), examine: 'A sickle made of silver.' });
+defItem('silver_ring', { name: 'Silver ring', value: 120, icon: { t: 'ring', c: '#e0e0e8' }, equip: EQ('ring', {}), examine: 'A plain silver ring.' });
 defItem('iron_bar', { name: 'Iron bar', value: 28, icon: { t: 'bar', c: IRON }, examine: 'It\'s a bar of iron.' });
 defItem('bronze_arrowtips', { name: 'Bronze arrowtips', stackable: true, value: 1, icon: { t: 'tips', c: BRONZE }, examine: 'I can make some arrows with these.' });
 defItem('iron_arrowtips', { name: 'Iron arrowtips', stackable: true, value: 3, icon: { t: 'tips', c: IRON }, examine: 'I can make some arrows with these.' });
@@ -309,18 +315,30 @@ function metalSet(prefix, name, col, m) {
   defItem(prefix + '_platebody', { name: name + ' platebody', value: 160 * m * m, icon: { t: 'platebody', c: col }, equip: EQ('body', { def: 15 * m, mag: -15, rng: -10, color: col }), examine: 'Provides excellent protection.' });
   defItem(prefix + '_platelegs', { name: name + ' platelegs', value: 80 * m * m, icon: { t: 'platelegs', c: col }, equip: EQ('legs', { def: 8 * m, mag: -10, color: col }), examine: 'Big, bulky and heavy.' });
   defItem(prefix + '_kiteshield', { name: name + ' kiteshield', value: 68 * m * m, icon: { t: 'kiteshield', c: col }, equip: EQ('shield', { def: 8 * m, mag: -8 }), examine: 'A large metal shield.' });
+  // more smithables per metal
+  defItem(prefix + '_mace', { name: name + ' mace', value: 18 * m * m, icon: { t: 'mace', c: col }, equip: EQ('weapon', { att: 5 * m, str: 4 * m + 1, speed: 5 }), examine: 'A spiky mace.' });
+  defItem(prefix + '_longsword', { name: name + ' longsword', value: 32 * m * m, icon: { t: 'sword', c: col, long: true }, equip: EQ('weapon', { att: 8 * m + 2, str: 7 * m + 2, speed: 5 }), examine: 'A razor sharp longsword.' });
+  defItem(prefix + '_battleaxe', { name: name + ' battleaxe', value: 52 * m * m, icon: { t: 'battleaxe', c: col }, equip: EQ('weapon', { att: 6 * m, str: 9 * m + 2, speed: 6 }), examine: 'A vicious looking axe.' });
+  defItem(prefix + '_warhammer', { name: name + ' warhammer', value: 50 * m * m, icon: { t: 'warhammer', c: col }, equip: EQ('weapon', { att: 6 * m, str: 10 * m + 3, speed: 6 }), examine: 'I don\'t think it\'s intended for joinery.' });
+  defItem(prefix + '_2h_sword', { name: name + ' 2h sword', value: 64 * m * m, icon: { t: 'sword', c: col, big: true }, equip: EQ('weapon', { att: 11 * m + 3, str: 13 * m + 4, speed: 7 }), examine: 'A two-handed sword.' });
+  defItem(prefix + '_med_helm', { name: name + ' med helm', value: 24 * m * m, icon: { t: 'helm', c: col, med: true }, equip: EQ('head', { def: 3 * m }), examine: 'A medium sized helmet.' });
+  defItem(prefix + '_sq_shield', { name: name + ' sq shield', value: 48 * m * m, icon: { t: 'sqshield', c: col }, equip: EQ('shield', { def: 6 * m }), examine: 'A medium square shield.' });
+  defItem(prefix + '_chainbody', { name: name + ' chainbody', value: 60 * m * m, icon: { t: 'platebody', c: col, chain: true }, equip: EQ('body', { def: 10 * m, color: col }), examine: 'A series of connected metal rings.' });
+  defItem(prefix + '_plateskirt', { name: name + ' plateskirt', value: 80 * m * m, icon: { t: 'platelegs', c: col, skirt: true }, equip: EQ('legs', { def: 8 * m, color: col }), examine: 'Designer leg protection.' });
+  defItem(prefix + '_boots', { name: name + ' boots', value: 16 * m * m, icon: { t: 'boots', c: col }, equip: EQ('feet', { def: 1 + Math.round(m), color: col }), examine: 'Heavy metal boots.' });
 }
 metalSet('bronze', 'Bronze', BRONZE, 1);
 metalSet('iron', 'Iron', IRON, 2);
 metalSet('steel', 'Steel', '#9aa0a8', 3);
+metalSet('black', 'Black', '#2a2a2e', 3.5);
 metalSet('mithril', 'Mithril', '#4a4aa0', 4);
 metalSet('adamant', 'Adamant', '#3a6a3a', 5);
 metalSet('rune', 'Rune', '#3a8aa8', 6.5);
 defItem('fancy_boots', { name: 'Fancy boots', value: 1, icon: { t: 'boots', c: '#c060c8' }, equip: EQ('feet', { def: 4, mag: 2, color: '#b050c0' }), examine: 'Stylish boots from the Stronghold of Security.' });
 defItem('fighting_boots', { name: 'Fighting boots', value: 1, icon: { t: 'boots', c: '#c83030' }, equip: EQ('feet', { def: 4, str: 1, color: '#b02828' }), examine: 'Tough boots from the Stronghold of Security.' });
-for (const [m, a] of [['steel', 5], ['mithril', 20], ['adamant', 30], ['rune', 40]]) {
-  ['dagger', 'sword', 'scimitar'].forEach(t => ITEMS[m + '_' + t].equip.req = { attack: a });
-  ['full_helm', 'platebody', 'platelegs', 'kiteshield'].forEach(t => ITEMS[m + '_' + t].equip.req = { defence: a });
+for (const [m, a] of [['steel', 5], ['black', 10], ['mithril', 20], ['adamant', 30], ['rune', 40]]) {
+  ['dagger', 'sword', 'scimitar', 'mace', 'longsword', 'battleaxe', 'warhammer', '2h_sword'].forEach(t => { if (ITEMS[m + '_' + t]) ITEMS[m + '_' + t].equip.req = { attack: a }; });
+  ['full_helm', 'platebody', 'platelegs', 'kiteshield', 'med_helm', 'sq_shield', 'chainbody', 'plateskirt', 'boots'].forEach(t => { if (ITEMS[m + '_' + t]) ITEMS[m + '_' + t].equip.req = { defence: a }; });
 }
 ['dagger', 'sword', 'scimitar'].forEach(t => ITEMS['iron_' + t].equip.req = { attack: 10 });
 ['full_helm', 'platebody', 'platelegs', 'kiteshield'].forEach(t => ITEMS['iron_' + t].equip.req = { defence: 10 });
@@ -344,8 +362,8 @@ const EQUIP_SLOTS = ['head', 'cape', 'neck', 'ammo', 'weapon', 'body', 'shield',
 // ---- Smithing ----
 const SMITHING = [];
 (function () {
-  const pieces = [['dagger', 1, 0], ['dart_tip', 1, 4], ['sword', 1, 4], ['scimitar', 2, 5], ['arrowtips', 1, 5], ['full_helm', 2, 7], ['kiteshield', 3, 12], ['platelegs', 3, 16], ['platebody', 5, 18]];
-  for (const [metal, base, xp] of [['bronze', 1, 12.5], ['iron', 15, 25], ['steel', 30, 37.5], ['mithril', 50, 50], ['adamant', 70, 62.5], ['rune', 85, 75]]) {
+  const pieces = [['dagger', 1, 0], ['axe', 1, 1], ['mace', 1, 2], ['med_helm', 1, 3], ['dart_tip', 1, 4], ['sword', 1, 4], ['scimitar', 2, 5], ['arrowtips', 1, 5], ['pickaxe', 2, 5], ['longsword', 2, 6], ['boots', 2, 6], ['full_helm', 2, 7], ['sq_shield', 2, 8], ['warhammer', 3, 9], ['battleaxe', 3, 10], ['chainbody', 3, 11], ['kiteshield', 3, 12], ['2h_sword', 3, 14], ['platelegs', 3, 16], ['plateskirt', 3, 16], ['platebody', 5, 18]];
+  for (const [metal, base, xp] of [['bronze', 1, 12.5], ['iron', 15, 25], ['steel', 30, 37.5], ['black', 40, 40], ['mithril', 50, 50], ['adamant', 70, 62.5], ['rune', 85, 75]]) {
     for (const [p, bars, lv] of pieces) if (ITEMS[metal + '_' + p]) SMITHING.push({ metal, out: metal + '_' + p, bar: (metal === 'adamant' ? 'adamantite' : metal === 'rune' ? 'runite' : metal) + '_bar', bars, level: Math.min(99, base + lv), xp: xp * bars, qty: p === 'arrowtips' ? 15 : p === 'dart_tip' ? 10 : 1 });
   }
 })();
@@ -354,6 +372,8 @@ const SMELTING = [
   { out: 'iron_bar', level: 15, xp: 12.5, needs: { iron_ore: 1 }, success: 0.8 },
   { out: 'steel_bar', level: 30, xp: 17.5, needs: { iron_ore: 1, coal: 2 }, success: 1 },
   { out: 'gold_bar', level: 40, xp: 22.5, needs: { gold_ore: 1 }, success: 1 },
+  { out: 'silver_bar', level: 20, xp: 13.7, needs: { silver_ore: 1 }, success: 1 },
+  { out: 'black_bar', level: 40, xp: 20, needs: { iron_ore: 1, coal: 3 }, success: 1 },
   { out: 'mithril_bar', level: 50, xp: 30, needs: { mithril_ore: 1, coal: 4 }, success: 1 },
   { out: 'adamantite_bar', level: 70, xp: 37.5, needs: { adamantite_ore: 1, coal: 6 }, success: 1 },
   { out: 'runite_bar', level: 85, xp: 50, needs: { runite_ore: 1, coal: 8 }, success: 1 },
@@ -382,6 +402,7 @@ const ROCKS = {
   copper: { name: 'Copper rocks', level: 1, xp: 17.5, ore: 'copper_ore', respawn: 4, col: '#c0703a', base: 0.35 },
   tin: { name: 'Tin rocks', level: 1, xp: 17.5, ore: 'tin_ore', respawn: 4, col: '#c8c8c0', base: 0.35 },
   iron: { name: 'Iron rocks', level: 15, xp: 35, ore: 'iron_ore', respawn: 9, col: '#8a4430', base: 0.25 },
+  silver: { name: 'Silver rocks', level: 20, xp: 40, ore: 'silver_ore', respawn: 30, col: '#e0e0ea', base: 0.25 },
   coal: { name: 'Coal rocks', level: 30, xp: 50, ore: 'coal', respawn: 30, col: '#1a1a1a', base: 0.2 },
   gold: { name: 'Gold rocks', level: 40, xp: 65, ore: 'gold_ore', respawn: 60, col: '#e8c030', base: 0.18 },
   mithril: { name: 'Mithril rocks', level: 55, xp: 80, ore: 'mithril_ore', respawn: 100, col: '#4a4aa0', base: 0.12 },
@@ -619,6 +640,17 @@ const NPCS = {
   tribesman: { name: 'Tribesman', level: 32, hp: 30, att: 26, str: 26, def: 24, maxHit: 4, speed: 4, model: 'tribesman', wander: 4, talk: 'generic', greet: 'Bwana! Welcome to Tai Bwo Wannai.',
     drops: [{ id: 'bones', always: true }, { id: 'coins', qty: [10, 80], chance: 0.6 }, { id: 'banana', chance: 0.2 }, ...HERB_DROPS], examine: 'A proud jungle warrior.' },
   tribal_trader: { name: 'Trader Gabooty', level: 0, model: 'tribesman', wander: 1, talk: 'generic', shop: 'jungle', examine: 'He trades jungle goods.', greet: 'Gabooty has many fine things from the jungle!' },
+  jackal: { name: 'Jackal', level: 8, hp: 14, att: 7, str: 6, def: 5, maxHit: 2, speed: 4, model: 'jackal', wander: 6, aggressive: true, drops: [{ id: 'bones', always: true }], examine: 'A desert scavenger.' },
+  crocodile: { name: 'Crocodile', level: 63, hp: 62, att: 52, str: 55, def: 48, maxHit: 7, speed: 4, model: 'crocodile', wander: 3, aggressive: true,
+    drops: [{ id: 'bones', always: true }, { id: 'coins', qty: [20, 200], chance: 0.5 }, { id: 'raw_shark', chance: 0.05 }], examine: 'Its teeth look sharp.' },
+  hellhound: { name: 'Hellhound', level: 122, hp: 116, att: 105, str: 104, def: 102, maxHit: 11, speed: 4, model: 'hellhound', wander: 4, aggressive: true,
+    drops: [{ id: 'bones', always: true }, { id: 'coins', qty: [200, 1500], chance: 0.6 }, { id: 'rune_scimitar', chance: 0.01 }, { id: 'fire_rune', qty: [30, 90], chance: 0.2 }], examine: 'Hello, nice doggy...' },
+  fire_giant: { name: 'Fire giant', level: 86, hp: 111, att: 65, str: 65, def: 65, maxHit: 11, speed: 5, model: 'fire_giant', wander: 3, aggressive: true,
+    drops: [{ id: 'big_bones', always: true }, { id: 'coins', qty: [100, 600], chance: 0.7 }, { id: 'fire_rune', qty: [20, 60], chance: 0.3 }, { id: 'rune_scimitar', chance: 0.005 }, { id: 'steel_2h_sword', chance: 0.04 }, ...HERB_DROPS], examine: 'A very large elemental adversary.' },
+  black_demon: { name: 'Black demon', level: 172, hp: 157, att: 145, str: 148, def: 152, maxHit: 16, speed: 4, model: 'black_demon', wander: 3, aggressive: true,
+    drops: [{ id: 'ashes', always: true }, { id: 'coins', qty: [500, 3000], always: true }, { id: 'rune_full_helm', chance: 0.03 }, { id: 'adamant_platebody', chance: 0.04 }, { id: 'rune_2h_sword', chance: 0.008 }, { id: 'death_rune', qty: [10, 30], chance: 0.25 }], examine: 'A big, scary, jet-black demon.' },
+  troll: { name: 'Mountain troll', level: 69, hp: 90, att: 60, str: 62, def: 55, maxHit: 8, speed: 5, model: 'troll', wander: 4, aggressive: true,
+    drops: [{ id: 'big_bones', always: true }, { id: 'coins', qty: [40, 300], chance: 0.6 }, { id: 'mithril_warhammer', chance: 0.03 }, { id: 'coal', qty: [2, 6], chance: 0.15 }, ...HERB_DROPS], examine: 'Big, dumb and tough.' },
   werewolf: { name: 'Werewolf', level: 24, hp: 30, att: 20, str: 20, def: 18, maxHit: 3, speed: 4, model: 'werewolf', wander: 4, talk: 'generic', greet: 'Grrr... I mean, welcome to Canifis, stranger.',
     drops: [{ id: 'bones', always: true }, { id: 'coins', qty: [10, 80], chance: 0.6 }, { id: 'grimy_ranarr', chance: 0.05 }, ...HERB_DROPS], examine: 'A villager... with very hairy arms.' },
   canifis_shop: { name: 'Fidelio', level: 0, model: 'werewolf', wander: 1, talk: 'generic', shop: 'canifis', examine: 'He runs the Canifis general store.', greet: 'Welcome! Buy something before the moon rises.' },

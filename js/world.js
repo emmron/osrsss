@@ -114,6 +114,7 @@ const World = (() => {
     coal: { name: 'Rocks', ops: ['Mine', 'Prospect'], examine: 'A rocky outcrop.' },
     gold: { name: 'Rocks', ops: ['Mine', 'Prospect'], examine: 'A rocky outcrop.' },
     mithril: { name: 'Rocks', ops: ['Mine', 'Prospect'], examine: 'A rocky outcrop.' },
+    silver: { name: 'Rocks', ops: ['Mine', 'Prospect'], examine: 'A rocky outcrop.' },
     essence: { name: 'Rune Essence', w: 2, d: 2, ops: ['Mine'], examine: 'A strange, pale stone humming with power.' },
     fishing_spot: { name: 'Fishing spot', block: false, ops: ['Net'], examine: 'There are fish swimming here.' },
     furnace: { name: 'Furnace', w: 2, d: 2, ops: ['Smelt'], examine: 'A red hot furnace.' },
@@ -627,6 +628,31 @@ const World = (() => {
     for (const [x, z] of [[203, 108], [208, 109], [204, 114], [209, 114], [212, 108]]) npc('tribesman', x, z); npc('tribal_trader', 206, 108);
     mapIcons.push({ x: 206, z: 108, icon: 'store' });
     labels.push(['Tai Bwo Wannai', 206, 123, 0]);
+    // ===== more furnaces/anvils, mines, groves and monsters =====
+    const spot = (w, d, x, z, rad) => { for (let r = 0; r <= (rad || 6); r++) for (let dz = -r; dz <= r; dz++) for (let dx = -r; dx <= r; dx++) { if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue; const xx = x + dx, zz = z + dz; let ok = canPlace(xx, zz, w, d); for (let j = 0; ok && j < d; j++) for (let i = 0; ok && i < w; i++) if (roofOf[idx(xx + i, zz + j)] >= 0 || wall[idx(xx + i, zz + j)]) ok = false; if (ok) return [xx, zz]; } return null; };
+    for (const [x, z] of [[206, 196], [176, 247], [212, 225], [149, 89], [56, 234], [100, 167], [197, 82], [150, 214], [92, 228]]) {
+      const f = spot(2, 2, x, z, 5); if (f) { addLoc('furnace', f[0], f[1]); mapIcons.push({ x: f[0] + 1, z: f[1] + 1, icon: 'furnace' }); }
+      const a = spot(1, 1, x + 3, z, 5); if (a) { addLoc('anvil', a[0], a[1]); mapIcons.push({ x: a[0] + 0.5, z: a[1] + 0.5, icon: 'anvil' }); }
+    }
+    const rocks = (list, cx, cz, rad) => { for (const [t, n] of list) for (let k = 0; k < n; k++) for (let tries = 0; tries < 40; tries++) { const x = Math.round(cx + (rnd() - 0.5) * 2 * rad), z = Math.round(cz + (rnd() - 0.5) * 2 * rad); if (canPlace(x, z, 1, 1) && !ov(x, z) && roofOf[idx(x, z)] < 0) { addLoc(t, x, z); break; } } };
+    const newMine = (name, cx, cz, list, rad) => { rocks(list, cx, cz, rad); mapIcons.push({ x: cx, z: cz, icon: 'mine' }); labels.push([name, cx, cz - rad - 2, 0]); };
+    newMine('Ardougne Mine', 190, 196, [['iron', 4], ['coal', 4], ['silver', 2], ['gold', 1]], 4);
+    newMine('Seers\' Coal Mine', 193, 253, [['coal', 7], ['iron', 2]], 3);
+    newMine('Wilderness Rune Mine', 8, 152, [['runite', 2], ['adamantite', 3], ['mithril', 3]], 3);
+    newMine('Saltreach Gold Mine', 221, 100, [['gold', 4], ['mithril', 2], ['coal', 3]], 3);
+    newMine('Canifis Silver Mine', 231, 230, [['silver', 4], ['iron', 2], ['coal', 2]], 3);
+    rocks([['silver', 3]], 147, 170, 7); rocks([['silver', 2]], 124, 226, 3); rocks([['silver', 2]], 47, 26, 4); rocks([['silver', 1], ['coal', 2]], 87, 120, 4);
+    const grove = (type, cx, cz, n, rad) => { for (let k = 0; k < n; k++) for (let tries = 0; tries < 30; tries++) { const x = Math.round(cx + (rnd() - 0.5) * 2 * rad), z = Math.round(cz + (rnd() - 0.5) * 2 * rad); if (canPlace(x, z, 1, 1) && !ov(x, z) && roofOf[idx(x, z)] < 0 && !wall[idx(x, z)]) { addLoc(type, x, z); break; } } };
+    grove('yew', 128, 207, 5, 4); grove('yew', 62, 215, 3, 3); grove('yew', 96, 64, 3, 3);
+    grove('maple', 158, 246, 6, 4); grove('maple', 60, 30, 4, 4); grove('maple', 138, 236, 3, 3);
+    grove('magic', 196, 242, 3, 3); grove('magic', 82, 62, 2, 2);
+    grove('teak', 202, 126, 4, 4); grove('mahogany', 214, 124, 4, 4); grove('willow', 66, 244, 4, 3); grove('oak', 104, 92, 4, 4);
+    labels.push(['Yew Grove', 128, 201, 0], ['Maple Grove', 158, 240, 0], ['Magic Trees', 196, 237, 0]);
+    for (const [x, z] of [[80, 150], [86, 156], [112, 176], [118, 170], [140, 178], [70, 158]]) npc('jackal', x, z);
+    for (const [x, z] of [[56, 145], [68, 147], [62, 151]]) npc('crocodile', x, z);
+    for (const [x, z] of [[6, 92], [12, 96], [8, 88]]) npc('hellhound', x, z);
+    for (const [x, z] of [[52, 22], [44, 30], [56, 12]]) npc('troll', x, z);
+    npc('fire_giant', 226, 172); npc('fire_giant', 229, 168); npc('black_demon', 232, 171);
     // training dummies near the Ardenvale spawn
     { let placed = 0; for (let r = 4; r < 14 && placed < 4; r++) for (const [dx, dz] of [[r, 4], [r, 6], [r, 8], [r, 10]]) { const x = 90 + dx, z = 84 + dz; if (placed < 4 && canPlace(x, z, 1, 1) && !ov(x, z) && roofOf[idx(x, z)] < 0) { addLoc('training_dummy', x, z); placed++; } } }
     // ===== Extra mines =====

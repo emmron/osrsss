@@ -712,6 +712,15 @@ const Game = (() => {
       return hasMats(r);
     }, 2);
   }
+  function craftSilver() {
+    const list = [{ out: 'silver_ring', level: 10, xp: 25 }, { out: 'holy_symbol', level: 16, xp: 50 }, { out: 'silver_sickle', level: 18, xp: 50 }, { out: 'tiara', level: 23, xp: 52.5 }];
+    options('What would you like to make with silver?', list.map(j => ({
+      text: `${ITEMS[j.out].name} (lvl ${j.level})`, fn: () => {
+        if (lvl('crafting') < j.level) { msg(`You need a Crafting level of ${j.level} to make this.`); return; }
+        startLoop('smelt', null, 3, () => { if (!has('silver_bar')) return false; invRemove('silver_bar'); invAdd(j.out); addXp('crafting', j.xp); msg(`You make ${/^[aeiou]/i.test(ITEMS[j.out].name) ? 'an' : 'a'} ${ITEMS[j.out].name.toLowerCase()}.`); return has('silver_bar'); }, 2);
+      },
+    })));
+  }
   function craftGold() {
     const list = [{ out: 'gold_ring', gem: null, level: 5, xp: 15 }, { out: 'gold_amulet', gem: null, level: 8, xp: 30 }].concat(JEWEL.filter(j => has(j.gem)));
     options('What would you like to make?', list.slice(0, 6).map(j => ({
@@ -722,7 +731,7 @@ const Game = (() => {
       },
     })));
   }
-  const METALS = ['bronze', 'iron', 'steel', 'mithril', 'adamant', 'rune'];
+  const METALS = ['bronze', 'iron', 'steel', 'black', 'mithril', 'adamant', 'rune'];
   const barOf = m => (m === 'adamant' ? 'adamantite' : m === 'rune' ? 'runite' : m) + '_bar';
   function openSmithing(metal) {
     if (!has('hammer')) { msg('You need a hammer to work the metal with.'); return; }
@@ -805,7 +814,7 @@ const Game = (() => {
       faceEnt(S.player, ent);
       if (COOKING[it.id] && (ent.type === 'fire' || ent.type === 'range')) return startCooking(it.id, ent);
       if (ent.type === 'fishing_spot') { const op = locOps(ent).find(o => FISHING[o].tool === it.id || FISHING[o].bait === it.id); if (op) return fish(ent, op); msg('You can\'t fish here with that.'); return; }
-      if (ent.type === 'furnace') { if (it.id === 'gold_bar') return craftGold(); const r = SMELTING.find(r => r.needs[it.id] && hasMats(r)); if (r) return startSmelting(r); }
+      if (ent.type === 'furnace') { if (it.id === 'gold_bar') return craftGold(); if (it.id === 'silver_bar') return craftSilver(); const r = SMELTING.find(r => r.needs[it.id] && hasMats(r)); if (r) return startSmelting(r); }
       if (ent.type === 'anvil' && /_bar$/.test(it.id)) { const m = METALS.find(m => barOf(m) === it.id); if (m) return openSmithing(m); }
       if (/bones/.test(it.id) && ent.type === 'chaos_altar') {
         const bid = it.id; resetActions();

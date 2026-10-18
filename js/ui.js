@@ -468,7 +468,7 @@ const UI = (() => {
   }
   const closeHit = (x, y) => { const cx = WIN.x + WIN.w - 22, cy = WIN.y + 4; return x >= cx && y >= cy && x < cx + 17 && y < cy + 16; };
   const gridCell = (i, cols, ox, oy, cw, ch) => [ox + (i % cols) * cw, oy + Math.floor(i / cols) * ch];
-  const smithRecipes = metal => SMITHING.filter(r => r.metal === metal);
+  const smithRecipes = metal => SMITHING.filter(r => r.metal === metal).sort((a, b) => a.level - b.level);
   const SCROLL = { x: 106, y: 38, w: 300, h: 260 };
   function ifaceOptions(x, y) {
     const st = S(), f = st.iface;
@@ -540,11 +540,11 @@ const UI = (() => {
       return [];
     }
     if (f.type === 'smith') {
-      for (let i = 0; i < Game.METALS.length; i++) { const m = Game.METALS[i]; if (x >= WIN.x + 12 + i * 77 && y >= WIN.y + 30 && x < WIN.x + 85 + i * 77 && y < WIN.y + 50) return [O(act('Select', m.charAt(0).toUpperCase() + m.slice(1), C.orange), () => { f.metal = m; })]; }
+      for (let i = 0; i < Game.METALS.length; i++) { const m = Game.METALS[i]; if (x >= WIN.x + 12 + i * 66 && y >= WIN.y + 30 && x < WIN.x + 74 + i * 66 && y < WIN.y + 50) return [O(act('Select', m.charAt(0).toUpperCase() + m.slice(1), C.orange), () => { f.metal = m; })]; }
       const rs = smithRecipes(f.metal);
       for (let i = 0; i < rs.length; i++) {
-        const [cx, cy] = gridCell(i, 4, WIN.x + 14, WIN.y + 58, 116, 116);
-        if (x >= cx && y >= cy && x < cx + 110 && y < cy + 110) {
+        const [cx, cy] = gridCell(i, 8, WIN.x + 12, WIN.y + 56, 58, 60);
+        if (x >= cx && y >= cy && x < cx + 54 && y < cy + 56) {
           const r = rs[i], nm = ITEMS[r.out].name;
           return [[1, 1], [5, 5], [10, 10], ['All', 28]].map(([lab, n]) => O(act('Smith ' + lab, nm, C.itemc), () => Game.smith(r, n)));
         }
@@ -1024,16 +1024,18 @@ const UI = (() => {
       T('Right-click on items to buy or sell them.', WIN.x + WIN.w / 2, WIN.y + WIN.h - 14, '#c0a070', F11, 'center');
     } else if (f.type === 'smith') {
       winFrame('What would you like to make?');
-      Game.METALS.forEach((m, i) => button(WIN.x + 12 + i * 77, WIN.y + 30, 73, 20, m.charAt(0).toUpperCase() + m.slice(1), f.metal === m));
+      Game.METALS.forEach((m, i) => button(WIN.x + 12 + i * 66, WIN.y + 30, 62, 20, m.charAt(0).toUpperCase() + m.slice(1), f.metal === m));
+      let hov = null;
       smithRecipes(f.metal).forEach((r, i) => {
-        const [cx, cy] = gridCell(i, 4, WIN.x + 14, WIN.y + 58, 116, 116);
-        ctx.fillStyle = '#3a3226'; ctx.fillRect(cx, cy, 110, 110); ctx.strokeStyle = '#5a4e3c'; ctx.strokeRect(cx + 0.5, cy + 0.5, 109, 109);
-        drawItem(r.out, r.qty, cx + 39, cy + 8);
+        const [cx, cy] = gridCell(i, 8, WIN.x + 12, WIN.y + 56, 58, 60);
+        const over = mouse.x >= cx && mouse.y >= cy && mouse.x < cx + 54 && mouse.y < cy + 56; if (over) hov = r;
+        ctx.fillStyle = over ? '#4a4030' : '#3a3226'; ctx.fillRect(cx, cy, 54, 56); ctx.strokeStyle = '#5a4e3c'; ctx.strokeRect(cx + 0.5, cy + 0.5, 53, 55);
+        drawItem(r.out, r.qty, cx + 11, cy + 2);
         const ok = Game.lvl('smithing') >= r.level, bars = Game.invCount(r.bar) >= r.bars;
-        T(ITEMS[r.out].name.replace(/^\w+ /, ''), cx + 55, cy + 58, ok ? C.white : '#000', F11B, 'center', ok);
-        T(`${r.bars} bar${r.bars > 1 ? 's' : ''}`, cx + 55, cy + 76, bars ? C.green : C.orange, F11, 'center');
-        T(`Level ${r.level}`, cx + 55, cy + 94, ok ? '#c0a070' : '#ff4040', F11, 'center');
+        T('x' + r.bars, cx + 51, cy + 12, bars ? C.green : C.orange, '10px Arial', 'right');
+        T('Lv ' + r.level, cx + 27, cy + 50, ok ? '#e0c080' : '#ff4040', F11, 'center');
       });
+      if (hov) T(`${ITEMS[hov.out].name}${hov.qty > 1 ? ' x' + hov.qty : ''}  -  ${hov.bars} bar${hov.bars > 1 ? 's' : ''}, level ${hov.level}, ${hov.xp} xp`, WIN.x + WIN.w / 2, WIN.y + WIN.h - 8, C.orange, F12, 'center');
     } else if (f.type === 'guide') {
       const k = f.skill, E = guide(k), L = Game.lvl(k);
       winFrame(SKILL_NAMES[k] + ' - Skill Guide');
