@@ -315,6 +315,7 @@ const Icons = (() => {
     seed(ctx, ic) { poly(ctx, [8, 7, 24, 7, 25, 26, 7, 26], '#d8c8a0'); rect(ctx, 8, 7, 16, 4, '#b8a880'); ell(ctx, 16, 18, 4, 3, ic.c); ell(ctx, 12, 22, 2, 1.5, '#8a6a3a'); ell(ctx, 20, 22, 2, 1.5, '#8a6a3a'); },
     weeds(ctx) { for (let i = 0; i < 6; i++) poly(ctx, [8 + i * 3, 27, 10 + i * 3, 27, 6 + i * 4, 6 + (i % 3) * 4], i % 2 ? '#6a7a2a' : '#5a6a20'); },
     gloves(ctx) { poly(ctx, [8, 12, 14, 8, 15, 22, 9, 26], '#8a5a30'); poly(ctx, [18, 8, 24, 12, 23, 26, 17, 22], '#8a5a30'); rect(ctx, 8, 20, 7, 3, '#6a4020'); rect(ctx, 17, 20, 7, 3, '#6a4020'); },
+    casket(ctx) { ctx.fillStyle = '#000'; ctx.fillRect(6, 11, 21, 15); ctx.fillStyle = '#8a5a2a'; ctx.fillRect(7, 12, 19, 13); ctx.fillStyle = '#a06a32'; ctx.fillRect(7, 12, 19, 4); ctx.fillStyle = '#e8c040'; ctx.fillRect(7, 16, 19, 2); ctx.fillRect(15, 15, 3, 5); },
     boots(ctx, ic) { const c = (ic && ic.c) || '#7a4a24'; poly(ctx, [6, 8, 12, 8, 12, 20, 17, 22, 17, 26, 6, 26], Icons.shade ? Icons.shade(c, 0.85) : c); poly(ctx, [16, 6, 22, 6, 22, 18, 27, 20, 27, 24, 16, 24], c); },
     cowl(ctx) { ctx.fillStyle = '#8a5a30'; ctx.beginPath(); ctx.arc(16, 16, 11, Math.PI, 0); ctx.lineTo(27, 27); ctx.lineTo(5, 27); ctx.fill(); ell(ctx, 16, 19, 6, 6, '#3a2010'); },
     vambs(ctx) { rect(ctx, 6, 8, 8, 18, '#8a5a30'); rect(ctx, 18, 8, 8, 18, '#8a5a30'); for (let i = 0; i < 3; i++) { rect(ctx, 6, 11 + i * 5, 8, 1, '#5a3a18'); rect(ctx, 18, 11 + i * 5, 8, 1, '#5a3a18'); } },

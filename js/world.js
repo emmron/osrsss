@@ -148,6 +148,7 @@ const World = (() => {
     sos_grain: { name: 'Grain of Plenty', ops: ['Search'], examine: 'A reward for completing the Catacomb of Famine.' },
     sos_box: { name: 'Box of Health', ops: ['Open'], examine: 'A reward for completing the Pit of Pestilence.' },
     sos_cradle: { name: 'Cradle of Life', ops: ['Search'], examine: 'The final reward of the Stronghold of Security.' },
+    training_dummy: { name: 'Training dummy', ops: ['Attack'], examine: 'Hit it to practise your combat skills.' },
     wild_ditch: { name: 'Wilderness Ditch', ops: ['Cross'], examine: 'Beyond this ditch lies the Wilderness. Danger!' },
     chaos_altar: { name: 'Chaos altar', w: 2, d: 1, ops: ['Pray-at'], examine: 'An altar to the dark god Zamorak. Bones offered here are blessed.' },
     gravestone: { name: 'Gravestone', ops: [], examine: 'Here lies a fallen adventurer.' },
@@ -626,6 +627,8 @@ const World = (() => {
     for (const [x, z] of [[203, 108], [208, 109], [204, 114], [209, 114], [212, 108]]) npc('tribesman', x, z); npc('tribal_trader', 206, 108);
     mapIcons.push({ x: 206, z: 108, icon: 'store' });
     labels.push(['Tai Bwo Wannai', 206, 123, 0]);
+    // training dummies near the Ardenvale spawn
+    { let placed = 0; for (let r = 4; r < 14 && placed < 4; r++) for (const [dx, dz] of [[r, 4], [r, 6], [r, 8], [r, 10]]) { const x = 90 + dx, z = 84 + dz; if (placed < 4 && canPlace(x, z, 1, 1) && !ov(x, z) && roofOf[idx(x, z)] < 0) { addLoc('training_dummy', x, z); placed++; } } }
     // ===== Extra mines =====
     const mineField = (name, cx, cz, list, rad) => {
       for (const [t, n] of list) for (let k = 0; k < n; k++) {
@@ -1068,6 +1071,7 @@ const World = (() => {
       case 'stalagmite': return Models.dungeon('stalagmite');
       case 'cave_torch': return Models.dungeon('torch');
       case 'wild_ditch': return Models.dungeon('ditch');
+      case 'training_dummy': return Models.dungeon('dummy');
       case 'gravestone': return Models.dungeon('gravestone');
       case 'warn_sign': return Models.dungeon('warnsign');
       case 'chaos_altar': { const a = Models.altar(); a.traverse(o => { if (o.material && o.material.color) { o.material = o.material.clone(); o.material.color.multiplyScalar(0.45); } }); return a; }

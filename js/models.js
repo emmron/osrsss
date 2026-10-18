@@ -939,6 +939,11 @@ const Models = (() => {
       const glow = new THREE.Mesh(new THREE.IcosahedronGeometry(0.16, 1), new THREE.MeshBasicMaterial({ color: '#c0a0ff' })); glow.position.y = 0.75; g.add(glow); g.userData.spin = glow;
     } else if (kind === 'stalagmite') {
       for (let i = 0; i < 3; i++) { const c = mesh(cone(0.22 - i * 0.05, 1.3 - i * 0.35, 6), tmat('rock', '#6a6056'), (i - 1) * 0.22, (1.3 - i * 0.35) / 2, (i % 2) * 0.15, g); c.rotation.y = i; }
+    } else if (kind === 'dummy') {
+      box(0.08, 1.3, 0.08, '#5a3c20', 0, 0.65, 0, g); box(0.6, 0.07, 0.07, '#5a3c20', 0, 1.1, 0, g);
+      const body = new THREE.Mesh(cyl(0.2, 0.24, 0.6, 8), mat('#c8a860', { map: Tex.get('thatch') })); body.position.y = 0.85; g.add(body);
+      const head = new THREE.Mesh(sph(0.15, 8, 6), mat('#d8b870', { map: Tex.get('thatch') })); head.position.y = 1.3; g.add(head);
+      box(0.3, 0.3, 0.02, '#a02020', 0, 0.9, 0.22, g); box(0.15, 0.15, 0.03, '#f0f0f0', 0, 0.9, 0.23, g);
     } else if (kind === 'ditch') {
       box(1.0, 0.04, 1.0, '#3a2c20', 0, -0.02, 0, g);
       for (let i = 0; i < 3; i++) { const r = mesh(dodeGeo, tmat('rock', '#5a5048'), -0.3 + i * 0.3, 0.02, (i % 2 ? 0.25 : -0.2), g); r.scale.set(0.1, 0.07, 0.1); }

@@ -337,6 +337,16 @@ const Game = (() => {
     if (loc.dest && (op === 'Climb-down' || op === 'Climb-up')) return climb(loc, op);
     if (T === 'sos_gate') return sosGate(loc);
     if (T === 'wild_ditch') return crossDitch(loc);
+    if (T === 'training_dummy') {
+      if (lvl('attack') >= 10 && lvl('strength') >= 10 && lvl('defence') >= 10) { msg('There\'s nothing more you can learn from hitting a dummy.'); return; }
+      msg('You start hitting the training dummy.');
+      startLoop('dummy', S.equip.weapon || null, 4, () => {
+        const sk = ['attack', 'strength', 'defence'].find(k => lvl(k) < 10 && (S.style === 0 ? k === 'attack' : S.style === 1 ? k === 'strength' : k === 'defence')) || ['attack', 'strength', 'defence'].find(k => lvl(k) < 10);
+        if (!sk) { msg('There\'s nothing more you can learn from hitting a dummy.'); return false; }
+        setAnim(p, 'slash'); Sfx.play('hit'); addXp(sk, 8); track('dummy'); return true;
+      }, 1);
+      return;
+    }
     if (T === 'warn_sign') { msg('WARNING: Beyond the ditch is the Wilderness. Other players can attack you there,', '#a00000'); msg('and if you die you keep only your 3 most valuable items. The deeper you go, the more dangerous it gets!', '#a00000'); return; }
     if (T === 'chaos_altar' && op === 'Pray-at') { setAnim(p, 'pray'); S.skills.prayer.cur = lvl('prayer'); msg('You pray at the chaos altar and recharge your Prayer points.'); Sfx.play('prayon'); return; }
     if (T in SOS_REWARD) return sosReward(T);
@@ -473,6 +483,7 @@ const Game = (() => {
         invAdd(pickF[0]); addXp('fishing', pickF[2]); track('fish');
         const nm = ITEMS[pickF[0]].name.replace('Raw ', '');
         msg(`You catch ${/s$/.test(nm) ? 'some' : /^[aeiou]/.test(nm) ? 'an' : 'a'} ${nm}.`); Sfx.play('splash');
+        if (Math.random() < 1 / 90) { invAddOrDrop('casket', 1); msg('You catch a casket!', '#000080'); track('casket'); }
         if (op === 'Net' && Math.random() < 0.12) { const q = ri(5, 15); invAdd('fishing_bait', q); msg(`You find ${q} fishing bait tangled in your net.`); }
       }
       return true;
@@ -875,6 +886,7 @@ const Game = (() => {
     if (HUNTER[it.id]) ops.push('Lay');
     if (d.pouch) ops.push('Fill', 'Empty', 'Check');
     if (it.id === 'xp_lamp') ops.push('Rub');
+    if (it.id === 'casket') ops.push('Open');
     if (d.tab) ops.push('Break');
     if (d.talisman) ops.push('Locate');
     if (d.equip) ops.push(d.equip.slot === 'weapon' ? 'Wield' : 'Wear');
@@ -920,6 +932,13 @@ const Game = (() => {
     }
     if (op === 'Lay') return layTrap(slot);
     if (op === 'Rub') { S.iface = { type: 'lamp', slot }; return; }
+    if (op === 'Open' && it.id === 'casket') {
+      S.inv[slot] = null;
+      const loot = [['coins', ri(80, 600)], ['uncut_sapphire', 1], ['uncut_emerald', 1], ['uncut_ruby', 1], ['uncut_diamond', 1], ['law_rune', ri(3, 10)], ['nature_rune', ri(5, 15)], ['xp_lamp', 1], ['raw_lobster', ri(2, 5)], ['mithril_arrow', ri(10, 40)]].filter(l => ITEMS[l[0]]);
+      const pick = Math.random() < 0.5 ? loot[0] : loot[ri(1, loot.length - 1)];
+      invAddOrDrop(pick[0], pick[1]); invAddOrDrop('coins', ri(20, 120));
+      msg(`You open the casket and find ${pick[1] > 1 ? pick[1] + ' x ' : ''}${ITEMS[pick[0]].name}!`, '#000080'); Sfx.play('quest'); return;
+    }
     if (op === 'Break') {
       if (wildLevel(p.x, p.z) > 20) { msg('A mysterious force prevents you from teleporting.'); return; }
       const dest = d.tab; invRemove(it.id, 1); resetActions();

@@ -136,8 +136,12 @@ defItem('steel_arrowtips', { name: 'Steel arrowtips', stackable: true, value: 6,
 defItem('mithril_arrowtips', { name: 'Mithril arrowtips', stackable: true, value: 16, icon: { t: 'tips', c: '#4a4aa0' }, examine: 'I can make some arrows with these.' });
 defItem('steel_arrow', { name: 'Steel arrow', stackable: true, value: 12, icon: { t: 'arrows', c: '#9aa0a8' }, equip: EQ('ammo', { rstr: 16 }), examine: 'Arrows with steel heads.' });
 defItem('mithril_arrow', { name: 'Mithril arrow', stackable: true, value: 32, icon: { t: 'arrows', c: '#4a4aa0' }, equip: EQ('ammo', { rstr: 22 }), examine: 'Arrows with mithril heads.' });
-const ARROWS = [['bronze', 1, 1.3], ['iron', 15, 2.5], ['steel', 30, 5], ['mithril', 45, 7.5]];
-const DARTS = [['bronze', 10, 1.8, 1, '#9a6a3a'], ['iron', 22, 3.8, 3, '#6e6a66'], ['steel', 37, 7.5, 6, '#9aa0a8'], ['mithril', 52, 11.2, 9, '#4a4aa0']];
+defItem('adamant_arrowtips', { name: 'Adamant arrowtips', stackable: true, value: 40, icon: { t: 'tips', c: '#3a6a3a' }, examine: 'I can make some arrows with these.' });
+defItem('rune_arrowtips', { name: 'Rune arrowtips', stackable: true, value: 200, icon: { t: 'tips', c: '#3a8aa8' }, examine: 'I can make some arrows with these.' });
+defItem('adamant_arrow', { name: 'Adamant arrow', stackable: true, value: 80, icon: { t: 'arrows', c: '#3a6a3a' }, equip: EQ('ammo', { rstr: 31 }), examine: 'Arrows with adamant heads.' });
+defItem('rune_arrow', { name: 'Rune arrow', stackable: true, value: 400, icon: { t: 'arrows', c: '#3a8aa8' }, equip: EQ('ammo', { rstr: 49 }), examine: 'Arrows with rune heads.' });
+const ARROWS = [['bronze', 1, 1.3], ['iron', 15, 2.5], ['steel', 30, 5], ['mithril', 45, 7.5], ['adamant', 60, 10], ['rune', 75, 12.5]];
+const DARTS = [['bronze', 10, 1.8, 1, '#9a6a3a'], ['iron', 22, 3.8, 3, '#6e6a66'], ['steel', 37, 7.5, 6, '#9aa0a8'], ['mithril', 52, 11.2, 9, '#4a4aa0'], ['adamant', 67, 15, 13, '#3a6a3a'], ['rune', 81, 18.8, 18, '#3a8aa8']];
 for (const [m, lv, xp, rs, col] of DARTS) {
   defItem(m + '_dart_tip', { name: m.charAt(0).toUpperCase() + m.slice(1) + ' dart tip', stackable: true, value: 2 * rs, icon: { t: 'tips', c: col }, examine: 'Fletch with feathers to make darts.' });
   defItem(m + '_dart', { name: m.charAt(0).toUpperCase() + m.slice(1) + ' dart', stackable: true, value: 4 * rs, icon: { t: 'dart', c: col }, equip: EQ('weapon', { kind: 'thrown', rstr: rs, rng: 2 + rs, speed: 3, req: { ranged: Math.max(1, lv - 10) } }), examine: 'A deadly throwing dart.' });
@@ -148,6 +152,7 @@ for (const [k, name, col, dest] of [['ardenvale', 'Ardenvale', '#a060ff', [90, 8
   defItem('tab_' + k, { name: name + ' teleport', stackable: true, value: 40, icon: { t: 'tab', c: col }, tab: dest, examine: `A tablet containing a magic spell to teleport you to ${name}.` });
 for (const [id, name, heal, col] of [['worm_batta', 'Worm batta', 11, '#c0a060'], ['toad_crunchies', 'Toad crunchies', 8, '#8aa040'], ['chocolate_bomb', 'Chocolate bomb', 15, '#6a3a1a'], ['fruit_blast', 'Fruit blast', 9, '#f0a030']])
   defItem(id, { name, value: heal * 10, icon: { t: 'gnomefood', c: col }, food: heal, examine: 'A gnome delicacy.' });
+defItem('casket', { name: 'Casket', value: 50, icon: { t: 'casket' }, examine: 'I hope there\'s treasure in it.' });
 defItem('xp_lamp', { name: 'Lamp', value: 0, icon: { t: 'lamp' }, examine: 'I wonder what happens if I rub it.' });
 
 // fishing / cooking / food
@@ -165,6 +170,9 @@ const FISH = [
   ['salmon', 'Salmon', '#c08070', '#c0603a', 30, 70, 25, 90, 9, 58, 'fish'],
   ['tuna', 'Tuna', '#7080a0', '#906050', 35, 80, 30, 100, 10, 63, 'fish'],
   ['lobster', 'Lobster', '#5a5a8a', '#d04020', 40, 90, 40, 120, 12, 74, 'lobster'],
+  ['monkfish', 'Monkfish', '#8a7a5a', '#a07a40', 62, 120, 62, 150, 16, 92, 'fish'],
+  ['sea_turtle', 'Sea turtle', '#4a7a4a', '#7a6a30', 79, 140, 82, 211, 21, 99, 'fish'],
+  ['manta_ray', 'Manta ray', '#3a4a6a', '#6a5a40', 81, 146, 91, 216, 22, 99, 'fish'],
   ['swordfish', 'Swordfish', '#8090c0', '#a07060', 50, 100, 45, 140, 14, 86, 'swordfish'],
   ['pike', 'Pike', '#7a8a5a', '#8a6a40', 25, 60, 20, 80, 8, 64, 'fish'],
   ['mackerel', 'Mackerel', '#6a8aa0', '#8a7050', 16, 20, 10, 60, 6, 45, 'fish'],
@@ -358,7 +366,7 @@ const COOKING = {
   raw_chicken: { out: 'cooked_chicken', burnt: 'burnt_chicken', level: 1, xp: 30, stopBurn: 31 },
 };
 const FIREMAKING = { logs: { level: 1, xp: 40 }, oak_logs: { level: 15, xp: 60 }, willow_logs: { level: 30, xp: 90 }, maple_logs: { level: 45, xp: 135 }, teak_logs: { level: 35, xp: 105 }, mahogany_logs: { level: 50, xp: 157.5 }, yew_logs: { level: 60, xp: 202.5 }, magic_logs: { level: 75, xp: 303.8 } };
-const SHAFTS = { logs: { level: 1, xp: 5, qty: 15 }, oak_logs: { level: 15, xp: 10, qty: 30 }, willow_logs: { level: 30, xp: 15, qty: 45 } };
+const SHAFTS = { logs: { level: 1, xp: 5, qty: 15 }, oak_logs: { level: 15, xp: 10, qty: 30 }, willow_logs: { level: 30, xp: 15, qty: 45 }, maple_logs: { level: 45, xp: 20, qty: 60 }, yew_logs: { level: 60, xp: 25, qty: 75 }, magic_logs: { level: 75, xp: 30, qty: 90 } };
 
 const TREES = {
   tree: { name: 'Tree', level: 1, xp: 25, log: 'logs', deplete: 1, respawn: [15, 30], base: 0.32 },
@@ -686,13 +694,13 @@ const SHOPS = {
 
 // Fishing spot kinds and what each option catches: [fish id, level, xp]
 const FISHING = {
-  Net: { tool: 'small_net', anim: 'fish', fish: [['raw_shrimps', 1, 10], ['raw_anchovies', 15, 40]] },
+  Net: { tool: 'small_net', anim: 'fish', fish: [['raw_shrimps', 1, 10], ['raw_anchovies', 15, 40], ['raw_monkfish', 62, 120]] },
   Bait: { tool: 'fishing_rod', bait: 'fishing_bait', anim: 'fish', fish: [['raw_sardine', 5, 20], ['raw_herring', 10, 30]] },
   'River bait': { tool: 'fishing_rod', bait: 'fishing_bait', anim: 'fish', fish: [['raw_pike', 25, 60]] },
   'Big net': { tool: 'big_net', anim: 'fish', fish: [['raw_mackerel', 16, 20], ['raw_cod', 23, 45], ['raw_bass', 46, 100]] },
   Lure: { tool: 'fly_fishing_rod', bait: 'feather', anim: 'fish', fish: [['raw_trout', 20, 50], ['raw_salmon', 30, 70]] },
   Cage: { tool: 'lobster_pot', anim: 'fish', fish: [['raw_lobster', 40, 90]] },
-  Harpoon: { tool: 'harpoon', anim: 'fish', fish: [['raw_tuna', 35, 80], ['raw_swordfish', 50, 100], ['raw_shark', 76, 110]] },
+  Harpoon: { tool: 'harpoon', anim: 'fish', fish: [['raw_tuna', 35, 80], ['raw_swordfish', 50, 100], ['raw_shark', 76, 110], ['raw_sea_turtle', 79, 140], ['raw_manta_ray', 81, 146]] },
 };
 const SPOT_OPS = { coast: ['Net', 'Bait'], river: ['Net', 'Lure', 'River bait'], sea: ['Net', 'Cage', 'Harpoon', 'Big net'] };
 
@@ -720,6 +728,15 @@ const TASKS = [
   { id: 'kill50', text: 'Defeat 50 monsters', ev: 'kill', n: 50, coins: 800, lamp: 1 },
   { id: 'fletch100', text: 'Fletch 100 items', ev: 'fletch', n: 100, coins: 800, lamp: 1 },
   { id: 'cook50', text: 'Cook 50 meals', ev: 'cook', n: 50, coins: 500, lamp: 1 },
+  { id: 'chop2', text: 'Chop 25 logs', ev: 'chop', n: 25, coins: 400, lamp: true },
+  { id: 'fish2', text: 'Catch 25 fish', ev: 'fish', n: 25, coins: 400, lamp: true },
+  { id: 'cook2', text: 'Cook 25 things', ev: 'cook', n: 25, coins: 400 },
+  { id: 'mine2', text: 'Mine 25 ores', ev: 'mine', n: 25, coins: 400, lamp: true },
+  { id: 'fletch2', text: 'Fletch 20 times', ev: 'fletch', n: 20, coins: 500, lamp: true },
+  { id: 'kill2', text: 'Defeat 25 monsters', ev: 'kill', n: 25, coins: 500, lamp: true },
+  { id: 'bury2', text: 'Bury 20 bones', ev: 'bury', n: 20, coins: 300 },
+  { id: 'dummy1', text: 'Hit a training dummy', ev: 'dummy', n: 1, coins: 50 },
+  { id: 'casket1', text: 'Fish up a casket', ev: 'casket', n: 1, coins: 250, lamp: true },
 ];
 
 const QUESTS = [
