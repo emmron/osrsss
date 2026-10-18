@@ -173,7 +173,7 @@ const Game = (() => {
   function locReach(p, loc) {
     const ag = loc.def.agility;
     if (ag) return p.x === ag.start[0] && p.z === ag.start[1];
-    if (loc.type === 'fire' || loc.type === 'snare' || loc.type === 'boxtrap' || loc.type === 'flax') return World.adjacentTo(p.x, p.z, loc.x, loc.z, 1, 1) || (p.x === loc.x && p.z === loc.z);
+    if (loc.type === 'fire' || loc.type === 'snare' || loc.type === 'boxtrap' || loc.type === 'flax' || loc.type === 'fairy_ring') return World.adjacentTo(p.x, p.z, loc.x, loc.z, 1, 1) || (p.x === loc.x && p.z === loc.z);
     if (loc.type === 'fishing_spot') return [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dz]) => p.x === loc.x + dx && p.z === loc.z + dz);
     return World.adjacentTo(p.x, p.z, loc.x, loc.z, loc.w, loc.d);
   }
@@ -314,7 +314,7 @@ const Game = (() => {
       msg('You swing your pick at the rock.');
       startLoop('mine', pick, 3, () => {
         if (!freeSlots()) { msg('Your inventory is too full to hold any more essence.'); return false; }
-        invAdd('rune_essence'); addXp('mining', 5); Sfx.play('mine'); return true;
+        invAdd(lvl('mining') >= 30 ? 'pure_essence' : 'rune_essence'); addXp('mining', 5); Sfx.play('mine'); return true;
       });
       return;
     }
@@ -327,7 +327,8 @@ const Game = (() => {
       if (Math.random() < 0.2) loc.depletedUntil = S.tick + 50;
       return;
     }
-    if (T === 'portal') { p.x = 166; p.z = 220; p.from = null; p.steps = []; Sfx.play('teleport'); msg('You step through the portal and return to Varrock.'); return; }
+    if (T === 'fairy_ring') return fairyUse(loc);
+    if (T === 'portal') { const r = S.essReturn || [166, 220]; p.x = r[0]; p.z = r[1]; p.from = null; p.steps = []; Sfx.play('teleport'); msg('You step through the portal and return to Varrock.'); return; }
     if (T === 'guild_door') {
       if (lvl('mining') < 60) { msg('You need a Mining level of 60 to enter the Mining Guild.'); return; }
       const inside = p.x < loc.x;
@@ -433,13 +434,16 @@ const Game = (() => {
     const k = loc.def.rune, a = RC_ALTARS[k];
     if (!has(k + '_talisman') && S.equip.head !== k + '_tiara') { msg(`You need ${/^[aeiou]/.test(k) ? 'an' : 'a'} ${k} talisman or tiara to use this altar.`); return; }
     if (lvl('runecrafting') < a.level) { msg(`You need a Runecrafting level of ${a.level} to craft ${k} runes.`); return; }
+    S.pouchesP = S.pouchesP || {};
     let pouched = 0;
-    for (const id in S.pouches) { pouched += S.pouches[id]; S.pouches[id] = 0; }
-    const n = invCount('rune_essence') + pouched;
-    if (!n) { msg('You don\'t have any rune essence to bind.'); return; }
+    for (const id in S.pouchesP) { pouched += S.pouchesP[id]; S.pouchesP[id] = 0; }
+    if (!a.pure) for (const id in S.pouches) { pouched += S.pouches[id]; S.pouches[id] = 0; }
+    const n = invCount('pure_essence') + (a.pure ? 0 : invCount('rune_essence')) + pouched;
+    if (!n) { msg(a.pure ? 'This altar requires pure essence.' : 'You don\'t have any rune essence to bind.'); return; }
     if (pouched) msg('You empty your pouches into the altar.');
     const mult = 1 + Math.floor(lvl('runecrafting') / a.multi);
-    invRemove('rune_essence', invCount('rune_essence')); invAdd(k + '_rune', n * mult); addXp('runecrafting', a.xp * n);
+    invRemove('pure_essence', invCount('pure_essence')); if (!a.pure) invRemove('rune_essence', invCount('rune_essence'));
+    invAdd(k + '_rune', n * mult); addXp('runecrafting', a.xp * n);
     setAnim(S.player, 'craftrune'); Sfx.play('teleport');
     msg(`You bind the temple's power into ${k} runes.`);
   }
@@ -465,6 +469,7 @@ const Game = (() => {
   // ---------- agility ----------
   function doAgility(a) {
     const p = S.player;
+    if (a.level && lvl('agility') < a.level) { msg(`You need an Agility level of ${a.level} to attempt this obstacle.`); return; }
     msg(a.msg);
     const fail = a.fail && Math.random() < a.fail * Math.max(0.2, 1 - lvl('agility') / 40);
     p.forced = { path: fail ? a.path.slice(0, 2) : a.path.slice(), anim: a.anim, a, fail };
@@ -479,8 +484,11 @@ const Game = (() => {
       msg('You lose your footing and fall!'); damagePlayer(ri(1, 3), null); return;
     }
     addXp('agility', a.xp);
-    if (a.i === S.agilityNext || a.i === 0) S.agilityNext = a.i + 1; else S.agilityNext = 0;
-    if (a.bonus && S.agilityNext === AGILITY.length) { addXp('agility', a.bonus); msg('You complete the Ardenvale Agility Course!', '#000080'); S.agilityNext = 0; }
+    const list = World.AG.filter(o => o.course === a.course), k = list.indexOf(a);
+    S.agi = S.agi || {};
+    const next = S.agi[a.course] || 0;
+    S.agi[a.course] = (k === next || k === 0) ? k + 1 : 0;
+    if (a.bonus && S.agi[a.course] === list.length) { addXp('agility', a.bonus); msg(`You complete the ${a.course.charAt(0).toUpperCase() + a.course.slice(1)} Agility Course!`, '#000080'); S.agi[a.course] = 0; }
   }
 
   // ---------- farming ----------
@@ -700,7 +708,7 @@ const Game = (() => {
       if (it.id === 'vial' && (ent.type === 'fountain' || ent.type === 'well')) { const n = invCount('vial'); invRemove('vial', n); invAdd('vial_water', n); msg('You fill the vial' + (n > 1 ? 's' : '') + ' with water.'); return; }
       if (SEEDS[it.id] && ent.patch) return plantSeed(slot, ent);
       if (it.id === 'strange_talisman' && ent.type === 'rc_air') { S.inv[slot] = { id: 'charged_talisman', qty: 1 }; setAnim(S.player, 'craftrune'); Sfx.play('teleport'); msg('The talisman glows as it absorbs the power of the altar!', '#000080'); return; }
-      if (it.id === 'rune_essence' && ent.def.rune) return craftRunes(ent);
+      if ((it.id === 'rune_essence' || it.id === 'pure_essence') && ent.def.rune) return craftRunes(ent);
       if (ent.def.rune && (it.id === 'tiara' || ITEMS[it.id].talisman === ent.def.rune)) {
         const k = ent.def.rune;
         if (!has('tiara') || !has(k + '_talisman')) { msg(`You need a tiara and ${/^[aeiou]/.test(k) ? 'an' : 'a'} ${k} talisman to bind a tiara here.`); return; }
@@ -811,9 +819,19 @@ const Game = (() => {
     if (op === 'Fill' || op === 'Empty' || op === 'Check') {
       const cap = d.pouch.cap, cur0 = S.pouches[it.id] || 0;
       if (lvl('runecrafting') < d.pouch.level) { msg(`You need a Runecrafting level of ${d.pouch.level} to use this pouch.`); return; }
-      if (op === 'Check') { msg(`There ${cur0 === 1 ? 'is' : 'are'} ${cur0} essence in this pouch.`); return; }
-      if (op === 'Fill') { const n = Math.min(cap - cur0, invCount('rune_essence')); if (n <= 0) { msg(cur0 >= cap ? 'Your pouch is full.' : 'You have no essence to put in the pouch.'); return; } invRemove('rune_essence', n); S.pouches[it.id] = cur0 + n; return; }
-      const n = Math.min(cur0, freeSlots()); if (n <= 0) { msg(cur0 ? 'You don\'t have enough inventory space.' : 'Your pouch is empty.'); return; } invAdd('rune_essence', n); S.pouches[it.id] = cur0 - n; return;
+      if (op === 'Check') { const t = cur0 + ((S.pouchesP || {})[it.id] || 0); msg(`There ${t === 1 ? 'is' : 'are'} ${t} essence in this pouch.`); return; }
+      S.pouchesP = S.pouchesP || {};
+      const curP = S.pouchesP[it.id] || 0, total = cur0 + curP;
+      if (op === 'Fill') {
+        let room = cap - total; if (room <= 0) { msg('Your pouch is full.'); return; }
+        const np = Math.min(room, invCount('pure_essence')); invRemove('pure_essence', np); S.pouchesP[it.id] = curP + np; room -= np;
+        const nr = Math.min(room, invCount('rune_essence')); invRemove('rune_essence', nr); S.pouches[it.id] = cur0 + nr;
+        if (!np && !nr) msg('You have no essence to put in the pouch.'); return;
+      }
+      if (!total) { msg('Your pouch is empty.'); return; }
+      const ep = Math.min(curP, freeSlots()); invAdd('pure_essence', ep); S.pouchesP[it.id] = curP - ep;
+      const er = Math.min(cur0, freeSlots()); invAdd('rune_essence', er); S.pouches[it.id] = cur0 - er;
+      if (!ep && !er) msg('You don\'t have enough inventory space.'); return;
     }
     if (op === 'Locate') {
       const k = d.talisman, alt = World.locs.find(l => l.type === 'rc_' + k), p = S.player;
@@ -943,7 +961,7 @@ const Game = (() => {
     } else if (t === 'generic') {
       const opts = [];
       if (n.def.shop) opts.push({ text: 'What do you have for sale?', fn: () => openShop(n.def.shop) });
-      if (n.id === 'mage') opts.unshift({ text: 'Do you need any help?', fn: () => runesQuest(n) });
+      if (n.id === 'mage') { opts.unshift({ text: 'Do you need any help?', fn: () => runesQuest(n) }); opts.splice(1, 0, { text: 'Teleport me to the Rune Essence mine.', fn: () => essTeleport(n, [83, 67]) }); }
       opts.push({ text: 'Goodbye.', fn: end });
       chat(n, [['npc', n.def.greet || 'Hello.'], { options: opts }]);
     } else if (t === 'smith') {
@@ -964,11 +982,12 @@ const Game = (() => {
     else if (t === 'aubury') {
       chat(n, [['npc', 'Do you want to buy some runes?'], { options: [
         { text: 'Yes please!', fn: () => openShop('aubury') },
-        { text: 'Can you teleport me to the Rune Essence mine?', fn: () => { const p = S.player; resetActions(); p.loop = 'teleport'; p.loopStart = now(); say(n, 'Senventior Disthine Molenko!'); Sfx.play('teleport'); p.task = { timer: 3, interval: 3, fn: () => { p.x = 16; p.z = 249; p.from = null; p.steps = []; msg('You are teleported to the Rune Essence mine.'); return false; } }; } },
+        { text: 'Can you teleport me to the Rune Essence mine?', fn: () => { const p = S.player; resetActions(); S.essReturn = [166, 220]; p.loop = 'teleport'; p.loopStart = now(); say(n, 'Senventior Disthine Molenko!'); Sfx.play('teleport'); p.task = { timer: 3, interval: 3, fn: () => { p.x = 16; p.z = 249; p.from = null; p.steps = []; msg('You are teleported to the Rune Essence mine.'); return false; } }; } },
         { text: 'Could I have an essence pouch?', fn: () => { if (has('small_pouch') || S.bank.some(b => b.id === 'small_pouch')) chat(n, [['npc', 'You already have one!']]); else { invAddOrDrop('small_pouch', 1); chat(n, [['npc', 'Here you go. It holds 3 essence - fill it before you head to an altar.']]); } } },
         { text: 'No thanks.', fn: end }] }]);
     }
     else if (t === 'cook') cookQuest(n);
+    else if (t === 'esswizard') chat(n, [['npc', 'Ah, a fellow seeker of essence! Shall I send you to the Rune Essence mine?'], { options: [{ text: 'Yes please.', fn: () => essTeleport(n, [72, 16]) }, { text: 'No thanks.', fn: end }] }]);
     else if (t === 'sail') {
       const dest = n.def.sail === 'saltreach' ? { name: 'Saltreach Isle', x: 183, z: 86 } : { name: 'Port Sarrow', x: 169, z: 82 };
       chat(n, [['npc', `Would you like to sail to ${dest.name}? It'll cost you 30 coins.`], { options: [
@@ -1033,6 +1052,28 @@ const Game = (() => {
       if (invCount('shrimps') >= 10 && invCount('cooked_chicken') >= 5) chat(n, [['npc', 'A feast fit for a crew! Here\'s your reward.'], () => { invRemove('shrimps', 10); invRemove('cooked_chicken', 5); questDone('catch', ['1,000 Fishing XP', '1,000 Cooking XP', '600 Coins'], () => { addXp('fishing', 1000); addXp('cooking', 1000); invAddOrDrop('coins', 600); }); }]);
       else chat(n, [['npc', `Still waiting on that food: ${invCount('shrimps')}/10 shrimps, ${invCount('cooked_chicken')}/5 cooked chickens.`]]);
     } else chat(n, [['npc', 'The crew sends their thanks, matey!']]);
+  }
+  function essTeleport(n, back) {
+    const p = S.player; resetActions(); S.essReturn = back;
+    p.loop = 'teleport'; p.loopStart = now(); say(n, 'Senventior Disthine Molenko!'); Sfx.play('teleport');
+    p.task = { timer: 3, interval: 3, fn: () => { p.x = 16; p.z = 249; p.from = null; p.steps = []; msg('You are teleported to the Rune Essence mine.'); return false; } };
+  }
+  // ---------- fairy rings ----------
+  function fairyUse(loc) { S.iface = { type: 'fairy', ring: loc, dials: [0, 0, 0] }; S.fairyLog = S.fairyLog || []; if (loc.code && !S.fairyLog.includes(loc.code)) S.fairyLog.push(loc.code); }
+  function fairyTeleport(code) {
+    const p = S.player, f = FAIRY[code];
+    S.iface = null;
+    resetActions();
+    p.loop = 'teleport'; p.loopStart = now(); Sfx.play('teleport');
+    p.task = { timer: 3, interval: 3, fn: () => {
+      if (!f) { msg('Nothing interesting happens... the ring fizzles.'); return false; }
+      let tx = f.x, tz = f.z;
+      for (const [dx, dz] of [[0, 1], [1, 0], [0, -1], [-1, 0], [1, 1], [-1, -1]]) if (World.walkable(f.x + dx, f.z + dz)) { tx = f.x + dx; tz = f.z + dz; break; }
+      p.x = tx; p.z = tz; p.from = null; p.steps = []; p.path = [];
+      S.fairyLog = S.fairyLog || []; if (!S.fairyLog.includes(code)) S.fairyLog.push(code);
+      msg(`You arrive at ${f.name}.`);
+      return false;
+    } };
   }
   function cookQuest(n) {
     const q = S.quests.cook;
@@ -1665,7 +1706,7 @@ const Game = (() => {
     const p = S.player;
     const patches = {};
     for (const l of World.locs) if (l.patch) patches[l.x + ',' + l.z] = l.patch;
-    const data = { v: 2, skills: S.skills, inv: S.inv, equip: S.equip, ammo: S.ammoQty, bank: S.bank, quests: S.quests, qp: S.questPoints, x: p.x, z: p.z, style: S.style, run: p.run, energy: p.energy, ar: S.autoRetaliate, slayer: S.slayer, patches, gift: S.gift, autocast: S.autocast, pouches: S.pouches, bright: S.settings.brightness };
+    const data = { v: 2, skills: S.skills, inv: S.inv, equip: S.equip, ammo: S.ammoQty, bank: S.bank, quests: S.quests, qp: S.questPoints, x: p.x, z: p.z, style: S.style, run: p.run, energy: p.energy, ar: S.autoRetaliate, slayer: S.slayer, patches, gift: S.gift, autocast: S.autocast, pouches: S.pouches, pouchesP: S.pouchesP, agi: S.agi, fairyLog: S.fairyLog, essReturn: S.essReturn, bright: S.settings.brightness };
     try { localStorage.setItem(KEY(S.name), JSON.stringify(data)); localStorage.setItem('ardenvale_last', S.name); } catch (e) { }
   }
   function load(name) {
@@ -1680,7 +1721,7 @@ const Game = (() => {
       S.inv = data.inv.map(s => s && ITEMS[s.id] ? s : null); S.equip = data.equip || {}; for (const k in S.equip) if (!ITEMS[S.equip[k]]) delete S.equip[k];
       S.ammoQty = data.ammo || 0; S.bank = (data.bank || []).filter(b => ITEMS[b.id]);
       Object.assign(S.quests, data.quests || {}); S.questPoints = data.qp || 0;
-      S.style = data.style || 0; S.autoRetaliate = data.ar !== false; S.slayer = data.slayer || null; S.gift = data.gift; S.autocast = data.autocast || null; S.pouches = data.pouches || {};
+      S.style = data.style || 0; S.autoRetaliate = data.ar !== false; S.slayer = data.slayer || null; S.gift = data.gift; S.autocast = data.autocast || null; S.pouches = data.pouches || {}; S.pouchesP = data.pouchesP || {}; S.agi = data.agi || {}; S.fairyLog = data.fairyLog || []; S.essReturn = data.essReturn;
       S.settings.brightness = data.bright == null ? 2 : data.bright;
       for (const l of World.locs) if (l.patch && data.patches && data.patches[l.x + ',' + l.z]) { l.patch = data.patches[l.x + ',' + l.z]; World.refreshLoc(l); }
     } else {
@@ -1723,6 +1764,6 @@ const Game = (() => {
     S, tick, msg, lvl, cur, combatLevel, totalLevel, invCount, freeSlots, itemOps, invAction, swapInv, unequip, bonuses, locOps,
     walkTo, interact, useItemOn, useItemOnItem, togglePrayer, openBank, bankDeposit, bankDepositAll, bankDepositEquip, bankWithdraw,
     shopBuy, shopSell, buyPrice, sellPrice, smith, openSmithing, load, logout, save, init, styleNames, weaponType, weaponKind,
-    homeTeleport, emote, resetActions, dropGround, offerItem, removeOffer, acceptTrade, declineTrade, tradeVal, castSpell, castOn, castOnItem, canCast, region, wildLevel, METALS, barOf,
+    homeTeleport, emote, resetActions, dropGround, fairyTeleport, offerItem, removeOffer, acceptTrade, declineTrade, tradeVal, castSpell, castOn, castOnItem, canCast, region, wildLevel, METALS, barOf,
   };
 })();

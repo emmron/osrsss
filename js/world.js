@@ -82,7 +82,8 @@ const World = (() => {
     mahogany: { name: 'Mahogany', ops: ['Chop down'], examine: 'A strong old mahogany tree.' },
     banana: { name: 'Banana tree', ops: ['Pick'], examine: 'A tree full of bananas.' },
     guild_door: { name: 'Door', ops: ['Open'], examine: 'The door to the Mining Guild. Mining level 60 required.' },
-    portal: { name: 'Portal', ops: ['Use'], examine: 'A magical portal back to Varrock.' },
+    portal: { name: 'Portal', ops: ['Use'], examine: 'A magical portal out of the mine.' },
+    fairy_ring: { name: 'Fairy ring', block: false, ops: ['Use'], examine: 'A mystical ring of mushrooms.' },
     gem_stall: { name: 'Gem stall', w: 2, d: 1, ops: ['Steal-from'], examine: 'A stall selling fine gems.' },
     maple: { name: 'Maple tree', ops: ['Chop down'], examine: 'It\'ll be nice and colourful in autumn.' },
     yew: { name: 'Yew', ops: ['Chop down'], examine: 'A tough looking yew tree.' },
@@ -130,7 +131,7 @@ const World = (() => {
     boat: { name: 'Ship', w: 3, d: 5, ops: [], examine: 'The Sea Maiden. She looks seaworthy enough.' },
   };
   for (const k in RC_ALTARS) LOCDEF['rc_' + k] = { name: k.charAt(0).toUpperCase() + k.slice(1) + ' altar', w: 2, d: 2, ops: ['Craft-rune'], examine: `A mysterious altar humming with ${k} energy.`, rune: k };
-  const AG = AGILITY.map((a, i) => Object.assign({}, a, { i, start: [a.start[0] + OX, a.start[1] + OZ], path: a.path.map(([x, z]) => [x + OX, z + OZ]) }));
+  const AG = AGILITY.map((a, i) => a.abs ? Object.assign({}, a, { i }) : Object.assign({}, a, { i, start: [a.start[0] + OX, a.start[1] + OZ], path: a.path.map(([x, z]) => [x + OX, z + OZ]) }));
   AG.forEach((a, i) => { LOCDEF['agility' + i] = { name: a.name, ops: [a.op], examine: 'An obstacle on the agility course.', agility: a }; });
   for (const k in LOCDEF) { const d = LOCDEF[k]; d.w = d.w || 1; d.d = d.d || 1; if (d.block === undefined) d.block = true; }
 
@@ -189,8 +190,11 @@ const World = (() => {
     }
     rectU(64, 6, 90, 34, U.GRASS);
     // southern kingdom: woods, River Lum, Lumbridge swamp, essence mine island
-    rectU(38, 190, 78, 222, U.FOREST); rectU(160, 238, 236, 262, U.FOREST);
+    rectU(38, 190, 78, 222, U.FOREST); rectU(160, 238, 196, 262, U.FOREST);
     rectU(68, 250, 108, 262, U.SWAMP);
+    for (let z = 190; z < H; z++) for (let x = 196; x < W; x++) if (x > 198 + Math.sin(z * 0.2) * 3) setU(x, z, U.SWAMP);
+    for (let i = 0; i < 70; i++) { const cx = 202 + rnd() * 34, cz = 194 + rnd() * 66, r = 1 + rnd() * 2.8; for (let z = cz - 4; z < cz + 4; z++) for (let x = cx - 4; x < cx + 4; x++) if (Math.hypot(x - cx, z - cz) < r && x < W - 3 && z < H - 3) setO(Math.floor(x), Math.floor(z), i % 3 ? O.MUD : O.WATER); }
+    for (let i = 0; i < 25; i++) { const cx = 70 + rnd() * 38, cz = 250 + rnd() * 12, r = 1 + rnd() * 1.6; for (let z = cz - 3; z < cz + 3; z++) for (let x = cx - 3; x < cx + 3; x++) if (Math.hypot(x - cx, z - cz) < r && z < H - 3) setO(Math.floor(x), Math.floor(z), i % 2 ? O.MUD : O.WATER); }
     for (let z = 186; z < H; z++) { const cx = riverLum(z); for (let x = 100; x < 126; x++) if (Math.abs(x + 0.5 - cx) <= 1.7) setO(x, z, O.WATER); }
     rectO(2, 228, 34, H - 1, O.WATER);
     for (let z = 234; z < 261; z++) for (let x = 6; x < 31; x++) { setO(x, z, 0); setU(x, z, U.ESS); }
@@ -305,13 +309,13 @@ const World = (() => {
     for (let z = 50; z < 56; z++) for (let x = 25; x < 30; x++) if (!isWater(x + OX, z + OZ) && (x + z) % 2 === 0) vloc('flax', x, z);
     // Agility course
     const agBlock = [[1, 0, 6, 1], [1, 0, 1, 3], [0, 1, 1, 4], [1, 0, 5, 1], [0, 1, 1, 4]];
+    const ardRects = [[71, 94, 6, 1], [78, 94, 1, 3], [79, 97, 1, 4], [73, 102, 5, 1], [71, 97, 1, 4]];
     AG.forEach((a, i) => {
-      const xs = a.path.map(p => p[0]), zs = a.path.map(p => p[1]);
-      const x0 = Math.min(...xs.slice(0, -1)), z0 = Math.min(...zs.slice(0, -1));
-      let rect;
-      if (i === 0) rect = [71, 94, 6, 1]; else if (i === 1) rect = [78, 94, 1, 3]; else if (i === 2) rect = [79, 97, 1, 4]; else if (i === 3) rect = [73, 102, 5, 1]; else rect = [71, 97, 1, 4];
+      const rect = a.rect || ardRects[i];
       addLoc('agility' + i, rect[0], rect[1], { w: rect[2], d: rect[3] });
     });
+    mapIcons.push({ x: 98, z: 191, icon: 'agility' }, { x: 23, z: 152, icon: 'agility' });
+    for (let x = 22; x <= 25; x++) setO(x, 146, O.LAVA);
     mapIcons.push({ x: 75, z: 97, icon: 'agility' });
     // Slayer master's tent near the goblin camp
     addLoc('tent', 100, 109); mapIcons.push({ x: 101, z: 110, icon: 'slayer' });
@@ -435,9 +439,18 @@ const World = (() => {
     mapIcons.push({ x: 225, z: 75, icon: 'rc' }, { x: 119, z: 47, icon: 'rc' }, { x: 7, z: 113, icon: 'rc' });
     for (const [x, z] of [[10, 239], [22, 239], [10, 252], [22, 252], [16, 256]]) addLoc('essence', x, z);
     addLoc('portal', 16, 246); mapIcons.push({ x: 16.5, z: 246.5, icon: 'essence' });
+    addLoc('essence', 7, 245); addLoc('essence', 26, 245);
+    for (const code in FAIRY) {
+      const f = FAIRY[code];
+      let fx = f.x, fz = f.z;
+      for (let r = 0; r < 8 && !(canPlace(fx, fz, 1, 1) && !over[idx(fx, fz)]); r++) { fx = f.x + Math.round((rnd() - 0.5) * r * 2); fz = f.z + Math.round((rnd() - 0.5) * r * 2); }
+      const loc = addLoc('fairy_ring', fx, fz, { code });
+      f.x = fx; f.z = fz;
+      mapIcons.push({ x: fx + 0.5, z: fz + 0.5, icon: 'ring' });
+    }
     // labels for the world map
     labels.push(['Ardenvale', 90, 74, 1], ['Port Sarrow', 144, 66, 1], ['Elderwood', 85, 8, 0], ['Runestone Circle', 100, 34, 0], ['Duskmoor Swamp', 140, 14, 0],
-      ['Kharidian Desert', 100, 136, 1], ['Al Kharid', 135, 133, 1], ['Wilderness', 18, 30, 1], ['Whitecliff', 77, 4, 1], ['Saltreach Isle', 209, 44, 1], ['Mount Ember', 216, 66, 0], ['Saltreach', 196, 76, 0], ['Mining Guild', 71, 36, 0], ['Varrock', 154, 192, 1], ['Lumbridge', 92, 222, 1], ['River Lum', 118, 250, 0], ['Rune Essence Mine', 18, 232, 0], ['Barbarian Camp', 101, 194, 0], ['Hill Giants', 123, 194, 0], ['Dark Wizards', 155, 244, 0], ['Lumbridge Swamp', 86, 262, 0], ['Kingdom of Misthal', 160, 186, 1], ['Western Woods', 49, 64, 0], ['Ardenvale Mine', 87, 120, 0], ['Goblin Camp', 112, 122, 0],
+      ['Kharidian Desert', 100, 136, 1], ['Al Kharid', 135, 133, 1], ['Wilderness', 18, 30, 1], ['Whitecliff', 77, 4, 1], ['Saltreach Isle', 209, 44, 1], ['Mount Ember', 216, 66, 0], ['Saltreach', 196, 76, 0], ['Mining Guild', 71, 36, 0], ['Varrock', 154, 192, 1], ['Lumbridge', 92, 222, 1], ['River Lum', 118, 250, 0], ['Rune Essence Mine', 18, 232, 0], ['Barbarian Camp', 101, 194, 0], ['Hill Giants', 123, 194, 0], ['Dark Wizards', 155, 244, 0], ['Lumbridge Swamp', 86, 262, 0], ['Kingdom of Misthal', 160, 186, 1], ['Morrow Mire', 216, 200, 1], ['Barbarian Agility', 98, 184, 0], ['Wilderness Agility', 23, 162, 0], ['Western Woods', 49, 64, 0], ['Ardenvale Mine', 87, 120, 0], ['Goblin Camp', 112, 122, 0],
       ['Cinder Lair', 50, 122, 0], ['Demon Pit', 18, 140, 0], ['Agility Course', 74, 106, 0], ['Farm', 75, 90, 0], ['Oasis', 62, 156, 0]);
 
     // ===== NPCs =====
@@ -486,6 +499,9 @@ const World = (() => {
     for (const [x, z] of [[120, 242], [124, 246], [128, 243], [118, 248]]) npc('goblin', x, z);
     for (const [x, z] of [[78, 256], [94, 258], [100, 254]]) npc('rat', x, z);
     for (const [x, z] of [[92, 226], [98, 238], [104, 242]]) npc(Math.random() < 0.5 ? 'man' : 'woman', x, z);
+    for (const [x, z] of [[210, 210], [222, 222], [214, 238], [228, 246], [206, 252], [230, 204]]) npc('ghast', x, z);
+    for (const [x, z] of [[204, 200], [216, 214], [226, 232], [208, 244], [88, 258], [76, 254]]) npc('giant_frog', x, z);
+    npc('swamp_wizard', 72, 14);
     npc('harbourmaster', 148, 72); npc('sailor', 166, 82); npc('man', 145, 82); npc('woman', 150, 79); npc('guard', 140, 80); npc('man', 143, 86);
   }
 
@@ -499,7 +515,7 @@ const World = (() => {
     for (let z = 3; z < H - 3; z++) for (let x = 3; x < W - 3; x++) {
       if (!free(x, z)) continue;
       const u = under[idx(x, z)], r = rnd();
-      if (Math.hypot(x - 90, z - 82) < 15 || Math.hypot(x - 144, z - 81) < 13 || nearRC(x, z) || (x >= 64 && x <= 90 && z >= 6 && z <= 34) || (x >= 186 && x <= 206 && z >= 76 && z <= 96) || (x >= 126 && x <= 180 && z >= 192 && z <= 238) || (x >= 78 && x <= 110 && z >= 206 && z <= 250) || (x < 36 && z > 226)) continue;
+      if (Math.hypot(x - 90, z - 82) < 15 || Math.hypot(x - 144, z - 81) < 13 || nearRC(x, z) || (x >= 64 && x <= 90 && z >= 6 && z <= 34) || (x >= 186 && x <= 206 && z >= 76 && z <= 96) || (x >= 126 && x <= 180 && z >= 192 && z <= 238) || (x >= 78 && x <= 110 && z >= 206 && z <= 250) || (x < 36 && z > 226) || (x >= 90 && x <= 108 && z >= 184 && z <= 198) || (x >= 16 && x <= 30 && z >= 142 && z <= 164)) continue;
       if (x >= 64 && x <= 81 && z >= 82 && z <= 104) continue; // farm + agility
       if (x >= 103 && x <= 121 && z >= 63 && z <= 103) continue; // pens
       if (u === U.FOREST) { if (r < 0.1) addLoc('tree', x, z); else if (r < 0.125) addLoc('oak', x, z); else if (r < 0.15) addLoc('pine', x, z); else if (r < 0.17) addLoc('bush', x, z); }
@@ -729,11 +745,12 @@ const World = (() => {
     if (TREES[t] || ['pine', 'deadtree', 'palm', 'cactus', 'banana'].includes(t)) return Models.tree(t, r);
     if (ROCKS[t]) return Models.rock(t, r);
     if (t.startsWith('rc_')) return Models.runeAltar(t.slice(3));
-    if (t.startsWith('agility')) return Models.agility(['log', 'net', 'rope', 'pipe', 'swing'][+t.slice(7)]);
+    if (t.startsWith('agility')) { const a = AG[+t.slice(7)]; const m = Models.agility(a.model); if (a.rot) m.rotation.y = Math.PI / 2; const wrap = new THREE.Group(); wrap.add(m); return wrap; }
     switch (t) {
       case 'essence': return Models.essenceRock();
       case 'guild_door': return Models.guildDoor();
       case 'portal': return Models.portal();
+      case 'fairy_ring': return Models.fairyRing();
       case 'gem_stall': return Models.stall('#8040c0');
       case 'fishing_spot': return Models.fishingSpot();
       case 'furnace': return Models.furnace();

@@ -267,7 +267,7 @@ const Icons = (() => {
     },
     bowstring(ctx) { ctx.strokeStyle = '#e8e0c8'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(16, 16, 9, 0, Math.PI * 2); ctx.stroke(); ctx.beginPath(); ctx.arc(16, 16, 6, 0.5, 5.5); ctx.stroke(); },
     flax(ctx) { for (let i = 0; i < 4; i++) { rect(ctx, 10 + i * 3, 8, 1.5, 20, '#6a8a2a'); } ell(ctx, 11, 7, 2.5, 2.5, '#6a7ae0'); ell(ctx, 17, 6, 2.5, 2.5, '#6a7ae0'); ell(ctx, 20, 9, 2, 2, '#6a7ae0'); },
-    essence(ctx) { poly(ctx, [9, 8, 22, 6, 26, 16, 21, 26, 9, 25, 6, 16], '#c8c8d0'); poly(ctx, [9, 8, 22, 6, 18, 12, 11, 13], '#e8e8f0'); },
+    essence(ctx, ic) { poly(ctx, [9, 8, 22, 6, 26, 16, 21, 26, 9, 25, 6, 16], ic.pure ? '#e8e8f8' : '#c8c8d0'); poly(ctx, [9, 8, 22, 6, 18, 12, 11, 13], ic.pure ? '#ffffff' : '#e8e8f0'); if (ic.pure) { ell(ctx, 16, 17, 3, 3, '#d0e0ff'); } },
     tips(ctx, ic) { for (let i = 0; i < 4; i++) poly(ctx, [6 + i * 6, 22 - i * 3, 10 + i * 6, 22 - i * 3, 8 + i * 6, 12 - i * 3], i % 2 ? ic.c : Icons.shade(ic.c, 1.3)); },
     arrows(ctx, ic) {
       for (let i = 0; i < 3; i++) {

@@ -146,7 +146,7 @@ const UI = (() => {
     range: ['#d0d0d0', '#5a2a10', 'C'], altar: ['#ffffff', '#3a3a8a', '+'], quest: ['#6aa0ff', '#0a1a5a', '?'], fish: ['#80c0ff', '#103060', '~'], mine: ['#c0a080', '#3a2a1a', 'M'],
     rune: ['#ff6040', '#3a0a40', 'R'], archery: ['#e0c080', '#2a4a1a', 'B'], herb: ['#80e060', '#1a3a10', 'H'], tanner: ['#e0a060', '#4a2a10', 'T'], spin: ['#f0e0c0', '#4a3a2a', 'W'],
     stall: ['#ffd060', '#4a1a1a', '$'], farm: ['#a0e060', '#3a2a10', 'F'], agility: ['#60c0ff', '#1a2a4a', 'A'], slayer: ['#ff4040', '#200000', 'S'], rc: ['#ffffff', '#2a2a6a', 'O'],
-    essence: ['#d0d0ff', '#30305a', 'E'], scimitar: ['#e0e0e0', '#6a1a1a', 'Z'], boat: ['#ffffff', '#1a3a6a', 'P'], gem: ['#60e0ff', '#1a2a4a', 'G'], armour: ['#e0e0e0', '#3a3a5a', 'A'], guild: ['#e8c030', '#3a2a1a', 'M'], staff: ['#c0a0ff', '#2a1a4a', '/'], axe: ['#d0d0d0', '#4a2a1a', 'X'] };
+    essence: ['#d0d0ff', '#30305a', 'E'], scimitar: ['#e0e0e0', '#6a1a1a', 'Z'], boat: ['#ffffff', '#1a3a6a', 'P'], gem: ['#60e0ff', '#1a2a4a', 'G'], armour: ['#e0e0e0', '#3a3a5a', 'A'], guild: ['#e8c030', '#3a2a1a', 'M'], staff: ['#c0a0ff', '#2a1a4a', '/'], axe: ['#d0d0d0', '#4a2a1a', 'X'], ring: ['#a0ffb0', '#1a4a2a', '*'] };
   function mapIcon(type, x, y, r) {
     const [fg, bg, ch] = ICONS[type] || ICONS.quest;
     r = r || 6;
@@ -204,9 +204,9 @@ const UI = (() => {
       case 'ranged': for (const [id] of BOWS) add(ITEMS[id].equip.req.ranged || 1, ITEMS[id].name, id); for (const a of ARROWS) add(1, ITEMS[a[0] + '_arrow'].name + 's', a[0] + '_arrow'); break;
       case 'prayer': for (const p of PRAYERS) add(p.level, p.name, null); break;
       case 'magic': for (const s of SPELLS) add(s.level || 1, s.name, null); add(1, 'Staves let you autocast combat spells', 'staff'); break;
-      case 'runecrafting': add(1, 'Altars need a matching talisman or tiara', 'air_talisman'); for (const id in POUCHES) add(POUCHES[id].level, POUCHES[id].name + ` (holds ${POUCHES[id].cap})`, id); for (const k in RC_ALTARS) { add(RC_ALTARS[k].level, `${cap(k)} runes`, k + '_rune'); add(RC_ALTARS[k].multi, `Two ${k} runes per essence`, k + '_rune'); } break;
+      case 'runecrafting': add(1, 'Altars need a matching talisman or tiara', 'air_talisman'); add(27, 'Cosmic, chaos, nature, law and death altars need pure essence', 'pure_essence'); for (const id in POUCHES) add(POUCHES[id].level, POUCHES[id].name + ` (holds ${POUCHES[id].cap})`, id); for (const k in RC_ALTARS) { add(RC_ALTARS[k].level, `${cap(k)} runes`, k + '_rune'); add(RC_ALTARS[k].multi, `Two ${k} runes per essence`, k + '_rune'); } break;
       case 'woodcutting': for (const k in TREES) add(TREES[k].level, TREES[k].name + 's', TREES[k].log); break;
-      case 'mining': for (const k in ROCKS) add(ROCKS[k].level, ITEMS[ROCKS[k].ore].name, ROCKS[k].ore); add(1, 'Rune essence', 'rune_essence'); add(1, 'Chance of finding gems', 'uncut_sapphire'); add(60, 'Enter the Mining Guild (Whitecliff)', 'coal'); break;
+      case 'mining': for (const k in ROCKS) add(ROCKS[k].level, ITEMS[ROCKS[k].ore].name, ROCKS[k].ore); add(1, 'Rune essence', 'rune_essence'); add(30, 'Pure essence (Rune Essence mine)', 'pure_essence'); add(1, 'Chance of finding gems', 'uncut_sapphire'); add(60, 'Enter the Mining Guild (Whitecliff)', 'coal'); break;
       case 'smithing': for (const r of SMELTING) add(r.level, ITEMS[r.out].name, r.out); for (const r of SMITHING) add(r.level, ITEMS[r.out].name, r.out); break;
       case 'fishing': for (const op in FISHING) for (const [id, lv] of FISHING[op].fish) add(lv, `${ITEMS[id].name.replace('Raw ', '')} (${op}, ${ITEMS[FISHING[op].tool].name.toLowerCase()})`, id); break;
       case 'cooking': for (const k in COOKING) add(COOKING[k].level, ITEMS[COOKING[k].out].name, COOKING[k].out); break;
@@ -214,7 +214,7 @@ const UI = (() => {
       case 'fletching': for (const k in SHAFTS) add(SHAFTS[k].level, `Arrow shafts (${ITEMS[k].name})`, 'arrow_shaft'); for (const b of FLETCH_BOW) add(b.level, ITEMS[b.bow].name, b.bow); for (const a of ARROWS) add(a[1], ITEMS[a[0] + '_arrow'].name + 's', a[0] + '_arrow'); break;
       case 'crafting': for (const r of CRAFT_LEATHER) add(r.level, ITEMS[r.out].name, r.out); add(5, 'Gold ring', 'gold_ring'); add(8, 'Gold amulet', 'gold_amulet'); add(10, 'Spin bow string', 'bow_string'); for (const g of GEMS) add(g[3], 'Cut ' + g[1].toLowerCase(), g[0]); for (const j of JEWEL) add(j.level, ITEMS[j.out].name, j.out); break;
       case 'herblore': for (const [id, , , lv] of HERBS) add(lv, 'Clean ' + ITEMS[id + '_leaf'].name, 'grimy_' + id); for (const p of POTIONS) add(p.level, p.name, p.id + '3'); break;
-      case 'agility': add(1, 'Ardenvale Agility Course', null); add(1, 'Faster run energy restore', null); break;
+      case 'agility': add(1, 'Ardenvale Agility Course', null); add(1, 'Faster run energy restore', null); add(35, 'Barbarian Agility Course (south of the desert)', null); add(52, 'Wilderness Agility Course (dangerous!)', null); break;
       case 'thieving': add(1, 'Pickpocket men and women', 'coins'); add(5, 'Steal from bakery stalls', 'cake'); add(20, 'Steal from silk stalls', 'silk'); add(10, 'Pickpocket farmers', 'potato_seed'); add(25, 'Pickpocket guards & Al Kharid warriors', 'coins'); add(55, 'Pickpocket White Knights', 'coins'); add(75, 'Steal from gem stalls', 'uncut_ruby'); break;
       case 'slayer': for (const t of SLAYER_TASKS) add(t.slayer || 1, `${NPCS[t.npc].name} tasks (combat ${t.min}+)`, null); break;
       case 'farming': for (const k in SEEDS) add(SEEDS[k].level, ITEMS[SEEDS[k].crop].name, k); break;
@@ -461,6 +461,17 @@ const UI = (() => {
     }
     if (!inR(x, y, WIN)) return null;
     if (closeHit(x, y)) return [O(act('Close'), () => { st.iface = null; })];
+    if (f.type === 'fairy') {
+      for (let i = 0; i < 3; i++) {
+        const cx = WIN.x + 70 + i * 90;
+        if (inR(x, y, { x: cx - 20, y: WIN.y + 44, w: 40, h: 22 })) return [O(act('Rotate dial'), () => { f.dials[i] = (f.dials[i] + 3) % 4; Sfx.play('click'); })];
+        if (inR(x, y, { x: cx - 20, y: WIN.y + 174, w: 40, h: 22 })) return [O(act('Rotate dial'), () => { f.dials[i] = (f.dials[i] + 1) % 4; Sfx.play('click'); })];
+      }
+      if (inR(x, y, { x: WIN.x + 90, y: WIN.y + 230, w: 120, h: 28 })) { const code = f.dials.map((d, i) => FAIRY_DIALS[i][d]).join(''); return [O(act('Teleport', code, C.green), () => Game.fairyTeleport(code))]; }
+      const log = Object.keys(FAIRY).filter(c => (st.fairyLog || []).includes(c));
+      for (let i = 0; i < log.length; i++) if (inR(x, y, { x: WIN.x + 300, y: WIN.y + 46 + i * 18, w: 176, h: 18 })) { const c = log[i]; return [O(act('Set code', c, C.yellow), () => { f.dials = c.split('').map((ch, j) => FAIRY_DIALS[j].indexOf(ch)); })]; }
+      return [];
+    }
     if (f.type === 'trade') {
       if (inR(x, y, { x: WIN.x + 130, y: WIN.y + WIN.h - 34, w: 100, h: 24 })) return [O(act('Accept'), () => Game.acceptTrade())];
       if (inR(x, y, { x: WIN.x + 254, y: WIN.y + WIN.h - 34, w: 100, h: 24 })) return [O(act('Decline'), () => Game.declineTrade())];
@@ -532,6 +543,7 @@ const UI = (() => {
     ctx.fillStyle = 'rgba(120,0,0,0.18)'; ctx.fillRect(R.x, R.y, Math.max(0, wx - R.x), R.h);
     ctx.strokeStyle = 'rgba(255,40,40,0.8)'; ctx.setLineDash([6, 4]); ctx.beginPath(); ctx.moveTo(wx, R.y); ctx.lineTo(wx, R.y + R.h); ctx.stroke(); ctx.setLineDash([]);
     for (const ic of World.mapIcons) { const [x, y] = mapToScreen(ic.x, ic.z); mapIcon(ic.icon, x, y, z > 3 ? 7 : 6); }
+    for (const c in FAIRY) { const [x, y] = mapToScreen(FAIRY[c].x + 0.5, FAIRY[c].z + 0.5); T(c, x + 8, y + 4, '#a0ffb0', F11B); }
     for (const [name, x, zz, big] of World.labels) { const [sx, sy] = mapToScreen(x, zz); T(name, sx, sy, big ? '#ffb040' : '#ffe0a0', big ? 'bold 15px Georgia, serif' : F12, 'center'); }
     const p = S().player;
     const [px, py] = mapToScreen(p.x + 0.5, p.z + 0.5);
@@ -544,7 +556,7 @@ const UI = (() => {
     T('Key', L.x + 69, L.y + 16, C.orange, F13, 'center');
     const names = { bank: 'Bank', store: 'General store', furnace: 'Furnace', anvil: 'Anvil', range: 'Cooking range', altar: 'Altar', quest: 'Quest start', fish: 'Fishing spot', mine: 'Mining site',
       rune: 'Rune shop', archery: 'Archery shop', herb: 'Herbalist', tanner: 'Tannery', spin: 'Spinning wheel', stall: 'Market stall', farm: 'Farming patch', agility: 'Agility course', slayer: 'Slayer master',
-      rc: 'Runecrafting altar', essence: 'Rune essence', scimitar: 'Scimitar shop', boat: 'Ship / travel', gem: 'Gem store', armour: 'Armour shop', guild: 'Mining Guild', staff: 'Staff shop', axe: 'Axe shop' };
+      rc: 'Runecrafting altar', essence: 'Rune essence', scimitar: 'Scimitar shop', boat: 'Ship / travel', gem: 'Gem store', armour: 'Armour shop', guild: 'Mining Guild', staff: 'Staff shop', axe: 'Axe shop', ring: 'Fairy ring' };
     Object.keys(names).forEach((k, i) => { mapIcon(k, L.x + 14, L.y + 34 + i * 18); T(names[k], L.x + 26, L.y + 38 + i * 18, C.white, F11); });
     button(632, 462, 114, 26, 'Close map', false, F12);
     T('Drag to move, scroll to zoom', 310, 501, '#c0b090', F11, 'center');
@@ -831,7 +843,25 @@ const UI = (() => {
   }
   function drawIface() {
     const st = S(), f = st.iface;
-    if (f.type === 'trade') {
+    if (f.type === 'fairy') {
+      winFrame('Fairy Ring');
+      for (let i = 0; i < 3; i++) {
+        const cx = WIN.x + 70 + i * 90, cy = WIN.y + 120;
+        button(cx - 20, WIN.y + 44, 40, 22, '^'); button(cx - 20, WIN.y + 174, 40, 22, 'v');
+        ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(cx, cy, 40, 0, 7); ctx.fill();
+        const gr = ctx.createRadialGradient(cx - 10, cy - 10, 5, cx, cy, 38); gr.addColorStop(0, '#9a9a8a'); gr.addColorStop(1, '#4a4a3a');
+        ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(cx, cy, 37, 0, 7); ctx.fill();
+        FAIRY_DIALS[i].forEach((ch, j) => { const a = (j - f.dials[i]) * Math.PI / 2 - Math.PI / 2; T(ch, cx + Math.cos(a) * 26, cy + Math.sin(a) * 26 + 5, j === f.dials[i] ? C.yellow : '#c0c0a0', F13, 'center'); });
+      }
+      const code = f.dials.map((d, i) => FAIRY_DIALS[i][d]).join('');
+      T('Code: ' + code, WIN.x + 160, WIN.y + 218, C.yellow, F13, 'center');
+      button(WIN.x + 90, WIN.y + 230, 120, 28, 'Teleport', false, F12);
+      T('Travel log', WIN.x + 388, WIN.y + 38, C.orange, F12, 'center');
+      const log = Object.keys(FAIRY).filter(c => (st.fairyLog || []).includes(c));
+      log.forEach((c, i) => { T(c, WIN.x + 304, WIN.y + 58 + i * 18, C.yellow, F11B); T(FAIRY[c].name, WIN.x + 340, WIN.y + 58 + i * 18, C.white, F11); });
+      if (!log.length) T('Visit fairy rings to log their codes.', WIN.x + 388, WIN.y + 64, '#c0a070', F11, 'center');
+      T('Tip: the code is shown when you look at a ring on the world map.', WIN.x + WIN.w / 2, WIN.y + WIN.h - 10, '#c0a070', F11, 'center');
+    } else if (f.type === 'trade') {
       const b = f.bot;
       winFrame('Trading With: ' + b.name);
       if (f.stage === 1) {

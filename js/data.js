@@ -124,6 +124,7 @@ defItem('crimson_feather', { name: 'Crimson swift feather', stackable: true, val
 defItem('yellow_feather', { name: 'Golden warbler feather', stackable: true, value: 6, icon: { t: 'feather', c: '#e8c030' }, examine: 'A bright yellow feather.' });
 defItem('ferret', { name: 'Ferret', value: 30, icon: { t: 'ferret', c: '#c8a070' }, examine: 'A furry little ferret. Kinda cute.' });
 defItem('chinchompa', { name: 'Chinchompa', stackable: true, value: 120, icon: { t: 'ferret', c: '#a0a0a0' }, examine: 'An explosive little critter.' });
+defItem('pure_essence', { name: 'Pure essence', value: 6, icon: { t: 'essence', pure: true }, examine: 'A pure, uncharged rune stone.' });
 defItem('rune_essence', { name: 'Rune essence', value: 4, icon: { t: 'essence' }, examine: 'An uncharged rune stone.' });
 defItem('bronze_bar', { name: 'Bronze bar', value: 8, icon: { t: 'bar', c: BRONZE }, examine: 'It\'s a bar of bronze.' });
 defItem('iron_bar', { name: 'Iron bar', value: 28, icon: { t: 'bar', c: IRON }, examine: 'It\'s a bar of iron.' });
@@ -353,7 +354,7 @@ const ROCKS = {
 const RC_ALTARS = {
   air: { level: 1, xp: 5, multi: 11 }, mind: { level: 2, xp: 5.5, multi: 14 }, water: { level: 5, xp: 6, multi: 19 },
   earth: { level: 9, xp: 6.5, multi: 26 }, fire: { level: 14, xp: 7, multi: 35 }, body: { level: 20, xp: 7.5, multi: 46 },
-  cosmic: { level: 27, xp: 8, multi: 59 }, chaos: { level: 35, xp: 8.5, multi: 74 }, nature: { level: 44, xp: 9, multi: 91 }, law: { level: 54, xp: 9.5, multi: 99 }, death: { level: 65, xp: 10, multi: 99 },
+  cosmic: { level: 27, xp: 8, multi: 59, pure: true }, chaos: { level: 35, xp: 8.5, multi: 74, pure: true }, nature: { level: 44, xp: 9, multi: 91, pure: true }, law: { level: 54, xp: 9.5, multi: 99, pure: true }, death: { level: 65, xp: 10, multi: 99, pure: true },
 };
 
 // ---- Spells (standard spellbook, 2005 style) ----
@@ -384,12 +385,40 @@ const SPELLS = [
 
 // ---- Agility course (start tile, end tile, path) ----
 const AGILITY = [
-  { name: 'Log balance', op: 'Walk-across', start: [30, 58], path: [[31, 58], [32, 58], [33, 58], [34, 58], [35, 58], [36, 58], [37, 58]], xp: 7.5, anim: 'balance', msg: 'You walk carefully across the slippery log...' },
-  { name: 'Obstacle net', op: 'Climb-over', start: [37, 59], path: [[38, 59], [39, 59]], xp: 7.5, anim: 'climb', msg: 'You climb over the netting...' },
-  { name: 'Balancing rope', op: 'Walk-on', start: [39, 60], path: [[39, 61], [39, 62], [39, 63], [39, 64], [39, 65]], xp: 7.5, anim: 'balance', fail: 0.15, msg: 'You carefully cross the tightrope.' },
-  { name: 'Obstacle pipe', op: 'Squeeze-through', start: [38, 66], path: [[37, 66], [36, 66], [35, 66], [34, 66], [33, 66], [32, 66]], xp: 7.5, anim: 'crawl', msg: 'You squeeze into the pipe...' },
-  { name: 'Rope swing', op: 'Swing-on', start: [31, 65], path: [[31, 64], [31, 63], [31, 62], [31, 61], [31, 60]], xp: 7.5, anim: 'swing', fail: 0.1, msg: 'You skillfully swing across.', bonus: 39 },
+  { course: 'ardenvale', model: 'log', name: 'Log balance', op: 'Walk-across', start: [30, 58], path: [[31, 58], [32, 58], [33, 58], [34, 58], [35, 58], [36, 58], [37, 58]], xp: 7.5, anim: 'balance', msg: 'You walk carefully across the slippery log...' },
+  { course: 'ardenvale', model: 'net', name: 'Obstacle net', op: 'Climb-over', start: [37, 59], path: [[38, 59], [39, 59]], xp: 7.5, anim: 'climb', msg: 'You climb over the netting...' },
+  { course: 'ardenvale', model: 'rope', name: 'Balancing rope', op: 'Walk-on', start: [39, 60], path: [[39, 61], [39, 62], [39, 63], [39, 64], [39, 65]], xp: 7.5, anim: 'balance', fail: 0.15, msg: 'You carefully cross the tightrope.' },
+  { course: 'ardenvale', model: 'pipe', name: 'Obstacle pipe', op: 'Squeeze-through', start: [38, 66], path: [[37, 66], [36, 66], [35, 66], [34, 66], [33, 66], [32, 66]], xp: 7.5, anim: 'crawl', msg: 'You squeeze into the pipe...' },
+  { course: 'ardenvale', model: 'swing', name: 'Rope swing', op: 'Swing-on', start: [31, 65], path: [[31, 64], [31, 63], [31, 62], [31, 61], [31, 60]], xp: 7.5, anim: 'swing', fail: 0.1, msg: 'You skillfully swing across.', bonus: 39 },
+  // Barbarian Outpost course (level 35)
+  { course: 'barbarian', abs: true, level: 35, model: 'swing', rect: [93, 189, 1, 4], name: 'Rope swing', op: 'Swing-on', start: [93, 188], path: [[93, 189], [93, 190], [93, 191], [93, 192], [93, 193]], xp: 22, anim: 'swing', fail: 0.15, msg: 'You grab the rope and swing...' },
+  { course: 'barbarian', abs: true, level: 35, model: 'log', rect: [95, 194, 5, 1], name: 'Log balance', op: 'Walk-across', start: [94, 194], path: [[95, 194], [96, 194], [97, 194], [98, 194], [99, 194], [100, 194]], xp: 13.7, anim: 'balance', fail: 0.1, msg: 'You walk carefully across the slippery log...' },
+  { course: 'barbarian', abs: true, level: 35, model: 'net', rect: [102, 193, 1, 3], name: 'Obstacle net', op: 'Climb-over', start: [101, 194], path: [[102, 194], [103, 194]], xp: 8.2, anim: 'climb', msg: 'You climb the netting...' },
+  { course: 'barbarian', abs: true, level: 35, model: 'ledge', rect: [104, 190, 1, 3], name: 'Balancing ledge', op: 'Walk-across', start: [104, 193], path: [[104, 192], [104, 191], [104, 190], [104, 189]], xp: 22, anim: 'balance', fail: 0.12, msg: 'You put your foot on the ledge and try to edge across...' },
+  { course: 'barbarian', abs: true, level: 35, model: 'wall', rect: [102, 188, 1, 1], name: 'Crumbling wall', op: 'Climb-over', start: [103, 188], path: [[102, 188], [101, 188]], xp: 13.7, anim: 'climb', msg: 'You climb over the crumbling wall.', bonus: 46.2 },
+  // Wilderness course (level 52)
+  { course: 'wilderness', abs: true, level: 52, model: 'pipe', rot: 1, rect: [20, 154, 1, 5], name: 'Obstacle pipe', op: 'Squeeze-through', start: [20, 160], path: [[20, 159], [20, 158], [20, 157], [20, 156], [20, 155], [20, 154], [20, 153]], xp: 12.5, anim: 'crawl', msg: 'You squeeze through the pipe...' },
+  { course: 'wilderness', abs: true, level: 52, model: 'swing', rect: [20, 148, 1, 4], name: 'Rope swing', op: 'Swing-on', start: [20, 152], path: [[20, 151], [20, 150], [20, 149], [20, 148], [20, 147]], xp: 20, anim: 'swing', fail: 0.2, msg: 'You swing over the pit of spikes...' },
+  { course: 'wilderness', abs: true, level: 52, model: 'stones', rect: [22, 146, 4, 1], name: 'Stepping stones', op: 'Cross', start: [21, 146], path: [[22, 146], [23, 146], [24, 146], [25, 146], [26, 146]], xp: 20, anim: 'balance', fail: 0.2, msg: 'You leap across the stepping stones over the lava...' },
+  { course: 'wilderness', abs: true, level: 52, model: 'log', rot: 1, rect: [26, 148, 1, 5], name: 'Log balance', op: 'Walk-across', start: [26, 147], path: [[26, 148], [26, 149], [26, 150], [26, 151], [26, 152], [26, 153]], xp: 20, anim: 'balance', fail: 0.15, msg: 'You walk carefully across the slippery log...' },
+  { course: 'wilderness', abs: true, level: 52, model: 'wall', rot: 1, rect: [26, 155, 1, 3], name: 'Rocks', op: 'Climb', start: [26, 154], path: [[26, 155], [26, 156], [26, 157], [26, 158]], xp: 25, anim: 'climb', msg: 'You climb up the rocks.', bonus: 499 },
 ];
+// Fairy rings: 3 dials, code -> destination
+const FAIRY_DIALS = [['A', 'B', 'C', 'D'], ['I', 'J', 'K', 'L'], ['P', 'Q', 'R', 'S']];
+const FAIRY = {
+  AIQ: { name: 'Ardenvale farmland', x: 64, z: 98 },
+  AJR: { name: 'Elderwood - Runestone Circle', x: 102, z: 36 },
+  AKQ: { name: 'Port Sarrow', x: 153, z: 98 },
+  ALP: { name: 'Saltreach Isle jungle', x: 214, z: 96 },
+  BIP: { name: 'Kharidian Desert', x: 118, z: 156 },
+  BJR: { name: 'Wilderness (level 13)', x: 12, z: 74 },
+  BKP: { name: 'Lumbridge Swamp', x: 104, z: 256 },
+  BLR: { name: 'Varrock outskirts', x: 124, z: 212 },
+  CIP: { name: 'Whitecliff', x: 80, z: 38 },
+  CKS: { name: 'Morrow Mire', x: 214, z: 226 },
+  DJR: { name: 'Duskmoor Swamp', x: 142, z: 32 },
+  DLS: { name: 'Barbarian Agility Course', x: 98, z: 186 },
+};
 
 // ---- Prayers ----
 const PRAYERS = [
@@ -481,6 +510,11 @@ const NPCS = {
   duke: { name: 'Duke Horacio', level: 0, model: 'duke', wander: 1, talk: 'generic', examine: 'Duke Horacio of Lumbridge.', greet: 'Greetings. Welcome to my castle. Mind you don\'t trip over the cook\'s pots.' },
   cook: { name: 'Cook', level: 0, model: 'cook', wander: 1, talk: 'cook', examine: 'The head cook of Lumbridge Castle.' },
   priest2: { name: 'Father Aereth', level: 0, model: 'priest', wander: 1, talk: 'generic', examine: 'A peaceful priest.', greet: 'Welcome to the church of Lumbridge. Feel free to pray at our altar.' },
+  ghast: { name: 'Ghast', level: 30, hp: 30, att: 26, str: 24, def: 22, maxHit: 4, speed: 4, model: 'ghast', wander: 4, aggressive: true,
+    drops: [{ id: 'coins', qty: [10, 90], chance: 0.6 }, { id: 'grimy_ranarr', chance: 0.06 }, { id: 'ranarr_seed', chance: 0.05 }, { id: 'snape_grass', chance: 0.1 }, { id: 'uncut_emerald', chance: 0.03 }, { id: 'death_rune', qty: [1, 4], chance: 0.08 }], examine: 'A starved ghost of the swamp.' },
+  giant_frog: { name: 'Giant frog', level: 13, hp: 18, att: 10, str: 10, def: 8, maxHit: 2, speed: 4, model: 'frog', wander: 4,
+    drops: [{ id: 'big_bones', always: true }, { id: 'raw_bird_meat', chance: 0.2 }, { id: 'snape_grass', chance: 0.05 }], examine: 'It looks like it could swallow me whole!' },
+  swamp_wizard: { name: 'Wizard Distentor', level: 0, model: 'mage', wander: 1, talk: 'esswizard', examine: 'A wizard who studies rune essence.' },
   priest: { name: 'Father Aldous', level: 0, model: 'priest', wander: 1, talk: 'priest', examine: 'A kindly man of the cloth.' },
   harbourmaster: { name: 'Captain Rourke', level: 0, model: 'sailor', wander: 1, talk: 'harbour', examine: 'He runs the harbour of Port Sarrow.' },
   sailor: { name: 'Sailor', level: 0, model: 'sailor', wander: 2, talk: 'generic', examine: 'He smells of salt and fish.', greet: 'Fancy a spot of fishing off the pier? The shrimp and anchovies are biting.' },
@@ -550,5 +584,5 @@ const HUNTER = {
 
 const SLAYER_TASKS = [
   { npc: 'chicken', min: 0, n: [10, 20] }, { npc: 'cow', min: 0, n: [10, 20] }, { npc: 'goblin', min: 0, n: [10, 20] },
-  { npc: 'rat', min: 0, n: [10, 20] }, { npc: 'bandit', min: 15, n: [10, 20] }, { npc: 'scorpion', min: 18, n: [10, 20] }, { npc: 'skeleton', min: 25, n: [10, 20] }, { npc: 'lesser_demon', min: 60, n: [5, 12] }, { npc: 'hill_giant', min: 25, n: [10, 25] }, { npc: 'dark_wizard', min: 20, n: [10, 20] }, { npc: 'crawling_hand', min: 3, n: [10, 25], slayer: 5 }, { npc: 'banshee', min: 15, n: [10, 25], slayer: 15 }, { npc: 'jogre', min: 45, n: [10, 20] }, { npc: 'jungle_spider', min: 40, n: [10, 20] }, { npc: 'green_dragon', min: 70, n: [5, 10] }, { npc: 'guard', min: 25, n: [8, 15] }, { npc: 'ogre', min: 40, n: [3, 6] },
+  { npc: 'rat', min: 0, n: [10, 20] }, { npc: 'bandit', min: 15, n: [10, 20] }, { npc: 'scorpion', min: 18, n: [10, 20] }, { npc: 'skeleton', min: 25, n: [10, 20] }, { npc: 'lesser_demon', min: 60, n: [5, 12] }, { npc: 'hill_giant', min: 25, n: [10, 25] }, { npc: 'ghast', min: 30, n: [10, 20] }, { npc: 'giant_frog', min: 10, n: [10, 25] }, { npc: 'dark_wizard', min: 20, n: [10, 20] }, { npc: 'crawling_hand', min: 3, n: [10, 25], slayer: 5 }, { npc: 'banshee', min: 15, n: [10, 25], slayer: 15 }, { npc: 'jogre', min: 45, n: [10, 20] }, { npc: 'jungle_spider', min: 40, n: [10, 20] }, { npc: 'green_dragon', min: 70, n: [5, 10] }, { npc: 'guard', min: 25, n: [8, 15] }, { npc: 'ogre', min: 40, n: [3, 6] },
 ];
