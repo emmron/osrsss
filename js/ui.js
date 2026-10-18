@@ -726,6 +726,7 @@ const UI = (() => {
     Render.cam.tDist = Math.max(4.5, Math.min(16, (Render.cam.tDist ?? Render.cam.dist) + Math.sign(e.deltaY) * 0.9));
   }
   function onKey(e, down) {
+    if (kb && e.target === kb && e.key !== 'Escape') return;
     const st = S();
     if (e.key.startsWith('Arrow')) { Render.cam.keys[e.key] = down; e.preventDefault(); return; }
     if (!down) return;
@@ -763,7 +764,7 @@ const UI = (() => {
     if (e.key === 'Backspace') { chatInput = chatInput.slice(0, -1); e.preventDefault(); return; }
     if (e.key.length === 1 && chatInput.length < 80) { chatInput += e.key; e.preventDefault(); }
   }
-  function askAmount(label, cb) { prompt = { label, cb, text: '' }; }
+  function askAmount(label, cb) { prompt = { label, cb, text: '' }; if (isTouch) focusKb(); }
   function command(c) {
     const [cmd] = c.split(' ');
     if (cmd === 'pos') Game.msg(`Position: ${S().player.x}, ${S().player.z}`);
@@ -1377,8 +1378,70 @@ const UI = (() => {
     drawTooltip();
   }
 
+  // ---------- mobile: on-screen keyboard + touch controls ----------
+  const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+  let kb = null;
+  const kbRules = () => !S().loggedIn ? { get: () => loginName, set: v => { loginName = v; }, ok: /[^a-zA-Z0-9 ]/g, max: 12 }
+    : prompt ? { get: () => prompt.text, set: v => { prompt.text = v; }, ok: /[^0-9kmKM]/g, max: 10 }
+    : { get: () => chatInput, set: v => { chatInput = v; }, ok: null, max: 80 };
+  function focusKb() { if (!kb) return; const r = kbRules(); kb.value = r.get(); kb.focus({ preventScroll: true }); }
+  function setupKb() {
+    kb = document.getElementById('kb'); const form = document.getElementById('kbform');
+    if (!kb || !form) return;
+    kb.addEventListener('input', () => { const r = kbRules(); let v = kb.value; if (r.ok) v = v.replace(r.ok, ''); v = v.slice(0, r.max); r.set(v); if (kb.value !== v) kb.value = v; });
+    form.addEventListener('submit', e => {
+      e.preventDefault();
+      const wasLogin = !S().loggedIn;
+      onKey({ key: 'Enter', target: null, preventDefault() { } }, true);
+      kb.value = kbRules().get();
+      if (wasLogin || !S().loggedIn) kb.blur();
+    });
+  }
+  function setupTouch() {
+    let t0 = null, longTimer = null, pinch = null;
+    const fake = (t, button) => ({ clientX: t.clientX, clientY: t.clientY, button, ctrlKey: false, preventDefault() { } });
+    cv.addEventListener('touchstart', e => {
+      e.preventDefault(); Sfx.resume();
+      if (e.touches.length === 2) {
+        clearTimeout(longTimer); t0 = null;
+        const [a, b] = e.touches; pinch = { d: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY), dist: Render.cam.tDist ?? Render.cam.dist };
+        return;
+      }
+      const t = e.touches[0]; const [x, y] = toCanvas(t);
+      mouse.x = x; mouse.y = y;
+      t0 = { x: t.clientX, y: t.clientY, cx: x, cy: y, moved: false, long: false, yaw: Render.cam.yaw, pitch: Render.cam.pitch };
+      clearTimeout(longTimer);
+      longTimer = setTimeout(() => { if (!t0 || t0.moved || !S().loggedIn || worldMap.open) return; t0.long = true; menu = null; openMenu(optionsAt(t0.cx, t0.cy), t0.cx, t0.cy); if (navigator.vibrate) navigator.vibrate(15); }, 480);
+    }, { passive: false });
+    cv.addEventListener('touchmove', e => {
+      e.preventDefault();
+      if (pinch && e.touches.length === 2) { const [a, b] = e.touches; const d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY); Render.cam.tDist = Math.max(4.5, Math.min(16, pinch.dist * pinch.d / Math.max(20, d))); return; }
+      if (!t0) return;
+      const t = e.touches[0]; const s = UI.scale || 1;
+      const dx = (t.clientX - t0.x) / s, dy = (t.clientY - t0.y) / s;
+      if (!t0.moved && Math.hypot(dx, dy) > 10) { t0.moved = true; clearTimeout(longTimer); }
+      if (!t0.moved) return;
+      if (worldMap.open) { onMove(t); if (!mapDrag) mapDrag = { x: t0.cx, y: t0.cy, cx: worldMap.cx, cz: worldMap.cz }; return; }
+      if (inR(t0.cx, t0.cy, VP) && !menu) { Render.cam.yawTo = null; Render.cam.yaw = t0.yaw - dx * 0.012; Render.cam.pitch = Math.max(0.3, Math.min(1.3, t0.pitch + dy * 0.01)); }
+    }, { passive: false });
+    cv.addEventListener('touchend', e => {
+      e.preventDefault(); clearTimeout(longTimer);
+      if (pinch) { if (e.touches.length < 2) pinch = null; return; }
+      const s0 = t0; t0 = null; mapDrag = null;
+      if (!s0) return;
+      const t = e.changedTouches[0];
+      if (s0.long) return;                       // long-press opened the menu; next tap picks an option
+      if (s0.moved) return;                      // it was a camera drag
+      onDown(fake(t, 0)); onUp(fake(t, 0));
+      // tapping the username box / chat bar brings up the phone keyboard
+      const [x, y] = toCanvas(t);
+      if (!S().loggedIn || (inR(x, y, CHAT) && y > CHAT.y + 100) || prompt) focusKb();
+      mouse.x = -1;
+    }, { passive: false });
+  }
   function init(canvas) {
     cv = canvas; ctx = cv.getContext('2d');
+    setupKb(); if (isTouch) setupTouch();
     ctx.imageSmoothingEnabled = false;
     buildFrame();
     cv.addEventListener('mousedown', onDown);
