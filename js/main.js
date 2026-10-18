@@ -123,7 +123,7 @@ const Render = (() => {
     scene.add(sea); seaMesh = sea;
     camera = new THREE.PerspectiveCamera(46, VW / VH, 0.1, 80);
     ambient = new THREE.AmbientLight(0xffffff, 0.6);
-    sun = new THREE.DirectionalLight(0xfff4e0, 0.8);
+    sun = new THREE.DirectionalLight(0xfff4e0, 1.0); // stronger key light: shaded sides read clearly, like the RS2 lighting
     sun.position.set(-40, 80, -25);
     scene.add(ambient, sun);
     return scene;
@@ -153,7 +153,7 @@ const Render = (() => {
     a.needsUpdate = true; destLine.geometry.computeBoundingSphere(); destLine.visible = true;
     destLine.material.opacity = 0.55 + 0.35 * Math.abs(Math.sin(performance.now() / 300));
   }
-  function setBrightness(b) { ambient.intensity = [0.42, 0.52, 0.6, 0.74][b]; }
+  function setBrightness(b) { ambient.intensity = [0.36, 0.45, 0.52, 0.64][b]; }
 
   function groundMesh(g) {
     let tex = groundTex[g.id];

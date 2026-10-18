@@ -99,11 +99,12 @@ const Models = (() => {
       leg.userData.kneeP = pivot(leg, 0, -0.36, 0);
       leg.userData.knee = part(sph(0.078, 5, 4), o.pants, 0, 0, 0.01, leg.userData.kneeP);
       leg.userData.shin = part(cyl(0.076, 0.06, 0.34, 5), o.pants, 0, -0.17, 0, leg.userData.kneeP);
-      leg.userData.foot = part(sph(0.08, 5, 4), o.boots, 0, -0.34, 0.06, leg.userData.kneeP, 1, 0.7, 1.9);
+      leg.userData.foot = part(G('boot', () => new THREE.BoxGeometry(0.14, 0.11, 0.25)), o.boots, 0, -0.355, 0.045, leg.userData.kneeP);
     }
     if (o.robe) { P.skirt = part(cyl(0.2, 0.34, 0.72, 6), o.robe, 0, 0.38, 0, body); for (const l of [P.legL, P.legR]) { l.userData.upper.visible = false; l.userData.knee.visible = false; l.userData.shin.visible = false; } }
-    P.torso = part(cyl(0.26, 0.19, 0.56, 6), o.shirt, 0, 1.0, 0, body, 1, 1, 0.62);
-    P.chest = part(sph(0.2, 6, 4), o.shirt, 0, 1.12, 0.03, body, 1.25, 0.8, 0.75);
+    // blocky, broad-shouldered torso like the RS2 player model
+    P.torso = part(G('torsoBox', () => { const g = new THREE.CylinderGeometry(0.5 * 0.7071, 0.36 * 0.7071, 0.56, 4, 1); g.rotateY(Math.PI / 4); g.scale(1, 1, 0.3 / 0.43); return g; }), o.shirt, 0, 1.0, 0, body);
+    P.chest = part(G('chestBox', () => new THREE.BoxGeometry(0.42, 0.2, 0.08)), o.shirt, 0, 1.13, 0.1, body);
     P.belt = part(cyl(0.2, 0.2, 0.07, 6), Icons.shade(o.pants, 0.7), 0, 0.74, 0, body, 1, 1, 0.7);
     P.hips = part(cyl(0.19, 0.2, 0.14, 6), o.pants, 0, 0.66, 0, body, 1, 1, 0.7);
     P.armL = pivot(body, -0.3, 1.2, 0);
@@ -204,6 +205,28 @@ const Models = (() => {
     }
     for (const l of [P.legL, P.legR]) { l.userData.upper.material = cmat(legCol); l.userData.knee.material = cmat(legCol); l.userData.shin.material = cmat(legCol); l.userData.foot.material = cmat(equip.feet ? ((ITEMS[equip.feet].equip && ITEMS[equip.feet].equip.color) || '#6a3a1a') : o.boots); }
     P.hips.material = cmat(legCol);
+    // armour detail: pauldrons + chest plate for platebodies, tassets for platelegs
+    if (P.equip.extra) for (const [par, m] of P.equip.extra) par.remove(m);
+    P.equip.extra = [];
+    const add = (par, m) => { P.equip.extra.push([par, m]); return m; };
+    const isPlate = id => id && (/_platebody$|^bk_body$|^wk_body$/.test(id));
+    if (isPlate(equip.body)) {
+      const hi = Icons.shade(bodyCol, 1.25), lo = Icons.shade(bodyCol, 0.8);
+      for (const [arm, s] of [[P.armL, -1], [P.armR, 1]]) {
+        const pd = add(arm, part(G('pauld', () => new THREE.BoxGeometry(0.2, 0.09, 0.24)), hi, s * 0.02, 0.05, 0, arm)); pd.rotation.z = s * -0.35;
+        add(arm, part(G('pauld2', () => new THREE.BoxGeometry(0.17, 0.07, 0.21)), bodyCol, s * 0.04, -0.03, 0, arm)).rotation.z = s * -0.35;
+      }
+      add(P.body, part(G('plateRidge', () => new THREE.BoxGeometry(0.06, 0.42, 0.04)), hi, 0, 1.0, 0.17, P.body));
+      add(P.body, part(G('plateBelt', () => new THREE.BoxGeometry(0.4, 0.06, 0.32)), lo, 0, 0.76, 0, P.body));
+      add(P.body, part(G('gorget', () => new THREE.CylinderGeometry(0.11, 0.14, 0.08, 6)), hi, 0, 1.3, 0, P.body));
+    }
+    if (equip.legs && /_platelegs$|^bk_legs$|^wk_legs$/.test(equip.legs)) {
+      const hi = Icons.shade(legCol, 1.2);
+      for (const l of [P.legL, P.legR]) {
+        add(l, part(G('tasset', () => new THREE.BoxGeometry(0.17, 0.22, 0.05)), hi, 0, -0.1, 0.085, l));
+        add(l.userData.kneeP, part(G('kneeCap', () => new THREE.BoxGeometry(0.13, 0.1, 0.06)), hi, 0, 0, 0.07, l.userData.kneeP));
+      }
+    }
     if (P.equip.head) { P.head.remove(P.equip.head); P.equip.head = null; }
     if (P.hair) P.hair.visible = !equip.head;
     if (equip.head) {
