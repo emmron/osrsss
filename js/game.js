@@ -8,7 +8,7 @@ const Game = (() => {
     quests: {}, questPoints: 0, slayer: null, agilityNext: 0,
     style: 0, autoRetaliate: true, autocast: null, spellSel: null, prayers: {}, settings: { brightness: 2 },
     messages: [], dialog: null, iface: null, selected: -1,
-    npcs: [], ground: [], traps: [], player: null, shops: {}, levelFx: [], patches: {},
+    npcs: [], bots: [], ground: [], traps: [], pouches: {}, player: null, shops: {}, levelFx: [], patches: {},
     loggedIn: false,
   };
   for (const q of QUESTS) S.quests[q.id] = 0;
@@ -123,13 +123,14 @@ const Game = (() => {
 
   // ---------- regions ----------
   function region(x, z) {
-    if (x < 36) return 'wilderness';
+    if (x < 36 && z < 168) return 'wilderness';
+    if (z > 186) return 'misthalin';
     if (z > 130 + Math.sin(x * 0.2) * 3) return 'desert';
     if (x >= 124 && z < 52) return 'swamp';
     if (z < 41 && x >= 36 && x < 124) return 'elderwood';
     return 'mainland';
   }
-  const wildLevel = (x) => x < 36 ? Math.floor((36 - x) / 2) + 1 : 0;
+  const wildLevel = (x, z) => x < 36 && (z === undefined || z < 168) ? Math.floor((36 - x) / 2) + 1 : 0;
 
   // ---------- entities ----------
   function makeEntity(o) { return Object.assign({ x: 0, z: 0, path: [], from: null, steps: [], face: 0, anim: null, loop: null, splats: [], hpBarUntil: 0, overhead: null }, o); }
@@ -186,7 +187,8 @@ const Game = (() => {
   function stopTask() { const p = S.player; p.task = null; p.loop = null; Models.setHeldTool(p.model, null); }
   function resetActions() {
     const p = S.player;
-    p.pending = null; p.combat = null; p.castOnce = null;
+    p.pending = null; p.combat = null; p.castOnce = null; p.follow = null;
+    if (S.iface && S.iface.type === 'trade') declineTrade();
     stopTask();
     S.dialog = null; S.iface = null;
   }
@@ -205,6 +207,13 @@ const Game = (() => {
     resetActions();
     S.selected = -1;
     if (kind === 'npc' && op === 'Attack') { startCombat(ent); return; }
+    if (kind === 'bot') {
+      if (op === 'Follow') { p.follow = ent; return; }
+      if (op === 'Report') { msg(`Thank you, your report against ${ent.name} has been received.`); return; }
+      p.pending = { kind: 'npc', ent, op };
+      pathToNpc(ent);
+      return;
+    }
     p.pending = { kind, ent, op, useSlot };
     if (kind === 'loc') pathToLoc(ent);
     else if (kind === 'npc') pathToNpc(ent);
@@ -241,10 +250,10 @@ const Game = (() => {
   function processPending() {
     const p = S.player, pe = p.pending;
     if (!pe) return;
-    if ((pe.kind === 'npc' && pe.ent.dead) || (pe.kind === 'loc' && World.locs.indexOf(pe.ent) < 0) || (pe.kind === 'ground' && S.ground.indexOf(pe.ent) < 0)) { p.pending = null; return; }
+    if ((pe.kind === 'npc' && pe.ent.dead && !pe.ent.isBot) || (pe.kind === 'loc' && World.locs.indexOf(pe.ent) < 0) || (pe.kind === 'ground' && S.ground.indexOf(pe.ent) < 0)) { p.pending = null; return; }
     if (pendingReached()) {
       p.path = []; p.pending = null;
-      if (pe.kind !== 'ground' && !pe.ent.def.agility) faceEnt(p, pe.ent);
+      if (pe.kind !== 'ground' && !(pe.ent.def && pe.ent.def.agility)) faceEnt(p, pe.ent);
       execute(pe);
       return;
     }
@@ -318,6 +327,7 @@ const Game = (() => {
       if (Math.random() < 0.2) loc.depletedUntil = S.tick + 50;
       return;
     }
+    if (T === 'portal') { p.x = 166; p.z = 220; p.from = null; p.steps = []; Sfx.play('teleport'); msg('You step through the portal and return to Varrock.'); return; }
     if (T === 'guild_door') {
       if (lvl('mining') < 60) { msg('You need a Mining level of 60 to enter the Mining Guild.'); return; }
       const inside = p.x < loc.x;
@@ -421,11 +431,15 @@ const Game = (() => {
   function gemFound() { const g = rollGem(); invAddOrDrop(g, 1); msg('You just found ' + (/^[AEIOU]/i.test(ITEMS[g].name.replace('Uncut ', '')) ? 'an ' : 'a ') + ITEMS[g].name.replace('Uncut ', '') + '!', '#000080'); }
   function craftRunes(loc) {
     const k = loc.def.rune, a = RC_ALTARS[k];
+    if (!has(k + '_talisman') && S.equip.head !== k + '_tiara') { msg(`You need ${/^[aeiou]/.test(k) ? 'an' : 'a'} ${k} talisman or tiara to use this altar.`); return; }
     if (lvl('runecrafting') < a.level) { msg(`You need a Runecrafting level of ${a.level} to craft ${k} runes.`); return; }
-    const n = invCount('rune_essence');
+    let pouched = 0;
+    for (const id in S.pouches) { pouched += S.pouches[id]; S.pouches[id] = 0; }
+    const n = invCount('rune_essence') + pouched;
     if (!n) { msg('You don\'t have any rune essence to bind.'); return; }
+    if (pouched) msg('You empty your pouches into the altar.');
     const mult = 1 + Math.floor(lvl('runecrafting') / a.multi);
-    invRemove('rune_essence', n); invAdd(k + '_rune', n * mult); addXp('runecrafting', a.xp * n);
+    invRemove('rune_essence', invCount('rune_essence')); invAdd(k + '_rune', n * mult); addXp('runecrafting', a.xp * n);
     setAnim(S.player, 'craftrune'); Sfx.play('teleport');
     msg(`You bind the temple's power into ${k} runes.`);
   }
@@ -687,8 +701,15 @@ const Game = (() => {
       if (SEEDS[it.id] && ent.patch) return plantSeed(slot, ent);
       if (it.id === 'strange_talisman' && ent.type === 'rc_air') { S.inv[slot] = { id: 'charged_talisman', qty: 1 }; setAnim(S.player, 'craftrune'); Sfx.play('teleport'); msg('The talisman glows as it absorbs the power of the altar!', '#000080'); return; }
       if (it.id === 'rune_essence' && ent.def.rune) return craftRunes(ent);
+      if (ent.def.rune && (it.id === 'tiara' || ITEMS[it.id].talisman === ent.def.rune)) {
+        const k = ent.def.rune;
+        if (!has('tiara') || !has(k + '_talisman')) { msg(`You need a tiara and ${/^[aeiou]/.test(k) ? 'an' : 'a'} ${k} talisman to bind a tiara here.`); return; }
+        invRemove('tiara'); invRemove(k + '_talisman'); invAdd(k + '_tiara'); addXp('runecrafting', RC_ALTARS[k].xp * 5);
+        setAnim(S.player, 'craftrune'); Sfx.play('teleport'); msg(`You bind the power of the talisman into your tiara.`); return;
+      }
     }
-    if (kind === 'npc') { if (ent.def.talk) return npcAction(ent, 'Talk-to'); }
+    if (kind === 'npc' && ent.id === 'cow' && it.id === 'bucket') { invRemove('bucket'); invAdd('bucket_milk'); setAnim(S.player, 'pickup'); msg('You milk the cow.'); return; }
+    if (kind === 'npc' && !ent.isBot) { if (ent.def.talk) return npcAction(ent, 'Talk-to'); }
     msg('Nothing interesting happens.');
   }
   function useItemOnItem(a, b) {
@@ -743,6 +764,8 @@ const Game = (() => {
     if (d.herb) ops.push('Clean');
     if (d.bury) ops.push('Bury');
     if (HUNTER[it.id]) ops.push('Lay');
+    if (d.pouch) ops.push('Fill', 'Empty', 'Check');
+    if (d.talisman) ops.push('Locate');
     if (d.equip) ops.push(d.equip.slot === 'weapon' ? 'Wield' : 'Wear');
     if (FIREMAKING[it.id]) ops.push('Light');
     ops.push('Use', 'Drop');
@@ -785,6 +808,21 @@ const Game = (() => {
       return;
     }
     if (op === 'Lay') return layTrap(slot);
+    if (op === 'Fill' || op === 'Empty' || op === 'Check') {
+      const cap = d.pouch.cap, cur0 = S.pouches[it.id] || 0;
+      if (lvl('runecrafting') < d.pouch.level) { msg(`You need a Runecrafting level of ${d.pouch.level} to use this pouch.`); return; }
+      if (op === 'Check') { msg(`There ${cur0 === 1 ? 'is' : 'are'} ${cur0} essence in this pouch.`); return; }
+      if (op === 'Fill') { const n = Math.min(cap - cur0, invCount('rune_essence')); if (n <= 0) { msg(cur0 >= cap ? 'Your pouch is full.' : 'You have no essence to put in the pouch.'); return; } invRemove('rune_essence', n); S.pouches[it.id] = cur0 + n; return; }
+      const n = Math.min(cur0, freeSlots()); if (n <= 0) { msg(cur0 ? 'You don\'t have enough inventory space.' : 'Your pouch is empty.'); return; } invAdd('rune_essence', n); S.pouches[it.id] = cur0 - n; return;
+    }
+    if (op === 'Locate') {
+      const k = d.talisman, alt = World.locs.find(l => l.type === 'rc_' + k), p = S.player;
+      if (!alt) { msg('The talisman has no effect.'); return; }
+      const dx = alt.x - p.x, dz = alt.z - p.z;
+      if (Math.abs(dx) < 3 && Math.abs(dz) < 3) { msg('The talisman glows brightly - you are right next to the altar!'); return; }
+      const dir = (dz < -Math.abs(dx) / 2 ? 'north' : dz > Math.abs(dx) / 2 ? 'south' : '') + (dx > Math.abs(dz) / 2 ? (dz < -Math.abs(dx) / 2 || dz > Math.abs(dx) / 2 ? '-east' : 'east') : dx < -Math.abs(dz) / 2 ? (dz < -Math.abs(dx) / 2 || dz > Math.abs(dx) / 2 ? '-west' : 'west') : '');
+      msg(`The talisman pulls toward the ${dir}.`); return;
+    }
     if (op === 'Wield' || op === 'Wear') return equipItem(slot);
     if (op === 'Light') { if (!has('tinderbox')) { msg('You need a tinderbox to light a fire.'); return; } return lightFire(it.id); }
   }
@@ -811,10 +849,11 @@ const Game = (() => {
     if (spell.id === 'home') return homeTeleport();
     if (!canCast(spell, true)) return;
     if (spell.type === 'tele') {
-      if (wildLevel(p.x) > 20) { msg('A mysterious force prevents you from teleporting.'); return; }
+      if (wildLevel(p.x, p.z) > 20) { msg('A mysterious force prevents you from teleporting.'); return; }
       payRunes(spell); addXp('magic', spell.xp); resetActions();
       p.loop = 'teleport'; p.loopStart = now(); Sfx.play('teleport');
-      p.task = { timer: 3, interval: 3, fn: () => { p.x = World.SPAWN.x; p.z = World.SPAWN.z; p.from = null; p.steps = []; p.path = []; return false; } };
+      const d = spell.dest || [World.SPAWN.x, World.SPAWN.z];
+      p.task = { timer: 3, interval: 3, fn: () => { p.x = d[0]; p.z = d[1]; p.from = null; p.steps = []; p.path = []; return false; } };
       return;
     }
     if (spell.id === 'bones_bananas') {
@@ -826,6 +865,12 @@ const Game = (() => {
     S.spellSel = null;
     const it = S.inv[slot]; if (!it) return;
     if (it.id === 'coins') { msg('You can\'t cast this spell on coins.'); return; }
+    if (spell.enchant) {
+      const out = spell.enchant[it.id];
+      if (!out) { msg('This spell can only be cast on ' + Object.keys(spell.enchant).map(k => ITEMS[k].name.toLowerCase() + 's').join(' or ') + '.'); return; }
+      if (!canCast(spell, true)) return;
+      payRunes(spell); S.inv[slot] = { id: out, qty: 1 }; addXp('magic', spell.xp); setAnim(S.player, 'cast'); Sfx.play('teleport'); return;
+    }
     if (!canCast(spell, true)) return;
     const p = S.player;
     if (p.eatDelay > 0) return;
@@ -837,7 +882,7 @@ const Game = (() => {
   function homeTeleport() {
     const p = S.player;
     if (p.combat || S.npcs.some(n => n.target === p)) { msg('You can\'t teleport during combat.'); return; }
-    if (wildLevel(p.x) > 20) { msg('A mysterious force prevents you from teleporting.'); return; }
+    if (wildLevel(p.x, p.z) > 20) { msg('A mysterious force prevents you from teleporting.'); return; }
     resetActions();
     p.loop = 'teleport'; p.loopStart = now();
     msg('You begin casting Home Teleport...');
@@ -846,8 +891,9 @@ const Game = (() => {
 
   // ---------- NPC dialogue ----------
   function npcAction(n, op) {
-    faceEnt(n, S.player);
+    if (!n.isBot) faceEnt(n, S.player);
     n.wanderGoal = null; n.talkUntil = S.tick + 8;
+    if (n.isBot) { if (op === 'Trade with') openTrade(n); return; }
     if (op === 'Talk-to') return talkTo(n);
     if (op === 'Bank') return openBank();
     if (op === 'Trade') return openShop(n.def.shop);
@@ -915,6 +961,14 @@ const Game = (() => {
     else if (t === 'priest') bonesQuest(n);
     else if (t === 'harbour') catchQuest(n);
     else if (t === 'slayer') slayerTalk(n);
+    else if (t === 'aubury') {
+      chat(n, [['npc', 'Do you want to buy some runes?'], { options: [
+        { text: 'Yes please!', fn: () => openShop('aubury') },
+        { text: 'Can you teleport me to the Rune Essence mine?', fn: () => { const p = S.player; resetActions(); p.loop = 'teleport'; p.loopStart = now(); say(n, 'Senventior Disthine Molenko!'); Sfx.play('teleport'); p.task = { timer: 3, interval: 3, fn: () => { p.x = 16; p.z = 249; p.from = null; p.steps = []; msg('You are teleported to the Rune Essence mine.'); return false; } }; } },
+        { text: 'Could I have an essence pouch?', fn: () => { if (has('small_pouch') || S.bank.some(b => b.id === 'small_pouch')) chat(n, [['npc', 'You already have one!']]); else { invAddOrDrop('small_pouch', 1); chat(n, [['npc', 'Here you go. It holds 3 essence - fill it before you head to an altar.']]); } } },
+        { text: 'No thanks.', fn: end }] }]);
+    }
+    else if (t === 'cook') cookQuest(n);
     else if (t === 'sail') {
       const dest = n.def.sail === 'saltreach' ? { name: 'Saltreach Isle', x: 183, z: 86 } : { name: 'Port Sarrow', x: 169, z: 82 };
       chat(n, [['npc', `Would you like to sail to ${dest.name}? It'll cost you 30 coins.`], { options: [
@@ -967,9 +1021,9 @@ const Game = (() => {
     if (q === 0) chat(n, [['npc', 'Hmm! I found this talisman, but its power is dormant. Legend says the altars of the Runestone Circle in the Elderwood can awaken it.'],
       { title: 'Start Secrets of the Stones?', options: [{ text: 'I\'ll take it there.', fn: () => { invAddOrDrop('strange_talisman', 1); S.quests.runes = 1; Sfx.play('quest'); chat(n, [['npc', 'Use it on the Air altar - follow the road north out of the village.']]); } }, { text: 'Not now.', fn: end }] }]);
     else if (q === 1) {
-      if (has('charged_talisman')) chat(n, [['player', 'The talisman awakened at the Air altar!'], ['npc', 'Incredible! You have a gift for runecraft. Take some runes to start you off.'], () => { invRemove('charged_talisman'); questDone('runes', ['500 Runecrafting XP', '250 Magic XP', '100 Air runes', '50 Mind runes'], () => { addXp('runecrafting', 500); addXp('magic', 250); invAddOrDrop('air_rune', 100); invAddOrDrop('mind_rune', 50); }); }]);
+      if (has('charged_talisman')) chat(n, [['player', 'The talisman awakened at the Air altar!'], ['npc', 'Incredible! You have a gift for runecraft. Keep the talisman - you\'ll need it to use the altar.'], () => { invRemove('charged_talisman'); questDone('runes', ['500 Runecrafting XP', '250 Magic XP', 'Air talisman', 'Small essence pouch', '100 Air runes'], () => { addXp('runecrafting', 500); addXp('magic', 250); invAddOrDrop('air_talisman', 1); invAddOrDrop('small_pouch', 1); invAddOrDrop('air_rune', 100); }); }]);
       else { if (!has('strange_talisman')) invAddOrDrop('strange_talisman', 1); chat(n, [['npc', 'Take the talisman to the Air altar in the Runestone Circle, north through the Elderwood.']]); }
-    } else chat(n, [['npc', 'Mine rune essence at the circle and bind it at the altars. Higher altars need more skill!']]);
+    } else { if (!has('air_talisman') && !S.bank.some(b => b.id === 'air_talisman')) invAddOrDrop('air_talisman', 1); chat(n, [['npc', 'Altars need a matching talisman or tiara. I sell basic talismans, and Aubury in Varrock can teleport you to an essence mine.']]); }
   }
   function catchQuest(n) {
     const q = S.quests.catch;
@@ -979,6 +1033,16 @@ const Game = (() => {
       if (invCount('shrimps') >= 10 && invCount('cooked_chicken') >= 5) chat(n, [['npc', 'A feast fit for a crew! Here\'s your reward.'], () => { invRemove('shrimps', 10); invRemove('cooked_chicken', 5); questDone('catch', ['1,000 Fishing XP', '1,000 Cooking XP', '600 Coins'], () => { addXp('fishing', 1000); addXp('cooking', 1000); invAddOrDrop('coins', 600); }); }]);
       else chat(n, [['npc', `Still waiting on that food: ${invCount('shrimps')}/10 shrimps, ${invCount('cooked_chicken')}/5 cooked chickens.`]]);
     } else chat(n, [['npc', 'The crew sends their thanks, matey!']]);
+  }
+  function cookQuest(n) {
+    const q = S.quests.cook;
+    const need = ['egg', 'bucket_milk', 'pot_flour'];
+    if (q === 0) chat(n, [['npc', 'What am I to do? It\'s the Duke\'s birthday and I have no ingredients for his cake!'], ['npc', 'I need an egg, a bucket of milk and a pot of flour. Could you help me?'],
+      { title: 'Start The Cook\'s Request?', options: [{ text: 'Of course, I\'ll get them.', fn: () => { S.quests.cook = 1; Sfx.play('quest'); chat(n, [['npc', 'Bless you! Chickens lay eggs in the coop north of here. Milk a cow with a bucket. The general store sells pots of flour.']]); } }, { text: 'Sorry, I\'m busy.', fn: end }] }]);
+    else if (q === 1) {
+      if (need.every(has)) chat(n, [['player', 'I have everything you need!'], ['npc', 'You\'ve saved the Duke\'s birthday! Please, take this.'], () => { need.forEach(i => invRemove(i)); questDone('cook', ['300 Cooking XP', '500 Coins', 'A cake'], () => { addXp('cooking', 300); invAddOrDrop('coins', 500); invAddOrDrop('cake', 1); }); }]);
+      else chat(n, [['npc', 'I still need: ' + need.filter(i => !has(i)).map(i => ITEMS[i].name.toLowerCase()).join(', ') + '.']]);
+    } else chat(n, [['npc', 'The Duke loved his cake. Thank you again!']]);
   }
   function slayerTalk(n, direct) {
     const st = S.slayer;
@@ -1073,7 +1137,7 @@ const Game = (() => {
     p.dead = 4; p.path = []; p.combat = null; p.pending = null; stopTask(); p.forced = null;
     setAnim(p, 'death');
     for (const n of S.npcs) if (n.target === p) n.target = null;
-    p.deathWild = wildLevel(p.x) > 0;
+    p.deathWild = wildLevel(p.x, p.z) > 0;
     p.deathPos = [p.x, p.z];
     S.prayers = {};
   }
@@ -1229,7 +1293,7 @@ const Game = (() => {
     if (Math.abs(n.x - p.x) > 40 || Math.abs(n.z - p.z) > 40) { n.target = null; return; }
     if (n.attackTimer > 0) n.attackTimer--;
     const d = n.def;
-    if (d.aggressive && !n.target && !p.dead && !p.forced && Math.abs(p.x - n.x) <= 3 && Math.abs(p.z - n.z) <= 3 && (combatLevel() <= d.level * 2 + 1 || wildLevel(p.x) > 0) &&
+    if (d.aggressive && !n.target && !p.dead && !p.forced && Math.abs(p.x - n.x) <= 3 && Math.abs(p.z - n.z) <= 3 && (combatLevel() <= d.level * 2 + 1 || wildLevel(p.x, p.z) > 0) &&
       !S.npcs.some(o => o.target === p && !o.dead) && World.roofAt(p.x, p.z) < 0) {
       n.target = p;
       say(n, { ogre: 'RAAARGH!', bandit: 'Hand over your coins!', skeleton: '*rattle*', lesser_demon: 'Graaagh!' }[d.model === 'ogre' ? 'ogre' : n.id] || '');
@@ -1237,7 +1301,17 @@ const Game = (() => {
     }
     if (n.target) {
       if (p.dead || Math.abs(n.x - n.sx) > 14 || Math.abs(n.z - n.sz) > 14) { n.target = null; return; }
-      if (npcReach(n, p)) {
+      const magicRange = d.magic && cheb(n, p) <= 6 && !(n.x === p.x && n.z === p.z);
+      if (magicRange && !npcReach(n, p)) {
+        faceEnt(n, p);
+        if (n.attackTimer <= 0 && !p.forced) {
+          n.attackTimer = d.speed; setAnim(n, 'cast');
+          Render.projectile(n, p, 'magic', d.magic);
+          const b = bonuses();
+          const dmg = Math.random() < hitChance((d.att + 9) * 64, (cur('magic') + 8) * (b.mag + 64)) ? ri(0, d.maxHit) : 0;
+          setTimeout(() => damagePlayer(dmg, n), 650);
+        }
+      } else if (npcReach(n, p)) {
         faceEnt(n, p);
         if (n.attackTimer <= 0 && !p.forced) {
           n.attackTimer = d.speed;
@@ -1298,11 +1372,239 @@ const Game = (() => {
     }
   }
 
+  // =====================================================================
+  // ---------- Bot players (fake people who skill, fight, chat and trade) ----------
+  // =====================================================================
+  const BOT_NAMES = ['Zeke Pwnz', 'Mage4Life', 'xX Pker Xx', 'Fishy Joe', 'Noob1337', 'Iron Mike 7', 'Lady Ellie', 'Sir Hacksaw', 'Lumby Larry', 'Woodcutt3r', 'Dark Kn1ght', 'Bob The Ok',
+    'Rune Seeker', 'Gnome Child', 'Big Daddy B', 'Coal Miner', 'Cow Killa', 'Sk8r Boi 05', 'Lord Fluffy', 'Pure Str99', 'Free Plz', 'Merchanting', 'Lobster Lad', 'Tree Hugga',
+    'Ranger Rick', 'Mystic Meg', 'Smithy McG', 'Ash Ketch', 'Sailor Sam', 'Herb Tea', 'Nat Runner', 'Desert Rat', 'Varrock Vic', 'Sara Smiles', 'Goblin Slyr', 'Quest Cape?'];
+  const CASUAL_LINES = ['lol', 'hey guys', 'anyone wanna duel?', 'nice', 'wc lvl?', 'gz!', 'ty', 'brb', 'afk 5 min', 'omg lag', 'who wants to go wildy', 'dance party!!', 'follow me',
+    'so close to 60', 'anyone know where the mine is?', 'free stuff plz', 'can someone trim my armour', 'how do i get to varrock', 'this game is so fun', 'whats ur total lvl',
+    'buying gf jk', 'lvl up!', 'goblins are so op', 'just got my first lobster', 'anyone doing the cook quest?', 'lol noob', 'im gonna be 99 one day', 'cya'];
+  const SELL_GOODS = ['lobster', 'swordfish', 'trout', 'logs', 'oak_logs', 'willow_logs', 'yew_logs', 'iron_ore', 'coal', 'bronze_bar', 'iron_bar', 'mithril_bar', 'feather', 'cowhide',
+    'big_bones', 'nature_rune', 'law_rune', 'air_rune', 'mind_rune', 'uncut_sapphire', 'grimy_ranarr', 'rune_essence', 'bow_string', 'steel_platebody', 'mithril_scimitar', 'prayer_potion3', 'cake'];
+  const BUY_GOODS = ['logs', 'oak_logs', 'willow_logs', 'maple_logs', 'yew_logs', 'iron_ore', 'coal', 'copper_ore', 'tin_ore', 'bones', 'big_bones', 'cowhide', 'feather', 'raw_shrimps',
+    'raw_lobster', 'raw_trout', 'bronze_bar', 'iron_bar', 'steel_bar', 'rune_essence', 'flax', 'bow_string', 'egg', 'raw_chicken', 'raw_beef', 'grimy_guam', 'leather', 'gold_ore'];
+  const HUBS = [[90, 82], [154, 216], [99, 234], [144, 82], [77, 22], [135, 143], [100, 24], [87, 108], [110, 66], [70, 92], [196, 86]];
+  const OUTFIT = ['#7a2a2a', '#2a5a7a', '#5a6a2a', '#6a4a2a', '#4a2a6a', '#8a6a2a', '#2a2a2a', '#a0a0a0', '#1a4a1a', '#7a1a5a'];
+  const METALS_B = ['bronze', 'iron', 'steel', 'mithril', 'adamant', 'rune'];
+  const pickR = a => a[Math.floor(Math.random() * a.length)];
+  const plural = (n, s) => n === 1 ? s : s.replace(/(s)?$/, 's');
+
+  function spawnBots(n) {
+    const names = BOT_NAMES.slice().sort(() => Math.random() - 0.5);
+    for (let i = 0; i < n; i++) {
+      const hub = HUBS[i % HUBS.length];
+      let x = hub[0], z = hub[1];
+      for (let k = 0; k < 30; k++) { const tx = hub[0] + ri(-5, 5), tz = hub[1] + ri(-5, 5); if (World.walkable(tx, tz)) { x = tx; z = tz; break; } }
+      const tier = Math.min(5, Math.floor(Math.random() * Math.random() * 6));
+      const persona = i % 4 === 0 ? 'seller' : i % 4 === 1 ? 'buyer' : i % 7 === 2 ? 'trader' : 'casual';
+      const b = makeEntity({ isBot: true, name: names[i % names.length], x, z, hub, persona, cl: 3 + tier * 18 + ri(0, 15), act: null, nextChat: S.tick + ri(10, 120), run: Math.random() < 0.6 });
+      const m = METALS_B[tier];
+      b.equip = {};
+      if (Math.random() < 0.8) b.equip.weapon = m + '_scimitar';
+      if (Math.random() < 0.6) b.equip.body = m + '_platebody';
+      if (Math.random() < 0.6) b.equip.legs = m + '_platelegs';
+      if (Math.random() < 0.5) b.equip.head = m + '_full_helm';
+      if (Math.random() < 0.4) b.equip.shield = m + '_kiteshield';
+      if (Math.random() < 0.15) { b.equip = { weapon: pickR(['staff_of_air', 'staff_of_fire']), head: 'wizard_hat', body: 'wizard_robe' }; }
+      if (Math.random() < 0.15) { b.equip = { weapon: pickR(['shortbow', 'oak_shortbow', 'maple_shortbow']), body: 'leather_body', legs: 'leather_chaps', head: 'leather_cowl' }; }
+      b.model = Models.humanoid({ skin: pickR(['#c8915c', '#a06a40', '#d0a070', '#8a5a30']), hair: pickR(['#3a2410', '#7a5a30', '#c08030', '#1a1a1a', '#e0e0e0', '#a03010']), shirt: pickR(OUTFIT), pants: pickR(OUTFIT), boots: '#3a2a1a', robe: Math.random() < 0.1 ? pickR(OUTFIT) : null });
+      Models.applyEquipment(b.model, b.equip);
+      b.model.userData.ent = b;
+      if (persona === 'seller') { b.good = pickR(SELL_GOODS); b.price = Math.max(1, Math.round(ITEMS[b.good].value * (1.1 + Math.random() * 0.5))); b.stock = ITEMS[b.good].stackable ? ri(50, 500) : ri(5, 30); }
+      if (persona === 'buyer') { b.good = pickR(BUY_GOODS); b.price = Math.max(1, Math.round(ITEMS[b.good].value * (0.9 + Math.random() * 0.5))); }
+      S.scene.add(b.model);
+      World.pickables.push(b.model);
+      S.bots.push(b);
+    }
+  }
+  function botSay(b, text) {
+    b.overhead = { text, until: now() + 3500 };
+    const p = S.player;
+    if (Math.abs(b.x - p.x) < 20 && Math.abs(b.z - p.z) < 20) S.messages.push({ text, from: b.name, t: now() });
+  }
+  function adLine(b) {
+    const nm = ITEMS[b.good].name.toLowerCase();
+    if (b.persona === 'seller') return pickR([`Selling ${nm} ${b.price}ea!`, `selling ${nm} - ${b.price} each`, `${nm} for sale ${b.price}ea, trade me`]);
+    return pickR([`Buying ${nm} ${b.price}ea!!`, `buying all ${nm} ${b.price} each`, `paying ${b.price}ea for ${nm}, trade me`]);
+  }
+  let botPathBudget = 0;
+  function botPath(b, goal, tx, tz) {
+    if (botPathBudget <= 0) return false;
+    botPathBudget--;
+    const path = World.findPath(b.x, b.z, goal, tx, tz);
+    if (!path || !path.length) return false;
+    b.path = path.slice(0, 40);
+    return true;
+  }
+  function botTick(b) {
+    const p = S.player;
+    if (Math.abs(b.x - p.x) > 45 || Math.abs(b.z - p.z) > 45) return;
+    if (S.tick >= b.nextChat) {
+      b.nextChat = S.tick + ri(25, 140);
+      if (b.persona === 'seller' || b.persona === 'buyer') botSay(b, Math.random() < 0.75 ? adLine(b) : pickR(CASUAL_LINES));
+      else if (Math.random() < 0.5) botSay(b, pickR(CASUAL_LINES));
+      if ((b.persona === 'seller' || b.persona === 'buyer') && Math.random() < 0.25 && Math.abs(b.x - p.x) <= 6 && Math.abs(b.z - p.z) <= 6 && !S.iface) msg(`${b.name} wishes to trade with you.`, '#800080');
+    }
+    if (S.iface && S.iface.type === 'trade' && S.iface.bot === b) { b.path = []; faceEnt(b, p); return; }
+    if (b.path.length) {
+      const n = b.run && b.path.length > 1 ? 2 : 1, tiles = [];
+      for (let i = 0; i < n && b.path.length; i++) {
+        const [nx, nz] = b.path[0], cx = tiles.length ? tiles[tiles.length - 1][0] : b.x, cz = tiles.length ? tiles[tiles.length - 1][1] : b.z;
+        if (!World.canStep(cx, cz, nx - cx, nz - cz)) { b.path = []; break; }
+        tiles.push(b.path.shift());
+      }
+      if (tiles.length) moveEnt(b, tiles);
+      if (!b.path.length && b.act && b.act.target) faceEnt(b, b.act.target);
+      return;
+    }
+    if (b.act) {
+      const a = b.act;
+      if (a.type === 'fight') {
+        const n = a.target;
+        if (n.dead || n.target || S.player.combat === n) { b.act = null; return; }
+        if (!npcReach(b, n)) { if (!botPath(b, (x, z) => npcReach({ x, z }, n), n.x, n.z)) b.act = null; return; }
+        faceEnt(b, n);
+        if (--a.timer <= 0) {
+          a.timer = 4;
+          setAnim(b, 'slash');
+          const dmg = Math.random() < 0.6 ? ri(0, 2 + Math.floor(b.cl / 15)) : 0;
+          n.hp -= Math.min(dmg, n.hp); n.splats.push({ dmg: Math.min(dmg, n.hp + dmg), t: now() }); n.hpBarUntil = now() + 6000;
+          setAnim(n, n.model.userData.kind === 'humanoid' ? 'block' : 'attack');
+          if (n.hp <= 0) { n.dead = true; n.deathAt = S.tick; setAnim(n, 'death'); n.target = null; b.act = null; if (Math.random() < 0.3) botSay(b, pickR(['ez', 'gg', 'lol ez kill', 'loot!'])); }
+        }
+        return;
+      }
+      if (--a.timer <= 0 || (a.loc && a.loc.depletedUntil > S.tick)) { b.act = null; b.loop = null; Models.setHeldTool(b.model, null); }
+      return;
+    }
+    // choose a new activity
+    const r = Math.random();
+    if ((b.persona === 'seller' || b.persona === 'buyer') && r < 0.7) {
+      if (Math.abs(b.x - b.hub[0]) > 4 || Math.abs(b.z - b.hub[1]) > 4) botPath(b, (x, z) => Math.abs(x - b.hub[0]) <= 2 && Math.abs(z - b.hub[1]) <= 2, b.hub[0], b.hub[1]);
+      else b.act = { type: 'idle', timer: ri(10, 30) };
+      return;
+    }
+    if (r < 0.3) {
+      const loc = World.locs.find(l => (TREES[l.type] || ROCKS[l.type]) && !(l.depletedUntil > S.tick) && Math.abs(l.x - b.x) < 12 && Math.abs(l.z - b.z) < 12 && Math.random() < 0.3);
+      if (loc && botPath(b, (x, z) => World.adjacentTo(x, z, loc.x, loc.z, loc.w, loc.d), loc.x, loc.z)) {
+        const chop = !!TREES[loc.type];
+        b.act = { type: chop ? 'chop' : 'mine', timer: ri(15, 50), loc, target: loc };
+        b.loop = chop ? 'chop' : 'mine'; b.loopStart = now();
+        Models.setHeldTool(b.model, chop ? 'iron_axe' : 'iron_pickaxe');
+        return;
+      }
+    } else if (r < 0.55) {
+      const n = S.npcs.find(n => !n.dead && n.def.hp && !n.target && n.def.level <= b.cl && n.def.level < 30 && Math.abs(n.x - b.x) < 10 && Math.abs(n.z - b.z) < 10 && S.player.combat !== n);
+      if (n) { b.act = { type: 'fight', target: n, timer: 1 }; return; }
+    } else if (r < 0.62) {
+      setAnim(b, pickR(['wave', 'dance', 'cheer', 'bow', 'yes']));
+      b.act = { type: 'idle', timer: 4 };
+      return;
+    }
+    const tx = b.hub[0] + ri(-9, 9), tz = b.hub[1] + ri(-9, 9);
+    if (World.walkable(tx, tz)) botPath(b, (x, z) => x === tx && z === tz, tx, tz);
+    else b.act = { type: 'idle', timer: ri(3, 10) };
+  }
+
+  // ---------- trading ----------
+  const tradeVal = list => list.reduce((s, it) => s + ITEMS[it.id].value * it.qty, 0);
+  function openTrade(b) {
+    const p = S.player;
+    if (b.persona === 'casual' && Math.random() < 0.6) { botSay(b, pickR(['no thx', 'busy sry', 'what u want?', 'no trades lol'])); msg('Other player declined trade request.'); return; }
+    S.iface = { type: 'trade', bot: b, my: [], their: [], stage: 1, meAcc: false, themAcc: false, status: '' };
+    faceEnt(p, b);
+    botRecalc();
+    botSay(b, b.persona === 'seller' ? `${b.price}ea, how many?` : b.persona === 'buyer' ? `put ur ${ITEMS[b.good].name.toLowerCase()} in, ${b.price}ea` : pickR(['what u got?', 'hi', 'whats up']));
+  }
+  function botRecalc() {
+    const t = S.iface; if (!t || t.type !== 'trade') return;
+    const b = t.bot;
+    t.meAcc = false; t.themAcc = false;
+    const coinsOffered = t.my.filter(i => i.id === 'coins').reduce((s, i) => s + i.qty, 0);
+    if (b.persona === 'seller') {
+      const st = ITEMS[b.good].stackable;
+      let q = Math.min(b.stock, coinsOffered > 0 ? Math.floor(coinsOffered / b.price) : b.stock);
+      if (!st) q = Math.min(q, freeSlots() + t.my.filter(i => !ITEMS[i.id].stackable).length);
+      t.their = q > 0 ? [{ id: b.good, qty: q }] : [];
+      const fair = coinsOffered >= q * b.price && q > 0 && t.my.every(i => i.id === 'coins');
+      t.wantAcc = fair;
+    } else if (b.persona === 'buyer') {
+      const q = t.my.filter(i => i.id === b.good).reduce((s, i) => s + i.qty, 0);
+      const other = t.my.filter(i => i.id !== b.good);
+      t.their = q > 0 ? [{ id: 'coins', qty: q * b.price + Math.floor(tradeVal(other) * 0.3) }] : [];
+      t.wantAcc = q > 0;
+    } else {
+      // trader: offers coins worth ~85-100% of what you put in
+      const v = tradeVal(t.my);
+      t.their = v > 0 ? [{ id: 'coins', qty: Math.floor(v * (0.85 + Math.random() * 0.15)) }] : [];
+      t.wantAcc = v > 0;
+    }
+    t.thinkAt = S.tick + ri(1, 3);
+  }
+  function tradeTick() {
+    const t = S.iface;
+    if (!t || t.type !== 'trade') return;
+    const b = t.bot, p = S.player;
+    if (Math.abs(b.x - p.x) > 3 || Math.abs(b.z - p.z) > 3) { declineTrade('Trade declined: too far away.'); return; }
+    if (t.thinkAt && S.tick >= t.thinkAt) {
+      t.thinkAt = 0;
+      if (t.wantAcc && !t.themAcc) { t.themAcc = true; if (Math.random() < 0.6) botSay(b, pickR(['ok', 'deal', 'accept', 'ty', 'sure'])); }
+      else if (!t.wantAcc && t.my.length) botSay(b, b.persona === 'seller' ? pickR([`its ${b.price}ea`, 'need more gp', 'coins only pls']) : b.persona === 'buyer' ? `i only want ${ITEMS[b.good].name.toLowerCase()}` : 'hmm');
+    }
+    if (t.meAcc && t.themAcc) {
+      if (t.stage === 1) { t.stage = 2; t.meAcc = false; t.themAcc = false; t.thinkAt = S.tick + 1; }
+      else completeTrade();
+    }
+  }
+  function offerItem(slot, n) {
+    const t = S.iface; const it = S.inv[slot]; if (!t || !it) return;
+    if (t.stage !== 1) return;
+    if (!ITEMS[it.id].value && it.id !== 'coins') { msg('You can\'t trade that item.'); return; }
+    const id = it.id;
+    n = Math.min(n, invCount(id));
+    invRemove(id, n);
+    const ex = ITEMS[id].stackable && t.my.find(i => i.id === id);
+    if (ex) ex.qty += n; else if (ITEMS[id].stackable) t.my.push({ id, qty: n }); else for (let k = 0; k < n; k++) t.my.push({ id, qty: 1 });
+    botRecalc();
+  }
+  function removeOffer(idx, n) {
+    const t = S.iface; const it = t && t.my[idx]; if (!it || t.stage !== 1) return;
+    n = Math.min(n, it.qty);
+    if (!invAdd(it.id, n)) { msg('You don\'t have enough inventory space.'); return; }
+    it.qty -= n; if (it.qty <= 0) t.my.splice(idx, 1);
+    botRecalc();
+  }
+  function acceptTrade() {
+    const t = S.iface; if (!t) return;
+    if (t.stage === 1) {
+      const needed = t.their.reduce((s, i) => s + (ITEMS[i.id].stackable ? (has(i.id) ? 0 : 1) : i.qty), 0);
+      if (needed > freeSlots()) { msg('You don\'t have enough inventory space for this trade.'); return; }
+    }
+    t.meAcc = true;
+  }
+  function declineTrade(why) {
+    const t = S.iface; if (!t || t.type !== 'trade') return;
+    for (const it of t.my) invAddOrDrop(it.id, it.qty);
+    S.iface = null;
+    msg(why || 'Trade declined.');
+  }
+  function completeTrade() {
+    const t = S.iface;
+    for (const it of t.their) invAddOrDrop(it.id, it.qty);
+    if (t.bot.persona === 'seller') { t.bot.stock -= t.their.reduce((s, i) => s + i.qty, 0); if (t.bot.stock <= 0) { t.bot.stock = ri(50, 300); } }
+    S.iface = null;
+    msg('Accepted trade.');
+    Sfx.play('pickup');
+    botSay(t.bot, pickR(['ty!', 'thanks', 'pleasure doing business', 'gl']));
+  }
+
   // ---------- main tick ----------
   function tick() {
     S.tick++;
     const p = S.player;
-    for (const e of [p, ...S.npcs]) if (e.moveTick !== S.tick - 1) { e.from = null; e.steps = []; }
+    for (const e of [p, ...S.npcs, ...S.bots]) if (e.moveTick !== S.tick - 1) { e.from = null; e.steps = []; }
     if (p.dead) { p.dead--; if (p.dead === 0) respawnPlayer(); }
     else if (p.forced) forcedTick();
     else {
@@ -1325,6 +1627,11 @@ const Game = (() => {
       playerCombat();
     }
     for (const n of S.npcs) npcTick(n);
+    botPathBudget = 3;
+    for (const b of S.bots) botTick(b);
+    for (const b of S.bots) if (b.moveTick !== S.tick) { if (b.moveTick !== S.tick - 1) { b.from = null; b.steps = []; } }
+    tradeTick();
+    if (p.follow && !p.dead) { if (!npcReach(p, p.follow) && (p.path.length === 0 || S.tick % 2 === 0)) pathToNpc(p.follow); }
     if (S.tick % (S.prayers.rapid_heal ? 50 : 100) === 0 && cur('hitpoints') < lvl('hitpoints') && !p.dead) S.skills.hitpoints.cur++;
     if (S.tick % 100 === 0) for (const k of SKILLS) { if (k === 'hitpoints' || k === 'prayer') continue; if (S.skills[k].cur < lvl(k)) S.skills[k].cur++; else if (S.skills[k].cur > lvl(k)) S.skills[k].cur--; }
     if (!p.runningStep) p.energy = Math.min(100, p.energy + 0.45 + lvl('agility') * 0.01);
@@ -1358,7 +1665,7 @@ const Game = (() => {
     const p = S.player;
     const patches = {};
     for (const l of World.locs) if (l.patch) patches[l.x + ',' + l.z] = l.patch;
-    const data = { v: 2, skills: S.skills, inv: S.inv, equip: S.equip, ammo: S.ammoQty, bank: S.bank, quests: S.quests, qp: S.questPoints, x: p.x, z: p.z, style: S.style, run: p.run, energy: p.energy, ar: S.autoRetaliate, slayer: S.slayer, patches, gift: S.gift, autocast: S.autocast, bright: S.settings.brightness };
+    const data = { v: 2, skills: S.skills, inv: S.inv, equip: S.equip, ammo: S.ammoQty, bank: S.bank, quests: S.quests, qp: S.questPoints, x: p.x, z: p.z, style: S.style, run: p.run, energy: p.energy, ar: S.autoRetaliate, slayer: S.slayer, patches, gift: S.gift, autocast: S.autocast, pouches: S.pouches, bright: S.settings.brightness };
     try { localStorage.setItem(KEY(S.name), JSON.stringify(data)); localStorage.setItem('ardenvale_last', S.name); } catch (e) { }
   }
   function load(name) {
@@ -1373,7 +1680,7 @@ const Game = (() => {
       S.inv = data.inv.map(s => s && ITEMS[s.id] ? s : null); S.equip = data.equip || {}; for (const k in S.equip) if (!ITEMS[S.equip[k]]) delete S.equip[k];
       S.ammoQty = data.ammo || 0; S.bank = (data.bank || []).filter(b => ITEMS[b.id]);
       Object.assign(S.quests, data.quests || {}); S.questPoints = data.qp || 0;
-      S.style = data.style || 0; S.autoRetaliate = data.ar !== false; S.slayer = data.slayer || null; S.gift = data.gift; S.autocast = data.autocast || null;
+      S.style = data.style || 0; S.autoRetaliate = data.ar !== false; S.slayer = data.slayer || null; S.gift = data.gift; S.autocast = data.autocast || null; S.pouches = data.pouches || {};
       S.settings.brightness = data.bright == null ? 2 : data.bright;
       for (const l of World.locs) if (l.patch && data.patches && data.patches[l.x + ',' + l.z]) { l.patch = data.patches[l.x + ',' + l.z]; World.refreshLoc(l); }
     } else {
@@ -1408,6 +1715,7 @@ const Game = (() => {
   function init(scene) {
     S.scene = scene;
     for (const [id, x, z] of World.NPC_SPAWNS) if (NPCS[id]) spawnNpc(id, x, z);
+    spawnBots(34);
   }
   function emote(name) { const p = S.player; if (p.dead) return; resetActions(); p.path = []; setAnim(p, name); }
 
@@ -1415,6 +1723,6 @@ const Game = (() => {
     S, tick, msg, lvl, cur, combatLevel, totalLevel, invCount, freeSlots, itemOps, invAction, swapInv, unequip, bonuses, locOps,
     walkTo, interact, useItemOn, useItemOnItem, togglePrayer, openBank, bankDeposit, bankDepositAll, bankDepositEquip, bankWithdraw,
     shopBuy, shopSell, buyPrice, sellPrice, smith, openSmithing, load, logout, save, init, styleNames, weaponType, weaponKind,
-    homeTeleport, emote, resetActions, dropGround, castSpell, castOn, castOnItem, canCast, region, wildLevel, METALS, barOf,
+    homeTeleport, emote, resetActions, dropGround, offerItem, removeOffer, acceptTrade, declineTrade, tradeVal, castSpell, castOn, castOnItem, canCast, region, wildLevel, METALS, barOf,
   };
 })();

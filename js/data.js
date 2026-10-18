@@ -188,8 +188,29 @@ defItem('silk', { name: 'Silk', value: 60, icon: { t: 'silk' }, examine: 'It\'s 
 defItem('repair_kit', { name: 'Bridge planks', value: 0, icon: { t: 'planks' }, examine: 'Planks for repairing the old bridge.' });
 
 // runes / magic
-const RUNES = { air: '#e8e8f8', mind: '#e8a040', water: '#3a70e0', earth: '#8a5a2a', fire: '#e03018', body: '#6a6af0', chaos: '#f0c020', nature: '#30b030', law: '#3040c0' };
-for (const r in RUNES) defItem(r + '_rune', { name: r.charAt(0).toUpperCase() + r.slice(1) + ' rune', stackable: true, value: { air: 4, mind: 3, water: 4, earth: 4, fire: 4, body: 5, chaos: 90, nature: 180, law: 240 }[r], icon: { t: 'rune', c: RUNES[r], r }, examine: `One of the 4 basic elemental runes.`.replace('One of the 4 basic elemental runes.', `A ${r} rune.`) });
+const RUNES = { air: '#e8e8f8', mind: '#e8a040', water: '#3a70e0', earth: '#8a5a2a', fire: '#e03018', body: '#6a6af0', cosmic: '#e8e040', chaos: '#f0c020', nature: '#30b030', law: '#3040c0', death: '#e8e8e8' };
+for (const r in RUNES) defItem(r + '_rune', { name: r.charAt(0).toUpperCase() + r.slice(1) + ' rune', stackable: true, value: { air: 4, mind: 3, water: 4, earth: 4, fire: 4, body: 5, cosmic: 50, chaos: 90, nature: 180, law: 240, death: 300 }[r], icon: { t: 'rune', c: RUNES[r], r }, examine: `One of the 4 basic elemental runes.`.replace('One of the 4 basic elemental runes.', `A ${r} rune.`) });
+for (const r in RUNES) {
+  defItem(r + '_talisman', { name: r.charAt(0).toUpperCase() + r.slice(1) + ' talisman', value: 20, icon: { t: 'talisman', c: RUNES[r] }, talisman: r, examine: `A mysterious power emanates from the talisman.` });
+  defItem(r + '_tiara', { name: r.charAt(0).toUpperCase() + r.slice(1) + ' tiara', value: 50, icon: { t: 'tiara', c: RUNES[r] }, equip: EQ('head', { mag: 1 }), tiara: r, examine: `A tiara infused with the properties of ${r}.` });
+}
+defItem('tiara', { name: 'Tiara', value: 30, icon: { t: 'tiara', c: '#c0c0c8' }, equip: EQ('head', {}), examine: 'Makes me feel like a princess.' });
+const POUCHES = { small_pouch: { name: 'Small pouch', level: 1, cap: 3 }, medium_pouch: { name: 'Medium pouch', level: 25, cap: 6 }, large_pouch: { name: 'Large pouch', level: 50, cap: 9 }, giant_pouch: { name: 'Giant pouch', level: 75, cap: 12 } };
+for (const id in POUCHES) defItem(id, { name: POUCHES[id].name, value: POUCHES[id].cap * 500, icon: { t: 'pouch', c: ['#a07040', '#8a6a3a', '#7a5a30', '#6a4a28'][Object.keys(POUCHES).indexOf(id)] }, pouch: POUCHES[id], examine: `A pouch that can hold ${POUCHES[id].cap} rune essence.` });
+defItem('staff_of_water', { name: 'Staff of water', value: 1500, icon: { t: 'staff', c: '#7a5a3a', orb: '#3a70e0' }, equip: EQ('weapon', { kind: 'staff', att: 2, str: 3, def: 2, mag: 10, speed: 5, provides: 'water' }), examine: 'A magical staff.' });
+defItem('staff_of_earth', { name: 'Staff of earth', value: 1500, icon: { t: 'staff', c: '#7a5a3a', orb: '#8a5a2a' }, equip: EQ('weapon', { kind: 'staff', att: 2, str: 3, def: 2, mag: 10, speed: 5, provides: 'earth' }), examine: 'A magical staff.' });
+defItem('mystic_robe', { name: 'Mystic robe top', value: 12000, icon: { t: 'robe', c: '#3a2a8a' }, equip: EQ('body', { mag: 20, def: 20, req: { magic: 40, defence: 20 }, color: '#3a2a8a' }), examine: 'The robe top of a powerful sorcerer.' });
+defItem('mystic_hat', { name: 'Mystic hat', value: 6000, icon: { t: 'wizhat', c: '#3a2a8a' }, equip: EQ('head', { mag: 4, def: 2, req: { magic: 40, defence: 20 } }), examine: 'A magical hat.' });
+for (const [m, col, p, lv] of [['steel', '#9aa0a8', 3, 5], ['mithril', '#4a4aa0', 4, 20], ['adamant', '#3a6a3a', 5, 30], ['rune', '#40a0c0', 6, 40]]) {
+  defItem(m + '_axe', { name: m.charAt(0).toUpperCase() + m.slice(1) + ' axe', value: 100 * p * p, icon: { t: 'axe', c: col }, tool: { wc: 1, power: p }, equip: EQ('weapon', { att: 3 + p * 2, str: 4 + p * 2, speed: 5, req: { attack: lv } }), examine: 'A powerful axe.' });
+  defItem(m + '_pickaxe', { name: m.charAt(0).toUpperCase() + m.slice(1) + ' pickaxe', value: 250 * p * p, icon: { t: 'pickaxe', c: col }, tool: { mine: 1, power: p }, equip: EQ('weapon', { att: 3 + p * 2, str: 4 + p * 2, speed: 5, req: { attack: lv } }), examine: 'A powerful pickaxe.' });
+}
+// cook's quest ingredients
+defItem('egg', { name: 'Egg', value: 4, icon: { t: 'egg' }, examine: 'A nice fresh egg.' });
+defItem('bucket', { name: 'Bucket', value: 2, icon: { t: 'bucket' }, examine: 'It\'s a wooden bucket.' });
+defItem('bucket_milk', { name: 'Bucket of milk', value: 6, icon: { t: 'bucket', milk: true }, examine: 'It\'s a bucket of milk.' });
+defItem('pot', { name: 'Pot', value: 1, icon: { t: 'flourpot' }, examine: 'This pot is empty.' });
+defItem('pot_flour', { name: 'Pot of flour', value: 14, icon: { t: 'flourpot', flour: true }, examine: 'There is flour in this pot.' });
 defItem('staff', { name: 'Staff', value: 15, icon: { t: 'staff', c: '#7a5a3a' }, equip: EQ('weapon', { kind: 'staff', att: 2, str: 2, def: 2, mag: 2, speed: 5 }), examine: 'It\'s a slightly magical stick.' });
 defItem('staff_of_air', { name: 'Staff of air', value: 1500, icon: { t: 'staff', c: '#7a5a3a', orb: '#e8e8f8' }, equip: EQ('weapon', { kind: 'staff', att: 2, str: 3, def: 2, mag: 10, speed: 5, provides: 'air' }), examine: 'A magical staff.' });
 defItem('staff_of_fire', { name: 'Staff of fire', value: 1500, icon: { t: 'staff', c: '#7a5a3a', orb: '#ff5020' }, equip: EQ('weapon', { kind: 'staff', att: 2, str: 3, def: 2, mag: 10, speed: 5, provides: 'fire' }), examine: 'A magical staff.' });
@@ -275,6 +296,9 @@ defItem('wk_helm', { name: 'White full helm', value: 1000, icon: { t: 'helm', c:
 defItem('wk_body', { name: 'White platebody', value: 4000, icon: { t: 'platebody', c: '#e8e8e8' }, equip: EQ('body', { def: 45, req: { defence: 30 }, color: '#e8e8e8' }), examine: 'A platebody of the White Knights.' });
 defItem('wk_legs', { name: 'White platelegs', value: 2000, icon: { t: 'platelegs', c: '#e8e8e8' }, equip: EQ('legs', { def: 25, req: { defence: 30 }, color: '#e8e8e8' }), examine: 'Platelegs of the White Knights.' });
 defItem('wk_shield', { name: 'White kiteshield', value: 1700, icon: { t: 'kiteshield', c: '#e8e8e8' }, equip: EQ('shield', { def: 25, req: { defence: 30 } }), examine: 'A kiteshield of the White Knights.' });
+defItem('amulet_magic', { name: 'Amulet of magic', value: 900, icon: { t: 'amulet', c: '#3050e0' }, equip: EQ('neck', { mag: 10 }), examine: 'A magical amulet.' });
+defItem('amulet_defence', { name: 'Amulet of defence', value: 1300, icon: { t: 'amulet', c: '#20b040' }, equip: EQ('neck', { def: 7 }), examine: 'A protective amulet.' });
+defItem('ring_recoil', { name: 'Ring of recoil', value: 900, icon: { t: 'ring', c: '#3050e0' }, equip: EQ('ring', { def: 3 }), examine: 'An enchanted ring.' });
 const EQUIP_SLOTS = ['head', 'cape', 'neck', 'ammo', 'weapon', 'body', 'shield', 'legs', 'hands', 'feet', 'ring'];
 
 // ---- Smithing ----
@@ -329,7 +353,7 @@ const ROCKS = {
 const RC_ALTARS = {
   air: { level: 1, xp: 5, multi: 11 }, mind: { level: 2, xp: 5.5, multi: 14 }, water: { level: 5, xp: 6, multi: 19 },
   earth: { level: 9, xp: 6.5, multi: 26 }, fire: { level: 14, xp: 7, multi: 35 }, body: { level: 20, xp: 7.5, multi: 46 },
-  chaos: { level: 35, xp: 8.5, multi: 74 }, nature: { level: 44, xp: 9, multi: 91 },
+  cosmic: { level: 27, xp: 8, multi: 59 }, chaos: { level: 35, xp: 8.5, multi: 74 }, nature: { level: 44, xp: 9, multi: 91 }, law: { level: 54, xp: 9.5, multi: 99 }, death: { level: 65, xp: 10, multi: 99 },
 };
 
 // ---- Spells (standard spellbook, 2005 style) ----
@@ -343,9 +367,18 @@ const SPELLS = [
   { id: 'wind_bolt', name: 'Wind Bolt', level: 17, runes: { air: 2, chaos: 1 }, xp: 13.5, max: 9, type: 'combat', col: '#e8e8f8', glyph: 'W' },
   { id: 'low_alch', name: 'Low Level Alchemy', level: 21, runes: { fire: 3, nature: 1 }, xp: 31, type: 'item', mult: 0.4, col: '#ffd040', glyph: 'L' },
   { id: 'water_bolt', name: 'Water Bolt', level: 23, runes: { water: 2, air: 2, chaos: 1 }, xp: 16.5, max: 10, type: 'combat', col: '#3a70e0', glyph: 'W' },
-  { id: 'ardenvale_tele', name: 'Ardenvale Teleport', level: 25, runes: { law: 1, air: 3, fire: 1 }, xp: 35, type: 'tele', col: '#a060ff', glyph: 'A' },
+  { id: 'ardenvale_tele', name: 'Ardenvale Teleport', level: 20, runes: { law: 1, air: 3, water: 1 }, xp: 30, type: 'tele', col: '#a060ff', glyph: 'A', dest: [90, 84] },
+  { id: 'varrock_tele', name: 'Varrock Teleport', level: 25, runes: { law: 1, air: 3, fire: 1 }, xp: 35, type: 'tele', col: '#a060ff', glyph: 'V', dest: [154, 217] },
+  { id: 'lumbridge_tele', name: 'Lumbridge Teleport', level: 31, runes: { law: 1, air: 3, earth: 1 }, xp: 41, type: 'tele', col: '#a060ff', glyph: 'L', dest: [99, 235] },
+  { id: 'whitecliff_tele', name: 'Whitecliff Teleport', level: 37, runes: { law: 1, air: 3, water: 1 }, xp: 48, type: 'tele', col: '#a060ff', glyph: 'W', dest: [77, 22] },
   { id: 'earth_bolt', name: 'Earth Bolt', level: 29, runes: { earth: 3, air: 2, chaos: 1 }, xp: 19.5, max: 11, type: 'combat', col: '#8a5a2a', glyph: 'E' },
   { id: 'fire_bolt', name: 'Fire Bolt', level: 35, runes: { fire: 4, air: 3, chaos: 1 }, xp: 22.5, max: 12, type: 'combat', col: '#e03018', glyph: 'F' },
+  { id: 'wind_blast', name: 'Wind Blast', level: 41, runes: { air: 3, death: 1 }, xp: 25.5, max: 13, type: 'combat', col: '#e8e8f8', glyph: 'W' },
+  { id: 'water_blast', name: 'Water Blast', level: 47, runes: { water: 3, air: 3, death: 1 }, xp: 28.5, max: 14, type: 'combat', col: '#3a70e0', glyph: 'W' },
+  { id: 'earth_blast', name: 'Earth Blast', level: 53, runes: { earth: 4, air: 3, death: 1 }, xp: 31.5, max: 15, type: 'combat', col: '#8a5a2a', glyph: 'E' },
+  { id: 'fire_blast', name: 'Fire Blast', level: 59, runes: { fire: 5, air: 4, death: 1 }, xp: 34.5, max: 16, type: 'combat', col: '#e03018', glyph: 'F' },
+  { id: 'enchant1', name: 'Enchant Sapphire', level: 7, runes: { water: 1, cosmic: 1 }, xp: 17.5, type: 'item', enchant: { sapphire_amulet: 'amulet_magic', sapphire_ring: 'ring_recoil' }, col: '#3050e0', glyph: 'S' },
+  { id: 'enchant2', name: 'Enchant Emerald', level: 27, runes: { air: 3, cosmic: 1 }, xp: 37, type: 'item', enchant: { emerald_amulet: 'amulet_defence' }, col: '#20b040', glyph: 'E' },
   { id: 'high_alch', name: 'High Level Alchemy', level: 55, runes: { fire: 5, nature: 1 }, xp: 65, type: 'item', mult: 0.6, col: '#ffd040', glyph: 'H' },
 ];
 
@@ -379,7 +412,7 @@ const PRAYERS = [
 const HERB_DROPS = [{ id: 'grimy_guam', chance: 0.06 }, { id: 'grimy_tarromin', chance: 0.03 }, { id: 'grimy_harralander', chance: 0.02 }];
 const NPCS = {
   chicken: { name: 'Chicken', level: 1, hp: 3, att: 1, str: 1, def: 1, maxHit: 1, speed: 4, model: 'chicken', wander: 3,
-    drops: [{ id: 'bones', always: true }, { id: 'raw_chicken', always: true }, { id: 'feather', qty: [5, 15], chance: 0.8 }], examine: 'Yep, definitely a chicken.' },
+    drops: [{ id: 'bones', always: true }, { id: 'raw_chicken', always: true }, { id: 'feather', qty: [5, 15], chance: 0.8 }, { id: 'egg', chance: 0.3 }], examine: 'Yep, definitely a chicken.' },
   cow: { name: 'Cow', level: 2, hp: 8, att: 1, str: 1, def: 1, maxHit: 1, speed: 4, model: 'cow', wander: 4,
     drops: [{ id: 'bones', always: true }, { id: 'cowhide', always: true }, { id: 'raw_beef', always: true }], examine: 'Converts grass to beef.' },
   goblin: { name: 'Goblin', level: 2, hp: 5, att: 1, str: 1, def: 1, maxHit: 1, speed: 4, model: 'goblin', wander: 4,
@@ -426,6 +459,28 @@ const NPCS = {
   sailor_sarrow: { name: 'Captain Tobias', level: 0, model: 'sailor', wander: 0, talk: 'sail', examine: 'A seasoned captain.', sail: 'saltreach' },
   sailor_saltreach: { name: 'Customs officer', level: 0, model: 'sailor', wander: 0, talk: 'sail', examine: 'She checks passengers coming and going.', sail: 'sarrow' },
   island_shop: { name: 'Luthas', level: 0, model: 'shopkeeper', wander: 1, talk: 'generic', shop: 'jungle', examine: 'He runs the plantation store.', greet: 'Welcome to Saltreach! Bananas, supplies and the best fishing in the realm.' },
+  dark_wizard: { name: 'Dark wizard', level: 20, hp: 24, att: 17, str: 17, def: 14, maxHit: 4, speed: 5, model: 'dark_wizard', wander: 3, aggressive: true, magic: '#e03018',
+    drops: [{ id: 'bones', always: true }, { id: 'coins', qty: [5, 40], chance: 0.6 }, { id: 'chaos_rune', qty: [2, 8], chance: 0.2 }, { id: 'nature_rune', qty: [1, 4], chance: 0.1 }, { id: 'law_rune', qty: [1, 3], chance: 0.08 }, { id: 'cosmic_rune', qty: [2, 6], chance: 0.1 }, { id: 'wizard_hat', chance: 0.05 }, { id: 'mystic_hat', chance: 0.004 }], examine: 'A practitioner of dark arts.' },
+  hill_giant: { name: 'Hill Giant', level: 28, hp: 35, att: 18, str: 22, def: 26, maxHit: 4, speed: 6, model: 'hill_giant', wander: 4,
+    drops: [{ id: 'big_bones', always: true }, { id: 'coins', qty: [10, 80], chance: 0.6 }, { id: 'limpwurt_root', chance: 0.15 }, { id: 'steel_platelegs', chance: 0.02 }, { id: 'law_rune', qty: [1, 3], chance: 0.06 }, { id: 'grimy_ranarr', chance: 0.04 }], examine: 'A very large foe.' },
+  barbarian: { name: 'Barbarian', level: 10, hp: 14, att: 8, str: 9, def: 6, maxHit: 2, speed: 4, model: 'barbarian', wander: 4, talk: 'man',
+    drops: [{ id: 'bones', always: true }, { id: 'coins', qty: [5, 30], chance: 0.5 }, { id: 'iron_axe', chance: 0.03 }, { id: 'raw_beef', chance: 0.1 }], examine: 'Not civilised looking.' },
+  mugger: { name: 'Mugger', level: 6, hp: 8, att: 5, str: 5, def: 4, maxHit: 1, speed: 4, model: 'bandit', wander: 4, aggressive: true,
+    drops: [{ id: 'bones', always: true }, { id: 'coins', qty: [2, 25], chance: 0.6 }, { id: 'knife', chance: 0.05 }], examine: 'He jumps out and attacks people.' },
+  imp: { name: 'Imp', level: 2, hp: 8, att: 1, str: 1, def: 3, maxHit: 1, speed: 4, model: 'imp', wander: 6,
+    drops: [{ id: 'ashes', always: true }, { id: 'egg', chance: 0.1 }, { id: 'bucket', chance: 0.05 }, { id: 'mind_rune', qty: [1, 5], chance: 0.1 }], examine: 'A cheeky little imp.' },
+  varrock_guard: { name: 'Guard', level: 21, hp: 22, att: 19, str: 18, def: 14, maxHit: 4, speed: 5, model: 'guard', wander: 3, pickpocket: { level: 40, xp: 46.8, coins: 30, stun: 2 },
+    drops: [{ id: 'bones', always: true }, { id: 'coins', qty: [10, 40], chance: 0.8 }, { id: 'iron_full_helm', chance: 0.02 }, { id: 'steel_arrowtips', qty: [5, 15], chance: 0.05 }], examine: 'He guards Varrock.' },
+  aubury: { name: 'Aubury', level: 0, model: 'mage', wander: 1, talk: 'aubury', shop: 'aubury', examine: 'I think he might be a shop keeper.' },
+  zaff: { name: 'Zaff', level: 0, model: 'mage', wander: 1, talk: 'generic', shop: 'zaff', examine: 'Trader of staffs.', greet: 'Would you like to buy or sell some staffs?' },
+  lowe: { name: 'Lowe', level: 0, model: 'fletcher', wander: 1, talk: 'generic', shop: 'lowe', examine: 'An archery store owner.', greet: 'Welcome to Lowe\'s Archery Emporium. Do you want to see my wares?' },
+  horvik: { name: 'Horvik', level: 0, model: 'smith', wander: 1, talk: 'generic', shop: 'horvik', examine: 'He looks strong.', greet: 'Hello, do you need any help? I sell the finest armour in Varrock.' },
+  bob: { name: 'Bob', level: 0, model: 'smith', wander: 1, talk: 'generic', shop: 'bob', examine: 'An axe seller.', greet: 'Hello. How can I help you? I sell axes and pickaxes, and I can repair... well, I can sell.' },
+  lumby_shop: { name: 'Shop keeper', level: 0, model: 'shopkeeper', wander: 1, talk: 'shop', shop: 'lumby', examine: 'Maybe he\'d like to buy some of my junk.' },
+  hans: { name: 'Hans', level: 0, model: 'hans', wander: 8, talk: 'generic', examine: 'Servant of the Duke of Lumbridge.', greet: 'Hello. What are you doing here? I\'ve been walking around this castle for as long as I can remember.' },
+  duke: { name: 'Duke Horacio', level: 0, model: 'duke', wander: 1, talk: 'generic', examine: 'Duke Horacio of Lumbridge.', greet: 'Greetings. Welcome to my castle. Mind you don\'t trip over the cook\'s pots.' },
+  cook: { name: 'Cook', level: 0, model: 'cook', wander: 1, talk: 'cook', examine: 'The head cook of Lumbridge Castle.' },
+  priest2: { name: 'Father Aereth', level: 0, model: 'priest', wander: 1, talk: 'generic', examine: 'A peaceful priest.', greet: 'Welcome to the church of Lumbridge. Feel free to pray at our altar.' },
   priest: { name: 'Father Aldous', level: 0, model: 'priest', wander: 1, talk: 'priest', examine: 'A kindly man of the cloth.' },
   harbourmaster: { name: 'Captain Rourke', level: 0, model: 'sailor', wander: 1, talk: 'harbour', examine: 'He runs the harbour of Port Sarrow.' },
   sailor: { name: 'Sailor', level: 0, model: 'sailor', wander: 2, talk: 'generic', examine: 'He smells of salt and fish.', greet: 'Fancy a spot of fishing off the pier? The shrimp and anchovies are biting.' },
@@ -448,10 +503,16 @@ const SHOPS = {
   gems: { name: 'Whitecliff Gem Store', stock: [['chisel', 10], ['uncut_sapphire', 5], ['uncut_emerald', 3], ['sapphire', 2], ['gold_bar', 5]] },
   fishing: { name: 'Gerrant\'s Fishy Business', stock: [['small_net', 5], ['fishing_rod', 5], ['fly_fishing_rod', 5], ['fishing_bait', 500], ['feather', 500], ['harpoon', 5], ['lobster_pot', 5], ['raw_shrimps', 0]] },
   jungle: { name: 'Saltreach Supplies', stock: [['banana', 20], ['bird_snare', 5], ['harpoon', 2], ['lobster_pot', 2], ['unicorn_horn_dust', 5], ['snape_grass', 3]] },
+  aubury: { name: 'Aubury\'s Rune Shop', stock: [['air_rune', 1000], ['water_rune', 1000], ['earth_rune', 1000], ['fire_rune', 1000], ['mind_rune', 1000], ['body_rune', 500], ['chaos_rune', 100], ['death_rune', 50], ['air_talisman', 5], ['mind_talisman', 5], ['water_talisman', 5], ['earth_talisman', 5], ['fire_talisman', 5], ['body_talisman', 5], ['tiara', 10], ['medium_pouch', 1], ['rune_essence', 200]] },
+  zaff: { name: 'Zaff\'s Superior Staffs', stock: [['staff', 5], ['staff_of_air', 2], ['staff_of_water', 2], ['staff_of_earth', 2], ['staff_of_fire', 2]] },
+  lowe: { name: 'Lowe\'s Archery Emporium', stock: [['shortbow', 4], ['longbow', 4], ['oak_shortbow', 3], ['oak_longbow', 3], ['willow_shortbow', 2], ['maple_shortbow', 1], ['bronze_arrow', 1000], ['iron_arrow', 500], ['steel_arrow', 200], ['mithril_arrow', 100]] },
+  horvik: { name: 'Horvik\'s Armour Shop', stock: [['bronze_platebody', 5], ['iron_platebody', 3], ['steel_platebody', 2], ['mithril_platebody', 1], ['iron_platelegs', 3], ['steel_platelegs', 2], ['mithril_platelegs', 1], ['leather_body', 5], ['leather_chaps', 5]] },
+  bob: { name: 'Bob\'s Brilliant Axes', stock: [['bronze_axe', 10], ['iron_axe', 5], ['steel_axe', 3], ['mithril_axe', 2], ['adamant_axe', 1], ['bronze_pickaxe', 10], ['iron_pickaxe', 5], ['steel_pickaxe', 3], ['mithril_pickaxe', 1]] },
+  lumby: { name: 'Lumbridge General Store', stock: [['bucket', 10], ['pot', 10], ['pot_flour', 5], ['tinderbox', 5], ['small_net', 5], ['hammer', 5], ['chisel', 5], ['knife', 5], ['shrimps', 10], ['rune_essence', 0]] },
   hunter: { name: 'Garrick\'s Hunting Supplies', stock: [['bird_snare', 20], ['box_trap', 10], ['knife', 5]] },
   general: { name: 'Ardenvale General Store', stock: [['vial', 10], ['bird_snare', 10], ['bronze_axe', 5], ['bronze_pickaxe', 5], ['small_net', 5], ['tinderbox', 5], ['hammer', 5], ['knife', 5], ['shrimps', 10], ['bronze_dagger', 3], ['wooden_shield', 2], ['spade', 5]] },
   smith: { name: 'Hilda\'s Forge', stock: [['iron_axe', 2], ['iron_pickaxe', 2], ['hammer', 10], ['bronze_bar', 10], ['iron_bar', 5], ['bronze_scimitar', 2], ['iron_scimitar', 1], ['bronze_platebody', 1]] },
-  magic: { name: 'Orla\'s Rune Emporium', stock: [['air_rune', 500], ['mind_rune', 500], ['water_rune', 300], ['earth_rune', 300], ['fire_rune', 300], ['body_rune', 100], ['chaos_rune', 50], ['law_rune', 20], ['nature_rune', 20], ['staff', 5], ['staff_of_air', 1], ['wizard_hat', 5], ['wizard_robe', 5]] },
+  magic: { name: 'Orla\'s Rune Emporium', stock: [['air_talisman', 5], ['mind_talisman', 5], ['water_talisman', 3], ['earth_talisman', 3], ['fire_talisman', 3], ['body_talisman', 2], ['tiara', 5], ['air_rune', 500], ['mind_rune', 500], ['water_rune', 300], ['earth_rune', 300], ['fire_rune', 300], ['body_rune', 100], ['chaos_rune', 50], ['law_rune', 20], ['nature_rune', 20], ['staff', 5], ['staff_of_air', 1], ['wizard_hat', 5], ['wizard_robe', 5]] },
   archery: { name: 'Bryn\'s Archery Supplies', stock: [['shortbow', 4], ['longbow', 3], ['oak_shortbow', 2], ['bronze_arrow', 800], ['iron_arrow', 300], ['feather', 500], ['bow_string', 20], ['leather_cowl', 3]] },
   herbs: { name: 'Wren\'s Herbs & Vials', stock: [['unicorn_horn_dust', 10], ['snape_grass', 5], ['vial', 50], ['vial_water', 30], ['eye_of_newt', 50], ['limpwurt_root', 10], ['white_berries', 10], ['grimy_guam', 10], ['attack_potion4', 2]] },
   farming: { name: 'Ada\'s Farming Supplies', stock: [['marrentill_seed', 10], ['rake', 5], ['seed_dibber', 5], ['spade', 5], ['potato_seed', 100], ['onion_seed', 50], ['cabbage_seed', 50], ['guam_seed', 10], ['tarromin_seed', 5]] },
@@ -474,6 +535,7 @@ const QUESTS = [
   { id: 'forge', name: 'Forging Ahead', giver: 'Hilda at the Ardenvale smithy' },
   { id: 'runes', name: 'Secrets of the Stones', giver: 'Orla in her rune shop, north of the bank' },
   { id: 'catch', name: "Sarrow's Catch", giver: 'Captain Rourke in Port Sarrow' },
+  { id: 'cook', name: "The Cook's Request", giver: 'the Cook in Lumbridge Castle' },
 ];
 
 // Hunter: traps and what they catch, by region
@@ -488,5 +550,5 @@ const HUNTER = {
 
 const SLAYER_TASKS = [
   { npc: 'chicken', min: 0, n: [10, 20] }, { npc: 'cow', min: 0, n: [10, 20] }, { npc: 'goblin', min: 0, n: [10, 20] },
-  { npc: 'rat', min: 0, n: [10, 20] }, { npc: 'bandit', min: 15, n: [10, 20] }, { npc: 'scorpion', min: 18, n: [10, 20] }, { npc: 'skeleton', min: 25, n: [10, 20] }, { npc: 'lesser_demon', min: 60, n: [5, 12] }, { npc: 'crawling_hand', min: 3, n: [10, 25], slayer: 5 }, { npc: 'banshee', min: 15, n: [10, 25], slayer: 15 }, { npc: 'jogre', min: 45, n: [10, 20] }, { npc: 'jungle_spider', min: 40, n: [10, 20] }, { npc: 'green_dragon', min: 70, n: [5, 10] }, { npc: 'guard', min: 25, n: [8, 15] }, { npc: 'ogre', min: 40, n: [3, 6] },
+  { npc: 'rat', min: 0, n: [10, 20] }, { npc: 'bandit', min: 15, n: [10, 20] }, { npc: 'scorpion', min: 18, n: [10, 20] }, { npc: 'skeleton', min: 25, n: [10, 20] }, { npc: 'lesser_demon', min: 60, n: [5, 12] }, { npc: 'hill_giant', min: 25, n: [10, 25] }, { npc: 'dark_wizard', min: 20, n: [10, 20] }, { npc: 'crawling_hand', min: 3, n: [10, 25], slayer: 5 }, { npc: 'banshee', min: 15, n: [10, 25], slayer: 15 }, { npc: 'jogre', min: 45, n: [10, 20] }, { npc: 'jungle_spider', min: 40, n: [10, 20] }, { npc: 'green_dragon', min: 70, n: [5, 10] }, { npc: 'guard', min: 25, n: [8, 15] }, { npc: 'ogre', min: 40, n: [3, 6] },
 ];

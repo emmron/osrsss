@@ -184,7 +184,7 @@ const Render = (() => {
   function headHeight(e) {
     const k = e.model.userData.kind;
     if (k === 'chicken') return 0.8;
-    if (k === 'quad') return e.def && e.def.model === 'cow' ? 1.5 : 0.65;
+    if (k === 'quad') return e.def && e.def.model === 'cow' ? 1.5 : e.def && e.def.model === 'dragon' ? 2.4 : 0.65;
     return 1.75 * e.model.userData.parts.body.scale.x;
   }
   const LONG_ANIMS = ['wave', 'bow', 'cheer', 'dance', 'yes', 'no', 'think'];
@@ -222,6 +222,11 @@ const Render = (() => {
       n.model.visible = near && (!n.dead || (S.tick - n.deathAt) < 2);
       if (near) updateEntity(n, t, dt);
     }
+    for (const b of S.bots) {
+      const near = Math.abs(b.x - tx) < 34 && Math.abs(b.z - tz) < 34;
+      b.model.visible = near;
+      if (near) updateEntity(b, t, dt);
+    }
     camera.position.set(tx + Math.sin(cam.yaw) * Math.cos(cam.pitch) * cam.dist, ty + Math.sin(cam.pitch) * cam.dist, tz + Math.cos(cam.yaw) * Math.cos(cam.pitch) * cam.dist);
     camera.lookAt(tx, ty, tz);
     const inside = p && S.loggedIn ? World.roofAt(p.x, p.z) : -1;
@@ -258,7 +263,7 @@ const Render = (() => {
       const e = o.userData.ent;
       if (seen.has(e)) continue; seen.add(e);
       if (e.isNpc && e.dead) continue;
-      ents.push({ kind: e.isNpc ? 'npc' : 'loc', ent: e, dist: h.distance });
+      ents.push({ kind: e.isBot ? 'bot' : e.isNpc ? 'npc' : 'loc', ent: e, dist: h.distance });
     }
     const tile = World.rayTile(raycaster.ray.origin, raycaster.ray.direction);
     return { ents, tile };
@@ -305,7 +310,7 @@ const Render = (() => {
       if (Game.S.loggedIn && t - Game.S.lastTick >= TICK_MS) Game.tick();
       Render.update(dt);
       UI.draw();
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error(String(e && e.stack || e)); }
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);

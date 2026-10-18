@@ -146,7 +146,7 @@ const UI = (() => {
     range: ['#d0d0d0', '#5a2a10', 'C'], altar: ['#ffffff', '#3a3a8a', '+'], quest: ['#6aa0ff', '#0a1a5a', '?'], fish: ['#80c0ff', '#103060', '~'], mine: ['#c0a080', '#3a2a1a', 'M'],
     rune: ['#ff6040', '#3a0a40', 'R'], archery: ['#e0c080', '#2a4a1a', 'B'], herb: ['#80e060', '#1a3a10', 'H'], tanner: ['#e0a060', '#4a2a10', 'T'], spin: ['#f0e0c0', '#4a3a2a', 'W'],
     stall: ['#ffd060', '#4a1a1a', '$'], farm: ['#a0e060', '#3a2a10', 'F'], agility: ['#60c0ff', '#1a2a4a', 'A'], slayer: ['#ff4040', '#200000', 'S'], rc: ['#ffffff', '#2a2a6a', 'O'],
-    essence: ['#d0d0ff', '#30305a', 'E'], scimitar: ['#e0e0e0', '#6a1a1a', 'Z'], boat: ['#ffffff', '#1a3a6a', 'P'], gem: ['#60e0ff', '#1a2a4a', 'G'], armour: ['#e0e0e0', '#3a3a5a', 'A'], guild: ['#e8c030', '#3a2a1a', 'M'] };
+    essence: ['#d0d0ff', '#30305a', 'E'], scimitar: ['#e0e0e0', '#6a1a1a', 'Z'], boat: ['#ffffff', '#1a3a6a', 'P'], gem: ['#60e0ff', '#1a2a4a', 'G'], armour: ['#e0e0e0', '#3a3a5a', 'A'], guild: ['#e8c030', '#3a2a1a', 'M'], staff: ['#c0a0ff', '#2a1a4a', '/'], axe: ['#d0d0d0', '#4a2a1a', 'X'] };
   function mapIcon(type, x, y, r) {
     const [fg, bg, ch] = ICONS[type] || ICONS.quest;
     r = r || 6;
@@ -204,7 +204,7 @@ const UI = (() => {
       case 'ranged': for (const [id] of BOWS) add(ITEMS[id].equip.req.ranged || 1, ITEMS[id].name, id); for (const a of ARROWS) add(1, ITEMS[a[0] + '_arrow'].name + 's', a[0] + '_arrow'); break;
       case 'prayer': for (const p of PRAYERS) add(p.level, p.name, null); break;
       case 'magic': for (const s of SPELLS) add(s.level || 1, s.name, null); add(1, 'Staves let you autocast combat spells', 'staff'); break;
-      case 'runecrafting': for (const k in RC_ALTARS) { add(RC_ALTARS[k].level, `${cap(k)} runes`, k + '_rune'); add(RC_ALTARS[k].multi, `Two ${k} runes per essence`, k + '_rune'); } break;
+      case 'runecrafting': add(1, 'Altars need a matching talisman or tiara', 'air_talisman'); for (const id in POUCHES) add(POUCHES[id].level, POUCHES[id].name + ` (holds ${POUCHES[id].cap})`, id); for (const k in RC_ALTARS) { add(RC_ALTARS[k].level, `${cap(k)} runes`, k + '_rune'); add(RC_ALTARS[k].multi, `Two ${k} runes per essence`, k + '_rune'); } break;
       case 'woodcutting': for (const k in TREES) add(TREES[k].level, TREES[k].name + 's', TREES[k].log); break;
       case 'mining': for (const k in ROCKS) add(ROCKS[k].level, ITEMS[ROCKS[k].ore].name, ROCKS[k].ore); add(1, 'Rune essence', 'rune_essence'); add(1, 'Chance of finding gems', 'uncut_sapphire'); add(60, 'Enter the Mining Guild (Whitecliff)', 'coal'); break;
       case 'smithing': for (const r of SMELTING) add(r.level, ITEMS[r.out].name, r.out); for (const r of SMITHING) add(r.level, ITEMS[r.out].name, r.out); break;
@@ -257,6 +257,12 @@ const UI = (() => {
     const spell = st.spellSel;
     const useSeg = sel ? [['Use ', C.white], [selName(), C.itemc], [' -> ', C.white]] : null;
     for (const { kind, ent } of ents) {
+      if (kind === 'bot') {
+        if (spell || sel) continue;
+        const label = [[ent.name, C.white], [`  (level-${ent.cl})`, lvlColor(ent.cl)]];
+        for (const op of ['Trade with', 'Follow', 'Report']) opts.push(O([[op + ' ', C.white], ...label], () => Game.interact('bot', ent, op), { cross: 'red' }));
+        continue;
+      }
       if (kind === 'npc') {
         const label = npcLabel(ent);
         if (spell) { if (spell.type === 'combat' && ent.def.hp) opts.push(O([['Cast ', C.white], [spell.name, C.spell], [' -> ', C.white], ...label], () => Game.castOn(ent, spell), { cross: 'red' })); continue; }
@@ -297,6 +303,11 @@ const UI = (() => {
     const nm = ITEMS[it.id].name;
     const iface = st.iface && st.iface.type;
     if (iface === 'bank') return [1, 5, 10, 'All'].map(n => O(act('Deposit-' + n, nm, C.itemc), () => Game.bankDeposit(slot, n === 'All' ? 1e9 : n))).concat([O(act('Examine', nm, C.itemc), () => Game.msg(ITEMS[it.id].examine))]);
+    if (iface === 'trade') {
+      if (st.iface.stage !== 1) return [];
+      return [1, 5, 10, 'All'].map(n => O(act('Offer-' + n, nm, C.itemc), () => Game.offerItem(slot, n === 'All' ? 1e9 : n)))
+        .concat([O(act('Value', nm, C.itemc), () => Game.msg(`${nm} is worth about ${fmt(ITEMS[it.id].value)} coins each.`)), O(act('Examine', nm, C.itemc), () => Game.msg(ITEMS[it.id].examine))]);
+    }
     if (iface === 'shop') {
       const sid = st.iface.shop;
       return [O(act('Value', nm, C.itemc), () => Game.msg(`${nm}: shop will buy for ${fmt(Game.sellPrice(it.id))} coins.`))]
@@ -450,6 +461,19 @@ const UI = (() => {
     }
     if (!inR(x, y, WIN)) return null;
     if (closeHit(x, y)) return [O(act('Close'), () => { st.iface = null; })];
+    if (f.type === 'trade') {
+      if (inR(x, y, { x: WIN.x + 130, y: WIN.y + WIN.h - 34, w: 100, h: 24 })) return [O(act('Accept'), () => Game.acceptTrade())];
+      if (inR(x, y, { x: WIN.x + 254, y: WIN.y + WIN.h - 34, w: 100, h: 24 })) return [O(act('Decline'), () => Game.declineTrade())];
+      if (f.stage === 1) for (let i = 0; i < f.my.length; i++) {
+        const [cx, cy] = gridCell(i, 5, WIN.x + 16, WIN.y + 46, 42, 36);
+        if (x >= cx && y >= cy && x < cx + 36 && y < cy + 32) { const it = f.my[i], nm = ITEMS[it.id].name; return [1, 5, 10, 'All'].map(n => O(act('Remove-' + n, nm, C.itemc), () => Game.removeOffer(i, n === 'All' ? 1e9 : n))); }
+      }
+      if (f.stage === 1) for (let i = 0; i < f.their.length; i++) {
+        const [cx, cy] = gridCell(i, 5, WIN.x + 258, WIN.y + 46, 42, 36);
+        if (x >= cx && y >= cy && x < cx + 36 && y < cy + 32) { const it = f.their[i], nm = ITEMS[it.id].name; return [O(act('Examine', nm, C.itemc), () => Game.msg(ITEMS[it.id].examine)), O(act('Value', nm, C.itemc), () => Game.msg(`${nm} is worth about ${fmt(ITEMS[it.id].value)} coins each.`))]; }
+      }
+      return [];
+    }
     if (f.type === 'bank') {
       if (x >= WIN.x + 330 && y >= WIN.y + WIN.h - 30 && x < WIN.x + 470 && y < WIN.y + WIN.h - 8) return [O(act('Deposit inventory'), () => Game.bankDepositAll())];
       if (x >= WIN.x + 180 && y >= WIN.y + WIN.h - 30 && x < WIN.x + 320 && y < WIN.y + WIN.h - 8) return [O(act('Deposit worn items'), () => Game.bankDepositEquip())];
@@ -520,7 +544,7 @@ const UI = (() => {
     T('Key', L.x + 69, L.y + 16, C.orange, F13, 'center');
     const names = { bank: 'Bank', store: 'General store', furnace: 'Furnace', anvil: 'Anvil', range: 'Cooking range', altar: 'Altar', quest: 'Quest start', fish: 'Fishing spot', mine: 'Mining site',
       rune: 'Rune shop', archery: 'Archery shop', herb: 'Herbalist', tanner: 'Tannery', spin: 'Spinning wheel', stall: 'Market stall', farm: 'Farming patch', agility: 'Agility course', slayer: 'Slayer master',
-      rc: 'Runecrafting altar', essence: 'Rune essence', scimitar: 'Scimitar shop', boat: 'Ship / travel', gem: 'Gem store', armour: 'Armour shop', guild: 'Mining Guild' };
+      rc: 'Runecrafting altar', essence: 'Rune essence', scimitar: 'Scimitar shop', boat: 'Ship / travel', gem: 'Gem store', armour: 'Armour shop', guild: 'Mining Guild', staff: 'Staff shop', axe: 'Axe shop' };
     Object.keys(names).forEach((k, i) => { mapIcon(k, L.x + 14, L.y + 34 + i * 18); T(names[k], L.x + 26, L.y + 38 + i * 18, C.white, F11); });
     button(632, 462, 114, 26, 'Close map', false, F12);
     T('Drag to move, scroll to zoom', 310, 501, '#c0b090', F11, 'center');
@@ -743,6 +767,7 @@ const UI = (() => {
     const st = S();
     ctx.save(); ctx.beginPath(); ctx.rect(VP.x, VP.y, VP.w, VP.h); ctx.clip();
     for (const n of st.npcs) if (n.model.visible) drawEntityOverlays(n);
+    for (const b of st.bots) if (b.model.visible) drawEntityOverlays(b);
     if (st.player) drawEntityOverlays(st.player);
     const nowT = performance.now(), p = st.player;
     st.levelFx = st.levelFx.filter(f => nowT - f.t < 2200);
@@ -762,7 +787,7 @@ const UI = (() => {
       ctx.beginPath(); ctx.moveTo(c.x - s, c.y - s); ctx.lineTo(c.x + s, c.y + s); ctx.moveTo(c.x + s, c.y - s); ctx.lineTo(c.x - s, c.y + s); ctx.stroke();
       ctx.strokeStyle = c.c === 'red' ? '#ff0000' : '#ffff00'; ctx.lineWidth = 1.5; ctx.stroke();
     }
-    const wl = Game.wildLevel(p.x);
+    const wl = Game.wildLevel(p.x, p.z);
     if (wl > 0) {
       const x = VP.x + VP.w - 46, y = VP.y + VP.h - 44;
       ctx.drawImage(Icons.item('ancient_skull'), x + 6, y - 6, 24, 24);
@@ -800,12 +825,36 @@ const UI = (() => {
     if (id === 'forge') L.push(['Hilda needs a bronze platebody', done || has('bronze_platebody', 1)], [`and 2 iron bars (${Math.min(2, Game.invCount('iron_bar'))}/2).`, done || has('iron_bar', 2)]);
     if (id === 'runes') L.push(['Orla gave me a strange talisman to', done], ['take to the Air altar in the', done], ['Runestone Circle north of the village.', done], ['The talisman has been awakened.', done || has('charged_talisman', 1)]);
     if (id === 'catch') L.push(['Captain Rourke wants food for his crew:', done], [`10 shrimps (${Math.min(10, Game.invCount('shrimps'))}/10)`, done || has('shrimps', 10)], [`5 cooked chickens (${Math.min(5, Game.invCount('cooked_chicken'))}/5)`, done || has('cooked_chicken', 5)]);
+    if (id === 'cook') L.push(['The Cook needs ingredients for the', done], ["Duke's birthday cake:", done], ['An egg', done || has('egg', 1)], ['A bucket of milk', done || has('bucket_milk', 1)], ['A pot of flour', done || has('pot_flour', 1)]);
     if (done) L.push(['', 0], ['QUEST COMPLETE!', 0]);
     return L;
   }
   function drawIface() {
     const st = S(), f = st.iface;
-    if (f.type === 'bank') {
+    if (f.type === 'trade') {
+      const b = f.bot;
+      winFrame('Trading With: ' + b.name);
+      if (f.stage === 1) {
+        T('Your Offer', WIN.x + 120, WIN.y + 40, C.orange, F12, 'center');
+        T(b.name + '\'s Offer', WIN.x + 362, WIN.y + 40, C.orange, F12, 'center');
+        ctx.fillStyle = '#5a4e3c'; ctx.fillRect(WIN.x + WIN.w / 2 - 1, WIN.y + 28, 2, WIN.h - 70);
+        f.my.forEach((it, i) => { const [cx, cy] = gridCell(i, 5, WIN.x + 16, WIN.y + 46, 42, 36); drawItem(it.id, it.qty, cx + 2, cy); });
+        f.their.forEach((it, i) => { const [cx, cy] = gridCell(i, 5, WIN.x + 258, WIN.y + 46, 42, 36); drawItem(it.id, it.qty, cx + 2, cy); });
+        T('Value: ' + fmt(Game.tradeVal(f.my)) + ' coins', WIN.x + 120, WIN.y + WIN.h - 46, '#c0a070', F11, 'center');
+        T('Value: ' + fmt(Game.tradeVal(f.their)) + ' coins', WIN.x + 362, WIN.y + WIN.h - 46, '#c0a070', F11, 'center');
+        if (b.persona === 'seller') T(`Selling ${ITEMS[b.good].name.toLowerCase()} at ${b.price}ea - offer coins`, WIN.x + 362, WIN.y + WIN.h - 60, C.yellow, F11, 'center');
+        if (b.persona === 'buyer') T(`Buying ${ITEMS[b.good].name.toLowerCase()} at ${b.price}ea`, WIN.x + 362, WIN.y + WIN.h - 60, C.yellow, F11, 'center');
+      } else {
+        T('Are you sure you want to make this trade?', WIN.x + WIN.w / 2, WIN.y + 44, C.white, F12, 'center');
+        T('You are about to give:', WIN.x + 120, WIN.y + 70, C.yellow, F12, 'center');
+        T('In return you will receive:', WIN.x + 362, WIN.y + 70, C.yellow, F12, 'center');
+        const list = (arr, x) => { const grouped = {}; arr.forEach(i => grouped[i.id] = (grouped[i.id] || 0) + i.qty); Object.entries(grouped).slice(0, 10).forEach(([id, q], i) => T(`${ITEMS[id].name}${q > 1 ? ' x ' + fmt(q) : ''}`, x, WIN.y + 92 + i * 15, C.white, F11, 'center')); if (!arr.length) T('Absolutely nothing!', x, WIN.y + 92, C.white, F11, 'center'); };
+        list(f.my, WIN.x + 120); list(f.their, WIN.x + 362);
+      }
+      const status = f.themAcc ? 'Other player has accepted.' : f.meAcc ? 'Waiting for other player...' : '';
+      T(status, WIN.x + WIN.w / 2, WIN.y + WIN.h - 40, f.themAcc ? C.green : C.white, F11B, 'center');
+      button(WIN.x + 130, WIN.y + WIN.h - 34, 100, 24, 'Accept', f.meAcc); button(WIN.x + 254, WIN.y + WIN.h - 34, 100, 24, 'Decline');
+    } else if (f.type === 'bank') {
       winFrame('The Bank of Ardenvale');
       for (let i = 0; i < 48; i++) { const b = st.bank[i + bankScroll * 8]; if (!b) break; const [cx, cy] = gridCell(i, 8, WIN.x + 22, WIN.y + 32, 56, 40); drawItem(b.id, b.qty, cx + 4, cy + 1); }
       T(`${st.bank.length} / 400`, WIN.x + 14, WIN.y + WIN.h - 14, C.orange, F11);
@@ -874,6 +923,7 @@ const UI = (() => {
     ctx.translate(MM.cx, MM.cy); ctx.rotate(a);
     ctx.drawImage(mmCv, -p.rx * 4, -p.rz * 4);
     for (const g of st.ground) { if (Math.abs(g.x - p.x) > 22 || Math.abs(g.z - p.z) > 22) continue; ctx.fillStyle = '#000'; ctx.fillRect((g.x + 0.5 - p.rx) * 4 - 1.5, (g.z + 0.5 - p.rz) * 4 - 1.5, 4, 4); ctx.fillStyle = '#ff0000'; ctx.fillRect((g.x + 0.5 - p.rx) * 4 - 1, (g.z + 0.5 - p.rz) * 4 - 1, 3, 3); }
+    for (const b of st.bots) { if (Math.abs(b.x - p.x) > 22 || Math.abs(b.z - p.z) > 22) continue; const x = ((b.rx ?? b.x + 0.5) - p.rx) * 4, z = ((b.rz ?? b.z + 0.5) - p.rz) * 4; ctx.fillStyle = '#000'; ctx.fillRect(x - 1.5, z - 1.5, 4, 4); ctx.fillStyle = '#ffffff'; ctx.fillRect(x - 1, z - 1, 3, 3); }
     for (const n of st.npcs) { if (n.dead || Math.abs(n.x - p.x) > 22 || Math.abs(n.z - p.z) > 22) continue; const x = ((n.rx ?? n.x + 0.5) - p.rx) * 4, z = ((n.rz ?? n.z + 0.5) - p.rz) * 4; ctx.fillStyle = '#000'; ctx.fillRect(x - 1.5, z - 1.5, 4, 4); ctx.fillStyle = '#ffff00'; ctx.fillRect(x - 1, z - 1, 3, 3); }
     ctx.restore();
     ctx.save(); ctx.beginPath(); ctx.arc(MM.cx, MM.cy, MM.r, 0, Math.PI * 2); ctx.clip();

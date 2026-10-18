@@ -39,7 +39,8 @@ const Tex = (() => {
 const Models = (() => {
   const mats = {};
   function mat(color, opts) {
-    const key = color + (opts ? JSON.stringify(opts, (k, v) => (v && v.isTexture) ? v.uuid : v) : '');
+    let key = color;
+    if (opts) for (const k in opts) { const v = opts[k]; key += '|' + k + ':' + (v && v.isTexture ? v.uuid : String(v)); }
     if (!mats[key]) mats[key] = new THREE.MeshLambertMaterial(Object.assign({ color, flatShading: true }, opts || {}));
     return mats[key];
   }
@@ -427,6 +428,14 @@ const Models = (() => {
         box(0.3, 0.3, 0.7, c, 0, 1.45, 0.7, body).rotation.x = -0.6; P.tail = box(0.3, 0.3, 1.6, c, 0, 1.0, -1.6, body);
         for (const s of [-1, 1]) { const w = box(1.8, 0.05, 1.2, '#3a8a3a', s * 1.2, 1.8, 0, body); w.rotation.z = s * 0.4; }
         for (const [x, z] of [[-0.35, 0.7], [0.35, 0.7], [-0.35, -0.7], [0.35, -0.7]]) { const l = pivot(body, x, 0.9, z); box(0.25, 0.9, 0.25, c, 0, -0.45, 0, l); P.legs.push(l); } return root; }
+      case 'dark_wizard': return humanoid({ skin: '#c8a080', hair: '#1a1a1a', shirt: '#2a1a4a', pants: '#2a1a4a', robe: '#2a1a4a', wizhat: '#1a1a2a', beard: '#3a3a3a' });
+      case 'hill_giant': return humanoid({ skin: '#c8a070', hair: '#5a3a1a', shirt: '#7a5a3a', pants: '#5a4028', boots: '#3a2a18', scale: 1.7, sleeves: false });
+      case 'barbarian': return humanoid({ skin: '#d0a070', hair: '#c08030', shirt: '#7a6a5a', pants: '#5a4a3a', beard: '#c08030', sleeves: false });
+      case 'imp': return humanoid({ skin: '#c03020', hair: null, shirt: '#c03020', pants: '#a02818', boots: '#601810', scale: 0.55, ears: true, sleeves: false });
+      case 'hans': return humanoid({ skin: '#c8915c', hair: '#3a2a1a', shirt: '#6a2a8a', pants: '#3a2a4a' });
+      case 'duke': return humanoid({ skin: '#d0a070', hair: '#8a8a8a', shirt: '#8a1a1a', pants: '#2a2a2a', cape: '#2a3aa0', beard: '#9a9a9a' });
+      case 'cook': return humanoid({ skin: '#d0a070', hair: '#5a3a1a', shirt: '#f0f0f0', pants: '#e8e8e8', hat: '#f8f8f8', apron: '#ffffff' });
+      case 'bot': return humanoid(arguments[1]);
       case 'priest': return humanoid({ skin: '#d0a070', hair: '#5a4a3a', shirt: '#1a1a1a', pants: '#1a1a1a', robe: '#1a1a1a' });
       case 'hunter': return humanoid({ skin: '#b07a4c', hair: '#5a3a18', shirt: '#6a5a2a', pants: '#4a3a1a', hood: null, cape: '#3a5a2a', beard: '#5a3a18' });
       case 'demon': { const d = humanoid({ skin: '#a01a10', hair: null, shirt: '#a01a10', pants: '#801408', boots: '#401008', scale: 1.5, sleeves: false, ears: true });
@@ -700,11 +709,12 @@ const Models = (() => {
     return g;
   }
   function guildDoor() { const g = new THREE.Group(); box(0.12, 1.75, 0.95, tmat('planks', '#c09060'), 0, 0.88, 0, g); box(0.16, 0.08, 0.08, '#e8c030', 0.05, 0.9, 0.3, g); return g; }
+  function portal() { const g = new THREE.Group(); const r = mesh(G('portal', () => new THREE.TorusGeometry(0.7, 0.12, 6, 14)), mat('#b0a0ff', { emissive: '#6050c0' }), 0, 1.0, 0, g); const c = mesh(G('portalc', () => new THREE.CircleGeometry(0.62, 14)), mat('#8070e0', { emissive: '#4030a0', transparent: true, opacity: 0.7, side: THREE.DoubleSide }), 0, 1.0, 0, g); g.userData.spin = c; return g; }
   function bones() { const g = new THREE.Group(); for (let i = 0; i < 4; i++) { const b = box(0.4, 0.05, 0.05, '#e0dccc', (i - 1.5) * 0.12, 0.03, (i % 2) * 0.15, g); b.rotation.y = i * 0.8; } mesh(G('skull', () => new THREE.IcosahedronGeometry(0.1, 0)), '#e0dccc', 0.1, 0.08, -0.1, g); return g; }
 
   return {
     mat, tmat, box, mesh, taper, cyl, cone, humanoid, applyEquipment, setHeldTool, npcModel, animate, weaponMesh,
     tree, stump, rock, essenceRock, runeAltar, furnace, anvil, range, bankBooth, altar, fountain, fishingSpot, fire, crate, barrel, signpost,
-    flowers, bush, trap, stall, guildDoor, spinningWheel, flaxPlant, patch, agility, tent, boat, well, lamp, bones,
+    flowers, bush, trap, stall, guildDoor, portal, spinningWheel, flaxPlant, patch, agility, tent, boat, well, lamp, bones,
   };
 })();
