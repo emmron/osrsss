@@ -815,7 +815,6 @@ const World = (() => {
       const [m1, n1] = f.mons[0], [m2, n2] = f.mons[1];
       for (let k = 0; k < n1; k++) npc(m1, x0 + 3 + k * 3, 143 + (k % 2) * 2);
       for (let k = 0; k < n2; k++) npc(m2, x0 + 2 + k * 3, 154 + (k % 2) * 2);
-      labels.push([f.name, x0 + 7, 137, 0]);
     });
     // surface entrance at the Barbarian Camp
     addLoc('sos_entrance', surface[0], surface[1], { dest: [floors[0].x + 2, 141] });

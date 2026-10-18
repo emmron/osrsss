@@ -431,6 +431,18 @@ const Game = (() => {
     ['Is it safe to reuse passwords on other sites?', 'No, use a unique password.', 'Yes, it is easier.', 'Only for games.'],
     ['Game staff message you asking for your password.', 'Staff never ask - report it.', 'Give it to them.', 'Send it by email.'],
   ];
+  // teleport anywhere (right-click option on the world map, minimap and game view)
+  function teleportTo(tx, tz) {
+    const p = S.player;
+    if (p.dead) return;
+    tx = Math.max(0, Math.min(World.W - 1, tx | 0)); tz = Math.max(0, Math.min(World.H - 1, tz | 0));
+    let dest = null;
+    for (let r = 0; r <= 12 && !dest; r++) for (let dz = -r; dz <= r && !dest; dz++) for (let dx = -r; dx <= r; dx++) { if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue; if (World.walkable(tx + dx, tz + dz)) { dest = [tx + dx, tz + dz]; break; } }
+    if (!dest) { msg('You cannot teleport there.'); return; }
+    resetActions(); p.path = []; S.flag = null;
+    p.loop = 'teleport'; p.loopStart = now(); Sfx.play('teleport');
+    p.task = { timer: 2, interval: 2, fn: () => { p.x = dest[0]; p.z = dest[1]; p.from = null; p.steps = []; p.path = []; const w = wildLevel(p.x, p.z); msg('You teleport' + (w ? ` into level ${w} Wilderness!` : '.'), w ? '#a00000' : '#000080'); return false; } };
+  }
   function crossDitch(loc) {
     const p = S.player, goingIn = p.x > 36;
     const jump = () => { moveEnt(p, [[36, loc.z], [goingIn ? 35 : 37, loc.z]]); p.runningStep = true; setAnim(p, 'pickup'); msg(goingIn ? 'You leap across the ditch into the Wilderness...' : 'You leap back across the ditch to safety.', goingIn ? '#a00000' : '#000080'); };
@@ -2049,6 +2061,6 @@ const Game = (() => {
     S, tick, msg, lvl, cur, combatLevel, totalLevel, invCount, freeSlots, itemOps, invAction, swapInv, unequip, bonuses, locOps,
     walkTo, interact, useItemOn, useItemOnItem, togglePrayer, openBank, bankDeposit, bankDepositAll, bankDepositEquip, bankWithdraw,
     shopBuy, shopSell, buyPrice, sellPrice, smith, openSmithing, load, logout, save, init, styleNames, weaponType, weaponKind,
-    homeTeleport, emote, resetActions, dropGround, fairyTeleport, rubLamp, offerItem, removeOffer, acceptTrade, declineTrade, tradeVal, requestItem, haggle, playerAd, acceptTradeRequest, mprice, castSpell, castOn, castOnItem, canCast, region, wildLevel, METALS, barOf,
+    homeTeleport, teleportTo, emote, resetActions, dropGround, fairyTeleport, rubLamp, offerItem, removeOffer, acceptTrade, declineTrade, tradeVal, requestItem, haggle, playerAd, acceptTradeRequest, mprice, castSpell, castOn, castOnItem, canCast, region, wildLevel, METALS, barOf,
   };
 })();

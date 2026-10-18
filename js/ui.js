@@ -290,6 +290,7 @@ const UI = (() => {
       }
     }
     if (tile) opts.push(O(act('Walk here'), () => { st.spellSel = null; Game.walkTo(tile[0], tile[1], { run: ctrlHeld }); }, { cross: 'yellow', walk: true }));
+    if (tile) opts.push(O(act('Teleport here'), () => { st.spellSel = null; Game.teleportTo(tile[0], tile[1]); }));
     return opts.concat(exam);
   }
 
@@ -426,7 +427,7 @@ const UI = (() => {
     const tx = Math.floor(p.rx + dx / mmZ), tz = Math.floor(p.rz + dz / mmZ);
     let near = null, nd = 7;
     for (const ic of World.mapIcons) { const d = Math.hypot((ic.x - p.rx) * mmZ - dx, (ic.z - p.rz) * mmZ - dz); if (d < nd) { nd = d; near = ic; } }
-    const opts = [O(act('Walk here'), () => Game.walkTo(tx, tz, { run: ctrlHeld }), { cross: 'yellow' })];
+    const opts = [O(act('Walk here'), () => Game.walkTo(tx, tz, { run: ctrlHeld }), { cross: 'yellow' }), O(act('Teleport here'), () => Game.teleportTo(tx, tz))];
     if (mmZ !== 4) opts.push(O(act('Reset zoom'), () => { mmZ = 4; }));
     return opts;
   }
@@ -604,7 +605,12 @@ const UI = (() => {
     Object.keys(names).forEach((k, i) => { const y = L.y + 28 + i * 11.6; if (worldMap.filter === k) { ctx.fillStyle = 'rgba(255,200,64,0.25)'; ctx.fillRect(L.x + 3, y - 6, 132, 12); } mapIcon(k, L.x + 12, y, 5); T(names[k], L.x + 22, y + 4, worldMap.filter && worldMap.filter !== k ? '#8a8070' : C.white, F11); });
     T(worldMap.filter ? 'Click again to show all' : 'Click a key to highlight', L.x + 69, L.y + 414, '#c0b090', F11, 'center');
     button(632, 462, 114, 26, 'Close map', false, F12);
-    T('Drag to move, scroll to zoom, double-click to walk there', 310, 501, '#c0b090', F11, 'center');
+    T('Drag to move, scroll to zoom, double-click to walk, right-click to teleport', 310, 501, '#c0b090', F11, 'center');
+  }
+  function mapOptions(x, y) {
+    const z = worldMap.zoom, wx = Math.floor(worldMap.cx + (x - 310) / z), wz = Math.floor(worldMap.cz + (y - 264) / z);
+    if (wx < 0 || wz < 0 || wx >= World.W || wz >= World.H) return [];
+    return [O(act('Teleport here'), () => { worldMap.open = false; Game.teleportTo(wx, wz); }), O(act('Walk here'), () => Game.walkTo(wx, wz, { run: ctrlHeld }))];
   }
   function worldMapDown(x, y) {
     if (x >= 632 && y >= 462 && x < 746 && y < 488) { worldMap.open = false; return; }
@@ -677,11 +683,11 @@ const UI = (() => {
     if (e.button === 1) { midDrag = { x, y, yaw: Render.cam.yaw, pitch: Render.cam.pitch }; return; }
     const st = S();
     if (!st.loggedIn) { loginClick(x, y); return; }
-    if (worldMap.open) { worldMapDown(x, y); return; }
     if (menu) {
       if (x >= menu.x && x < menu.x + menu.w && y >= menu.y + 19 && y < menu.y + menu.h) { const o = menu.opts[Math.floor((y - menu.y - 19) / 15)]; if (o) exec(o, menu.ox, menu.oy); }
       menu = null; return;
     }
+    if (worldMap.open) { if (e.button === 2 && x < 610) { openMenu(mapOptions(x, y), x, y); return; } worldMapDown(x, y); return; }
     const opts = optionsAt(x, y);
     if (e.button === 2 && inR(x, y, VP) && !rDrag) { rDrag = { x, y, yaw: Render.cam.yaw, pitch: Render.cam.pitch, moved: false, opts, e }; return; }
     if (e.button === 2) { openMenu(opts, x, y); return; }
@@ -1355,7 +1361,7 @@ const UI = (() => {
     syncFields();
     if (!st.loggedIn) { drawLogin(); return; }
     Render.setDestTile(S().loggedIn ? S().flag : null);
-    if (worldMap.open) { drawWorldMap(); return; }
+    if (worldMap.open) { drawWorldMap(); drawMenu(); drawTooltip(); return; }
     ctx.drawImage(frameCv, 0, 0);
     Render.setHoverTile(null);
     hoverOpts = (mouse.x >= 0 && !menu) ? optionsAt(mouse.x, mouse.y) : [];
@@ -1431,7 +1437,7 @@ const UI = (() => {
       mouse.x = x; mouse.y = y;
       t0 = { x: t.clientX, y: t.clientY, cx: x, cy: y, moved: false, long: false, yaw: Render.cam.yaw, pitch: Render.cam.pitch };
       clearTimeout(longTimer);
-      longTimer = setTimeout(() => { if (!t0 || t0.moved || !S().loggedIn || worldMap.open) return; t0.long = true; menu = null; openMenu(optionsAt(t0.cx, t0.cy), t0.cx, t0.cy); if (navigator.vibrate) navigator.vibrate(15); }, 480);
+      longTimer = setTimeout(() => { if (!t0 || t0.moved || !S().loggedIn) return; t0.long = true; menu = null; if (worldMap.open) { if (t0.cx < 610) openMenu(mapOptions(t0.cx, t0.cy), t0.cx, t0.cy); return; } openMenu(optionsAt(t0.cx, t0.cy), t0.cx, t0.cy); if (navigator.vibrate) navigator.vibrate(15); }, 480);
     }, { passive: false });
     cv.addEventListener('touchmove', e => {
       e.preventDefault();
