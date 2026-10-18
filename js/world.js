@@ -854,7 +854,14 @@ const World = (() => {
   // ---------- meshes ----------
   const roofMeshes = [];
   const pickables = [];
-  function tileUnderCol(x, z) { const c = UCOL[under[idx(x, z)]], n = tileNoise[idx(x, z)]; return [c[0] * n, c[1] * n, c[2] * n]; }
+  const SMOOTH_OV = new Set([O.PATH, O.MUD, O.SANDPATH]);
+  function tileUnderCol(x, z) {
+    const c = UCOL[under[idx(x, z)]], n = tileNoise[idx(x, z)];
+    // low-frequency patches: drier/yellower and lusher/darker areas like the RS2 ground
+    const patch = Math.sin(x * 0.21 + 1.3) * Math.cos(z * 0.19) + Math.sin((x + z) * 0.11) * 0.6;
+    const k = 1 + patch * 0.045;
+    return [c[0] * n * (k + patch * 0.03), c[1] * n * k, c[2] * n * (k - patch * 0.02)];
+  }
 
   function buildTerrain() {
     for (let z = 0; z <= H; z++) for (let x = 0; x <= W; x++) {
@@ -874,7 +881,7 @@ const World = (() => {
       b.h = s / n;
       for (let z = b.z0; z <= b.z1 + 1; z++) for (let x = b.x0; x <= b.x1 + 1; x++) vh[z * (W + 1) + x] = b.h;
     }
-    for (let i = 0; i < W * H; i++) tileNoise[i] = 0.93 + rnd() * 0.12;
+    for (let i = 0; i < W * H; i++) tileNoise[i] = 0.91 + rnd() * 0.15;
     const vnorm = (x, z) => { const hl = V(Math.max(0, x - 1), z), hr = V(Math.min(W, x + 1), z), hu = V(x, Math.max(0, z - 1)), hd = V(x, Math.min(H, z + 1)); const n = new THREE.Vector3(hl - hr, 2, hu - hd); return n.normalize(); };
     const vcache = [];
     for (let z = 0; z <= H; z++) for (let x = 0; x <= W; x++) {
@@ -900,13 +907,25 @@ const World = (() => {
         }
         continue;
       }
-      let oc = null;
-      if (o) { const c = OCOL[o], n = tileNoise[idx(x, z)]; oc = [c[0] * n, c[1] * n, c[2] * n]; }
-      for (const [cx, cz] of corners) {
-        pos.push(cx, V(cx, cz), cz);
-        const n = vnorm(cx, cz); nor.push(n.x, n.y, n.z);
-        const c = oc || VC(cx, cz); col.push(c[0] / 255, c[1] / 255, c[2] / 255);
-      }
+      // RS-style tile shapes: paths get diagonal half-tiles at their corners instead of hard squares
+      const tn = tileNoise[idx(x, z)], ocol = t => { const c = OCOL[t]; return [c[0] * tn, c[1] * tn, c[2] * tn]; };
+      const NW = [x, z], NE = [x + 1, z], SW = [x, z + 1], SE = [x + 1, z + 1];
+      const tri = (pts, colOf) => { for (const [cx, cz] of pts) { pos.push(cx, V(cx, cz), cz); const n = vnorm(cx, cz); nor.push(n.x, n.y, n.z); const c = colOf([cx, cz]); col.push(c[0] / 255, c[1] / 255, c[2] / 255); } };
+      const HALF = { NW: [[NW, SW, NE], [NE, SW, SE]], SE: [[NE, SW, SE], [NW, SW, NE]], NE: [[NW, SE, NE], [NW, SW, SE]], SW: [[NW, SW, SE], [NW, SE, NE]] };
+      const ovn = (xx, zz) => inb(xx, zz) ? over[idx(xx, zz)] : -1;
+      const nN = ovn(x, z - 1), nS = ovn(x, z + 1), nW = ovn(x - 1, z), nE = ovn(x + 1, z);
+      const sides = { NW: [nN, nW], NE: [nN, nE], SW: [nS, nW], SE: [nS, nE] };
+      const under = p => VC(p[0], p[1]);
+      if (o && SMOOTH_OV.has(o)) {
+        const cuts = Object.keys(sides).filter(k => sides[k][0] !== o && sides[k][1] !== o);
+        const oc = ocol(o);
+        if (cuts.length === 1) { const [cornerTri, rest] = HALF[cuts[0]]; tri(cornerTri, under); tri(rest, () => oc); }
+        else tri([NW, SW, NE, NE, SW, SE], () => oc);
+      } else if (!o) {
+        const fills = Object.keys(sides).filter(k => sides[k][0] === sides[k][1] && SMOOTH_OV.has(sides[k][0]));
+        if (fills.length === 1) { const k = fills[0], oc = ocol(sides[k][0]); const [cornerTri, rest] = HALF[k]; tri(cornerTri, () => oc); tri(rest, under); }
+        else tri([NW, SW, NE, NE, SW, SE], under);
+      } else { const oc = ocol(o); tri([NW, SW, NE, NE, SW, SE], () => oc); }
     }
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
