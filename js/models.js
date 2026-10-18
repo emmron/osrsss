@@ -433,6 +433,107 @@ const Models = (() => {
     for (let i = 0; i < 4; i++) { const l = pivot(body, (i % 2 ? 1 : -1) * 0.25, 0.2, (i < 2 ? 0.15 : -0.15)); box(0.25, 0.04, 0.04, '#2a2018', (i % 2 ? 1 : -1) * 0.1, -0.08, 0, l).rotation.z = (i % 2 ? -0.6 : 0.6); P.legs.push(l); }
     return root;
   }
+  // ---------- shaped quadrupeds (rounded bodies, real heads, ears, horns, tails) ----------
+  function beast(o) {
+    const [root, body, P] = quadBase();
+    const c = o.col, sh = k => Icons.shade(c, k);
+    const L = o.len, Wd = o.wid, BH = o.bodyH, Y = o.legLen + BH * 0.42;
+    // body: main barrel + chest + rump for a less "box" silhouette
+    part(sph(0.5, 8, 6), c, 0, Y, 0, body, Wd, BH, L);
+    part(sph(0.5, 7, 5), c, 0, Y + BH * 0.04, L * 0.28, body, Wd * 1.04, BH * 1.04, L * 0.45);
+    part(sph(0.5, 7, 5), sh(0.95), 0, Y + BH * 0.02, -L * 0.3, body, Wd * 1.02, BH * 1.0, L * 0.45);
+    if (o.belly) part(sph(0.5, 7, 4), o.belly, 0, Y - BH * 0.28, 0, body, Wd * 0.8, BH * 0.45, L * 0.75);
+    if (o.patches) for (const [x, y, z, r] of o.patches) part(sph(r, 6, 4), o.patches.col || '#2a2420', x * Wd, Y + y * BH, z * L, body, 1, 0.7, 1.3);
+    if (o.udder) part(sph(0.09, 6, 4), o.udder, 0, Y - BH * 0.5, -L * 0.2, body, 1.3, 0.8, 1.2);
+    if (o.hump) part(sph(0.5, 7, 5), c, 0, Y + BH * 0.5, -L * 0.05, body, Wd * 0.7, BH * 0.8, L * 0.4);
+    // legs: thigh + shin + hoof/paw
+    const lx = Wd * 0.32, lz = L * 0.33;
+    for (const [x, z] of [[-lx, lz], [lx, lz], [-lx, -lz], [lx, -lz]]) {
+      const l = pivot(body, x, Y - BH * 0.15, z);
+      part(cyl(o.legW * 1.35, o.legW, o.legLen * 0.55, 6), z > 0 ? c : sh(0.95), 0, -o.legLen * 0.25, 0, l);
+      part(cyl(o.legW, o.legW * 0.85, o.legLen * 0.55, 6), o.lower || c, 0, -o.legLen * 0.7, 0, l);
+      part(G('hoof' + o.legW, () => new THREE.BoxGeometry(o.legW * 2.3, 0.07, o.legW * 2.6)), o.hoof || sh(0.4), 0, -o.legLen - BH * 0.12 + 0.035, o.paw ? o.legW * 0.5 : 0, l);
+      P.legs.push(l);
+    }
+    // neck + head
+    const nk = pivot(body, 0, Y + BH * 0.2, L * 0.42);
+    if (o.neckLen) { const n = part(cyl(o.neckW || Wd * 0.22, o.neckW * 1.3 || Wd * 0.3, o.neckLen, 6), c, 0, o.neckLen * 0.4, o.neckLen * 0.25, nk); n.rotation.x = o.neckTilt ?? 0.6; }
+    P.head = pivot(nk, 0, o.neckLen ? o.neckLen * 0.8 : BH * 0.15, o.neckLen ? o.neckLen * 0.5 : 0.05);
+    const hl = o.headLen, hw = o.headW;
+    part(sph(0.5, 7, 5), c, 0, 0, hl * 0.25, P.head, hw, hw * 0.95, hl * 0.7);
+    part(sph(0.5, 7, 5), o.snoutCol || c, 0, -hw * 0.12, hl * 0.62, P.head, hw * (o.snoutW || 0.7), hw * 0.62, hl * 0.55);
+    part(sph(0.03, 4, 3), '#1a1010', -hw * 0.15, -hw * 0.05, hl * 0.9, P.head); part(sph(0.03, 4, 3), '#1a1010', hw * 0.15, -hw * 0.05, hl * 0.9, P.head);
+    for (const s of [-1, 1]) {
+      part(sph(0.035, 5, 4), o.eye || '#101010', s * hw * 0.38, hw * 0.18, hl * 0.42, P.head);
+      if (o.ears === 'pointy') { const e = part(cone(hw * 0.2, hw * 0.55, 4), sh(0.9), s * hw * 0.28, hw * 0.55, hl * 0.12, P.head); e.rotation.z = -s * 0.25; }
+      else if (o.ears === 'round') part(sph(hw * 0.17, 5, 4), sh(0.85), s * hw * 0.38, hw * 0.45, hl * 0.1, P.head, 1, 1, 0.5);
+      else if (o.ears === 'side') { const e = part(sph(hw * 0.2, 5, 4), sh(0.92), s * hw * 0.6, hw * 0.25, hl * 0.05, P.head, 1.4, 0.55, 0.8); e.rotation.z = s * 0.3; }
+      if (o.horns) { const h = part(cone(hw * 0.09, hw * 0.55, 5), o.horns, s * hw * 0.45, hw * 0.45, hl * 0.12, P.head); h.rotation.z = -s * 1.0; h.rotation.x = -0.3; }
+    }
+    if (o.horn) { const h = part(cone(hw * 0.09, hw * 0.9, 6), o.horn, 0, hw * 0.55, hl * 0.4, P.head); h.rotation.x = 0.5; }
+    if (o.mane) for (let i = 0; i < 4; i++) part(G('mane', () => new THREE.BoxGeometry(0.05, 0.16, 0.12)), o.mane, 0, (o.neckLen || 0.3) * (0.2 + i * 0.22), -0.02 + i * 0.05, nk);
+    // tail
+    P.tail = new THREE.Group(); P.tail.position.set(0, Y + BH * 0.25, -L * 0.5); body.add(P.tail);
+    if (o.tail === 'bushy') { const t = part(sph(0.5, 6, 4), o.tailCol || c, 0, -0.08, -0.22, P.tail, 0.14, 0.14, 0.5); t.rotation.x = -0.5; }
+    else if (o.tail) { const t = part(cyl(0.025, 0.02, o.tailLen || 0.45, 4), o.tailCol || c, 0, -(o.tailLen || 0.45) * 0.45, -0.05, P.tail); t.rotation.x = 0.25; if (o.tail === 'tuft') part(sph(0.06, 5, 4), o.tailCol || '#2a2420', 0, -(o.tailLen || 0.45) * 0.92, -0.12, P.tail, 1, 1.6, 1); }
+    if (o.scale) root.scale.setScalar(o.scale);
+    return root;
+  }
+  const BEASTS = {
+    cow: { col: '#ecebe4', len: 1.15, wid: 0.62, bodyH: 0.6, legLen: 0.55, legW: 0.065, headLen: 0.42, headW: 0.34, snoutCol: '#d8a8a0', ears: 'side', horns: '#e8e0c8', tail: 'tuft', tailCol: '#2a2420', udder: '#e8b0b0', neckLen: 0.22, neckTilt: 1.0, lower: '#e0dcd0', hoof: '#3a3028',
+      patches: Object.assign([[0.45, 0.2, 0.15, 0.17], [-0.42, 0.05, -0.2, 0.2], [0.2, 0.42, -0.32, 0.14], [-0.3, 0.38, 0.3, 0.12]], { col: '#2a2420' }) },
+    bear: { col: '#5a3a1e', len: 1.2, wid: 0.8, bodyH: 0.75, legLen: 0.45, legW: 0.1, headLen: 0.42, headW: 0.42, snoutCol: '#8a6a44', snoutW: 0.55, ears: 'round', tail: null, neckLen: 0.12, neckTilt: 1.2, paw: true, hoof: '#2a1a10' },
+    wolf: { col: '#c8c8d0', len: 0.95, wid: 0.42, bodyH: 0.42, legLen: 0.5, legW: 0.05, headLen: 0.5, headW: 0.28, snoutW: 0.55, ears: 'pointy', tail: 'bushy', neckLen: 0.2, neckTilt: 0.9, paw: true, hoof: '#4a4a50', belly: '#e8e8ee', eye: '#c0a020' },
+    camel: { col: '#c8a060', len: 1.1, wid: 0.5, bodyH: 0.55, legLen: 1.0, legW: 0.06, headLen: 0.4, headW: 0.24, snoutW: 0.6, ears: 'round', hump: true, tail: 'tuft', tailCol: '#8a6a3a', neckLen: 0.7, neckTilt: 0.5, hoof: '#6a5030' },
+    unicorn: { col: '#ececf4', len: 1.1, wid: 0.45, bodyH: 0.5, legLen: 0.8, legW: 0.055, headLen: 0.5, headW: 0.26, snoutW: 0.6, ears: 'pointy', horn: '#e8c030', mane: '#c8b8ff', tail: 'tuft', tailCol: '#c8b8ff', tailLen: 0.6, neckLen: 0.5, neckTilt: 0.5, hoof: '#a09070' },
+    catablepon: { col: '#3a4a2a', len: 1.25, wid: 0.72, bodyH: 0.7, legLen: 0.55, legW: 0.08, headLen: 0.48, headW: 0.4, snoutCol: '#4a5a3a', ears: 'side', horns: '#d8d0b0', tail: 'tuft', neckLen: 0.15, neckTilt: 1.3, hoof: '#1a1a10', eye: '#e02020' },
+  };
+
+  // ---------- dragon: long neck, horned head, membrane wings, tapering tail ----------
+  function dragonModel() {
+    const [root, body, P] = quadBase();
+    const c = '#2a7a2a', w = '#3a8a3a', belly = '#c8b880';
+    part(sph(0.5, 8, 6), c, 0, 1.25, 0, body, 1.0, 0.85, 2.0);
+    part(sph(0.5, 7, 5), belly, 0, 1.0, 0.1, body, 0.8, 0.4, 1.6);
+    for (let i = 0; i < 6; i++) { const sp = part(cone(0.08, 0.25, 4), '#1a4a1a', 0, 1.7 - Math.abs(i - 1.5) * 0.04, 0.6 - i * 0.3, body); sp.rotation.x = -0.3; }
+    // neck from segments
+    const nk = pivot(body, 0, 1.45, 0.85);
+    for (let i = 0; i < 4; i++) part(sph(0.5, 6, 5), i % 2 ? c : Icons.shade(c, 0.92), 0, 0.12 + i * 0.16, 0.08 + i * 0.1, nk, 0.38 - i * 0.03, 0.34, 0.38);
+    P.head = pivot(nk, 0, 0.72, 0.5);
+    part(sph(0.5, 7, 5), c, 0, 0, 0, P.head, 0.42, 0.36, 0.55);
+    part(sph(0.5, 7, 5), c, 0, -0.05, 0.36, P.head, 0.3, 0.22, 0.5);
+    part(sph(0.5, 6, 4), belly, 0, -0.16, 0.3, P.head, 0.26, 0.1, 0.48);
+    for (const s of [-1, 1]) {
+      part(sph(0.045, 5, 4), '#ff3010', s * 0.15, 0.08, 0.18, P.head);
+      const h = part(cone(0.05, 0.38, 5), '#e8e0c8', s * 0.12, 0.2, -0.12, P.head); h.rotation.x = -1.0; h.rotation.z = -s * 0.25;
+      part(cone(0.02, 0.07, 4), '#f0f0e0', s * 0.08, -0.15, 0.55, P.head).rotation.x = Math.PI;
+    }
+    // wings: bones + membrane triangles
+    const memb = new THREE.BufferGeometry();
+    memb.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, 1.8, 0.5, -0.2, 1.4, -0.1, -0.9, 0, 0, 0, 1.4, -0.1, -0.9, 0.6, -0.25, -1.1], 3));
+    memb.computeVertexNormals();
+    const wm = new THREE.MeshLambertMaterial({ color: w, side: THREE.DoubleSide, flatShading: true });
+    P.wings = [];
+    for (const s of [-1, 1]) {
+      const wg = pivot(body, s * 0.35, 1.6, 0.35); P.wings.push(wg);
+      const m = new THREE.Mesh(memb, wm); m.scale.x = s; wg.add(m);
+      const bone = part(cyl(0.035, 0.05, 1.9, 5), '#1a4a1a', s * 0.9, 0.25, -0.1, wg); bone.rotation.z = -s * 1.3;
+      wg.rotation.z = s * 0.25;
+    }
+    // legs
+    for (const [x, z] of [[-0.4, 0.65], [0.4, 0.65], [-0.42, -0.6], [0.42, -0.6]]) {
+      const l = pivot(body, x, 1.05, z);
+      part(cyl(0.16, 0.12, 0.55, 6), c, 0, -0.25, 0, l); part(cyl(0.11, 0.09, 0.5, 6), Icons.shade(c, 0.9), 0, -0.7, 0.05, l);
+      for (let k = -1; k <= 1; k++) part(cone(0.035, 0.14, 4), '#e8e0c8', k * 0.07, -0.95, 0.16, l).rotation.x = Math.PI / 2;
+      P.legs.push(l);
+    }
+    // tapering tail
+    P.tail = new THREE.Group(); P.tail.position.set(0, 1.15, -0.95); body.add(P.tail);
+    for (let i = 0; i < 6; i++) part(sph(0.5, 6, 4), i % 2 ? c : Icons.shade(c, 0.9), 0, -i * 0.06, -0.2 - i * 0.28, P.tail, 0.32 - i * 0.045, 0.28 - i * 0.04, 0.4);
+    const tip = part(cone(0.1, 0.3, 4), '#1a4a1a', 0, -0.36, -1.9, P.tail); tip.rotation.x = -Math.PI / 2;
+    return root;
+  }
+
   function animateAnimal(root, anim, moving, time) {
     const P = root.userData.parts;
     const kind = root.userData.kind;
@@ -450,6 +551,7 @@ const Models = (() => {
       if (moving) { const s = Math.sin(time * 8); P.legs.forEach((l, i) => { l.rotation.x = (i === 0 || i === 3 ? 1 : -1) * s * 0.5; }); }
       else if (P.head && Math.sin(time * 0.4 + root.id) > 0.6) P.head.rotation.x = 0.6;
       if (P.tail) P.tail.rotation.z = Math.sin(time * 3) * 0.3;
+      if (P.wings) P.wings.forEach((w, i) => { w.rotation.z = (i ? 1 : -1) * (0.25 + Math.sin(time * (moving ? 6 : 1.5)) * (moving ? 0.35 : 0.08)); });
       if (a === 'attack') { const sw = Math.sin(Math.min(1, t / 0.4) * Math.PI); if (P.head) P.head.rotation.x = -0.4 * sw; P.body.rotation.x = -0.15 * sw; if (P.tail && root.userData.sting) P.tail.rotation.x = 0.6 * sw; }
     }
     if (a === 'death') { const p = Math.min(1, t / 0.8); P.body.rotation.z = p * Math.PI / 2; P.body.position.y = p * 0.1; }
@@ -461,10 +563,10 @@ const Models = (() => {
   function npcModel(kind) {
     switch (kind) {
       case 'chicken': return chicken();
-      case 'cow': return cow();
+      case 'cow': return beast(BEASTS.cow);
       case 'rat': return rat();
       case 'scorpion': { const s = scorpion(); s.userData.sting = true; return s; }
-      case 'goblin': return humanoid({ skin: '#5c8a3a', hair: null, shirt: '#7a6a4a', pants: '#5a4a32', boots: '#3a2a1a', scale: 0.78, ears: true, sleeves: false });
+      case 'goblin': { const g = humanoid({ skin: '#5c8a3a', hair: null, shirt: '#7a6a4a', pants: '#5a4a32', boots: '#3a2a1a', scale: 0.78, ears: true, sleeves: false }); const P = g.userData.parts; P.head.scale.setScalar(1.3); const n = part(cone(0.05, 0.16, 5), '#4c7a2a', 0, 0.16, 0.2, P.head); n.rotation.x = Math.PI / 2; part(G('gtooth', () => new THREE.BoxGeometry(0.02, 0.04, 0.02)), '#f0f0d0', 0.04, 0.09, 0.15, P.head); return g; }
       case 'man': { const c = MAN_SHIRTS[manI++ % MAN_SHIRTS.length]; return humanoid({ skin: manI % 3 ? '#c8915c' : '#a06a40', hair: manI % 2 ? '#3a2410' : '#7a5a30', shirt: c, pants: '#5a4a3a', beard: manI % 4 === 0 ? '#3a2410' : null }); }
       case 'woman': { const c = MAN_SHIRTS[(manI++ + 3) % MAN_SHIRTS.length]; return humanoid({ skin: '#d0a070', hair: '#8a4a1a', shirt: c, pants: c, robe: Icons.shade(c, 0.85) }); }
       case 'bandit': return humanoid({ skin: '#b07a4c', hair: '#201810', shirt: '#4a4a3a', pants: '#2a2a2a', hood: '#2a2a22' });
@@ -499,11 +601,7 @@ const Models = (() => {
       case 'hand': { const [root, body, P] = quadBase(); box(0.3, 0.12, 0.35, '#c8a888', 0, 0.12, 0, body); for (let i = 0; i < 4; i++) { const f = pivot(body, -0.12 + i * 0.08, 0.1, 0.18); box(0.05, 0.05, 0.25, '#c8a888', 0, -0.03, 0.1, f); P.legs.push(f); } box(0.07, 0.05, 0.18, '#c8a888', 0.2, 0.1, 0.05, body).rotation.y = -0.6; return root; }
       case 'spider': { const [root, body, P] = quadBase(); box(0.5, 0.3, 0.6, '#2a2a1a', 0, 0.4, -0.15, body); P.head = pivot(body, 0, 0.4, 0.25); box(0.32, 0.24, 0.3, '#3a3a20', 0, 0, 0, P.head); box(0.05, 0.05, 0.02, '#ff2020', -0.08, 0.05, 0.15, P.head); box(0.05, 0.05, 0.02, '#ff2020', 0.08, 0.05, 0.15, P.head);
         for (let i = 0; i < 8; i++) { const s = i < 4 ? -1 : 1, k = i % 4; const l = pivot(body, s * 0.22, 0.42, 0.2 - k * 0.15); const seg = box(0.55, 0.05, 0.05, '#1a1a10', s * 0.25, 0.05, 0, l); seg.rotation.z = -s * 0.5; P.legs.push(l); } return root; }
-      case 'dragon': { const [root, body, P] = quadBase(); const c = '#2a7a2a';
-        box(0.9, 0.8, 2.0, c, 0, 1.2, 0, body); P.head = pivot(body, 0, 1.6, 1.1); box(0.45, 0.45, 0.8, c, 0, 0.1, 0.4, P.head); box(0.4, 0.15, 0.4, '#e0d0a0', 0, -0.1, 0.65, P.head); for (const s of [-1, 1]) box(0.06, 0.3, 0.06, '#e0d0a0', s * 0.15, 0.4, 0.1, P.head).rotation.x = -0.5;
-        box(0.3, 0.3, 0.7, c, 0, 1.45, 0.7, body).rotation.x = -0.6; P.tail = box(0.3, 0.3, 1.6, c, 0, 1.0, -1.6, body);
-        for (const s of [-1, 1]) { const w = box(1.8, 0.05, 1.2, '#3a8a3a', s * 1.2, 1.8, 0, body); w.rotation.z = s * 0.4; }
-        for (const [x, z] of [[-0.35, 0.7], [0.35, 0.7], [-0.35, -0.7], [0.35, -0.7]]) { const l = pivot(body, x, 0.9, z); box(0.25, 0.9, 0.25, c, 0, -0.45, 0, l); P.legs.push(l); } return root; }
+      case 'dragon': return dragonModel();
       case 'dark_wizard': return humanoid({ skin: '#c8a080', hair: '#1a1a1a', shirt: '#2a1a4a', pants: '#2a1a4a', robe: '#2a1a4a', wizhat: '#1a1a2a', beard: '#3a3a3a' });
       case 'hill_giant': return humanoid({ skin: '#c8a070', hair: '#5a3a1a', shirt: '#7a5a3a', pants: '#5a4028', boots: '#3a2a18', scale: 1.7, sleeves: false });
       case 'barbarian': return humanoid({ skin: '#d0a070', hair: '#c08030', shirt: '#7a6a5a', pants: '#5a4a3a', beard: '#c08030', sleeves: false });
@@ -517,9 +615,9 @@ const Models = (() => {
         for (const [x, z] of [[-0.4, 0.3], [0.4, 0.3], [-0.45, -0.35], [0.45, -0.35]]) { const l = pivot(body, x, 0.3, z); box(0.18, 0.3, 0.35, '#3a7a22', 0, -0.15, 0, l); P.legs.push(l); } return root; }
       case 'zombie': return humanoid({ skin: '#7a9a6a', hair: '#2a2a1a', shirt: '#4a4a3a', pants: '#3a3a2a', boots: '#2a2a1a' });
       case 'spider_small': { const s = npcModel('spider'); s.scale.setScalar(0.45); return s; }
-      case 'unicorn': { const c = npcModel('cow'); c.traverse(o => { if (o.material && o.material.color) { o.material = o.material.clone(); const hsl = {}; o.material.color.getHSL(hsl); if (hsl.l < 0.5) o.material.color.set('#e8e8f0'); else o.material.color.set('#f8f8ff'); } }); const P = c.userData.parts; const h = mesh(cone(0.05, 0.4, 5), '#f0e0a0', 0, 0.3, 0.25, P.head); h.rotation.x = 0.5; return c; }
-      case 'bear': { const c = npcModel('cow'); c.traverse(o => { if (o.material && o.material.color) { o.material = o.material.clone(); o.material.color.set('#5a3a1e'); } }); c.scale.set(1.1, 0.9, 0.9); return c; }
-      case 'wolf': { const c = npcModel('cow'); c.traverse(o => { if (o.material && o.material.color) { o.material = o.material.clone(); o.material.color.set('#d8d8e0'); } }); c.scale.set(0.75, 0.7, 0.85); return c; }
+      case 'unicorn': return beast(BEASTS.unicorn);
+      case 'bear': return beast(BEASTS.bear);
+      case 'wolf': return beast(BEASTS.wolf);
       case 'hobgoblin': return humanoid({ skin: '#8a7a4a', hair: null, shirt: '#6a3a2a', pants: '#4a3a2a', boots: '#2a1a10', scale: 1.15, ears: true, sleeves: false });
       case 'black_knight': { const g = humanoid({ skin: '#c8915c', hair: '#1a1a1a', shirt: '#2a2a2a', pants: '#2a2a2a' }); applyEquipment(g, { head: 'bk_helm', body: 'bk_body', legs: 'bk_legs', weapon: 'iron_sword', shield: 'bk_shield' }); return g; }
       case 'moss_giant': return humanoid({ skin: '#a08a60', hair: '#4a7a2a', shirt: '#4a6a2a', pants: '#3a5a1a', boots: '#2a2a1a', beard: '#4a8a2a', scale: 1.8, sleeves: false });
@@ -549,12 +647,12 @@ const Models = (() => {
         applyEquipment(g, { head: gear[0], body: gear[1], legs: gear[2], weapon: gear[3], shield: gear[4] }); return g; }
       case 'emir': return humanoid({ skin: '#a06a40', hair: '#1a1a1a', shirt: '#e8e0c8', pants: '#e8e0c8', robe: '#d8c890', beard: '#1a1a1a', hat: '#e8c030', cape: '#8a1a8a' });
       case 'duellist': { const g = humanoid({ skin: '#b07a4c', hair: '#3a2410', shirt: '#8a2a2a', pants: '#3a3028', sleeves: false }); applyEquipment(g, { weapon: 'steel_scimitar', shield: 'steel_kiteshield' }); return g; }
-      case 'camel': { const c = npcModel('cow'); c.traverse(o => { if (o.material && o.material.color) { o.material = o.material.clone(); o.material.color.set('#c8a060'); } }); const hump = new THREE.Mesh(blobGeo, mat('#b89050')); hump.scale.set(0.35, 0.3, 0.45); hump.position.set(0, 1.45, 0); c.add(hump); c.scale.set(0.95, 1.1, 1.0); return c; }
+      case 'camel': return beast(BEASTS.camel);
       case 'minotaur': { const g = humanoid({ skin: '#6a4428', hair: '#3a2414', shirt: '#6a4428', pants: '#4a3018', boots: '#2a1a0a', scale: 1.15, sleeves: false, ears: true });
         for (const s of [-1, 1]) { const h = new THREE.Mesh(Models.cone(0.05, 0.3, 5), mat('#e8e0c0')); h.position.set(s * 0.16, 0.38, 0); h.rotation.z = -s * 1.0; g.userData.parts.head.add(h); }
         applyEquipment(g, { weapon: 'iron_scimitar' }); return g; }
       case 'flesh_crawler': { const s = npcModel('spider'); s.traverse(o => { if (o.material && o.material.color) { o.material = o.material.clone(); o.material.color.multiply(new THREE.Color('#ff9a80')).multiplyScalar(2.4); } }); s.scale.setScalar(0.75); return s; }
-      case 'catablepon': { const c = npcModel('cow'); c.traverse(o => { if (o.material && o.material.color) { o.material = o.material.clone(); o.material.color.set('#3a4a2a'); } }); c.scale.set(1.1, 1.05, 1.0); return c; }
+      case 'catablepon': return beast(BEASTS.catablepon);
       case 'pit_spider': { const s = npcModel('spider'); s.scale.setScalar(0.85); return s; }
       case 'ankou': { const g = humanoid({ skin: '#e0dce8', hair: null, shirt: '#3a1a5a', pants: '#3a1a5a', robe: '#2a1048', hood: '#2a1048' }); g.traverse(o => { if (o.material) { o.material = o.material.clone(); o.material.transparent = true; o.material.opacity = 0.82; } }); applyEquipment(g, { weapon: 'steel_scimitar' }); return g; }
       case 'chaos_druid': return humanoid({ skin: '#c8a080', hair: '#5a5a4a', shirt: '#2a2a2a', pants: '#2a2a2a', robe: '#3a3a2a', hood: '#1a1a1a', beard: '#8a8a7a' });
