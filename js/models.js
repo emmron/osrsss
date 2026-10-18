@@ -26,6 +26,8 @@ const Tex = (() => {
     cobble: (g, r) => { noise(g, r, [92, 88, 82], 10); for (let i = 0; i < 46; i++) { const x = r() * 64, y = r() * 64, w = 5 + r() * 5; const v = 100 + r() * 34 | 0; g.fillStyle = `rgb(${v},${v - 3},${v - 8})`; g.beginPath(); g.ellipse(x, y, w / 2, w / 2.6, r() * 3, 0, 7); g.fill(); g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(x - 2, y + 2, 4, 1); } },
     water: (g, r) => { noise(g, r, [44, 74, 132], 10); for (let i = 0; i < 40; i++) { g.fillStyle = `rgba(150,190,240,${0.15 + r() * 0.25})`; g.fillRect(r() * 64, r() * 64, 4 + r() * 8, 1); } },
     lava: (g, r) => { noise(g, r, [230, 96, 24], 50); for (let i = 0; i < 26; i++) { g.fillStyle = r() < 0.5 ? 'rgba(60,16,8,0.55)' : 'rgba(255,220,80,0.6)'; g.beginPath(); g.ellipse(r() * 64, r() * 64, 2 + r() * 6, 1 + r() * 3, r() * 3, 0, 7); g.fill(); } },
+    rsleaf: (g, r) => { g.fillStyle = 'rgb(176,186,160)'; g.fillRect(0, 0, 64, 64); for (let i = 0; i < 70; i++) { g.fillStyle = 'rgba(20,30,10,0.55)'; g.beginPath(); g.ellipse(r() * 64, r() * 64, 2 + r() * 3, 1 + r() * 2, r() * 3, 0, 7); g.fill(); }
+      for (let i = 0; i < 260; i++) { const k = r(); g.fillStyle = k < 0.35 ? 'rgba(255,255,225,0.55)' : k < 0.7 ? 'rgba(210,225,180,0.6)' : 'rgba(60,80,40,0.6)'; g.beginPath(); g.ellipse(r() * 64, r() * 64, 2.2, 1.1, r() * 3, 0, 7); g.fill(); } },
     leaves: (g, r) => { noise(g, r, [255, 255, 255], 40); for (let i = 0; i < 90; i++) { const x = r() * 64, y = r() * 64; g.fillStyle = r() < 0.5 ? 'rgba(0,0,0,0.25)' : 'rgba(255,255,220,0.25)'; g.beginPath(); g.ellipse(x, y, 2.5, 1.5, r() * 3, 0, 7); g.fill(); } },
     bark: (g, r) => { noise(g, r, [235, 235, 235], 30); for (let x = 0; x < 64; x += 4 + (r() * 3 | 0)) { g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(x, 0, 1, 64); } },
     rock: (g, r) => { noise(g, r, [235, 235, 235], 50); for (let i = 0; i < 30; i++) { g.fillStyle = 'rgba(0,0,0,0.2)'; g.fillRect(r() * 64, r() * 64, 3, 2); } },
@@ -494,80 +496,94 @@ const Models = (() => {
   const dodeGeo = new THREE.DodecahedronGeometry(1, 0);
   const leafMat = c => tmat('leaves', c);
   const barkMat = c => tmat('bark', c);
-  // RS2-style canopy: one lumpy, faceted mass with darker underside, built from a displaced icosphere
-  const canopyGeos = {};
-  function canopyGeo(key, top, bot, variant) {
-    const k = key + variant;
-    if (canopyGeos[k]) return canopyGeos[k];
-    const g = new THREE.IcosahedronGeometry(1, 1);
-    const p = g.attributes.position, cols = [];
-    const T = new THREE.Color(top), B = new THREE.Color(bot), c = new THREE.Color();
-    const h = (x, y, z) => { const v = Math.sin(x * 12.9898 + y * 78.233 + z * 37.719 + variant * 11.3) * 43758.5453; return v - Math.floor(v); };
-    for (let i = 0; i < p.count; i++) {
-      const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
-      const d = 0.78 + h(Math.round(x * 100), Math.round(y * 100), Math.round(z * 100)) * 0.42;
-      p.setXYZ(i, x * d, y * d * (y < 0 ? 0.62 : 1), z * d);
+  // RS2-style trees: tall trunk, branches reaching into several leafy clumps.
+  // Each type has 6 pre-merged variants (one canopy + one bark mesh per tree) to stay fast.
+  const TREE_SPECS = {
+    tree: { h: 1.7, rb: 0.2, rt: 0.13, bark: '#6b4a2a', n: 6, ring: 0.62, size: 0.56, cy: 2.55, ys: 0.8, top: '#5a962e', bot: '#183410', crown: 0.72 },
+    oak: { h: 1.8, rb: 0.32, rt: 0.22, bark: '#5a3e22', n: 8, ring: 0.95, size: 0.68, cy: 2.75, ys: 0.75, top: '#548a2a', bot: '#152e0c', crown: 0.95 },
+    maple: { h: 1.8, rb: 0.24, rt: 0.15, bark: '#5a3a22', n: 7, ring: 0.72, size: 0.58, cy: 2.7, ys: 0.8, top: '#e08a2c', bot: '#5a1e0c', crown: 0.78 },
+    yew: { h: 1.9, rb: 0.4, rt: 0.27, bark: '#4a3a26', n: 9, ring: 1.05, size: 0.74, cy: 2.85, ys: 0.78, top: '#3e6e28', bot: '#0c1e08', crown: 1.0 },
+    willow: { h: 1.9, rb: 0.26, rt: 0.16, bark: '#5a4a2a', n: 5, ring: 0.55, size: 0.55, cy: 2.65, ys: 0.6, top: '#9ab842', bot: '#3a5a18', crown: 0.7, fronds: '#7a9a30' },
+    magic: { h: 2.0, rb: 0.26, rt: 0.16, bark: '#9a9a8a', n: 6, ring: 0.68, size: 0.46, cy: 2.65, ys: 0.85, top: '#80e0ff', bot: '#14507a', crown: 0.6, glow: true },
+    teak: { h: 2.0, rb: 0.2, rt: 0.13, bark: '#7a6040', n: 5, ring: 0.68, size: 0.56, cy: 2.6, ys: 0.48, top: '#5e8e2e', bot: '#223e12', crown: 0.75 },
+    mahogany: { h: 2.2, rb: 0.26, rt: 0.17, bark: '#6a3a24', n: 6, ring: 0.78, size: 0.62, cy: 2.9, ys: 0.5, top: '#4e7e28', bot: '#183410', crown: 0.85 },
+  };
+  function mergeGeos(list) {
+    const pos = [], nor = [], uv = [], col = [];
+    for (const [geo, m, c] of list) {
+      const g = (geo.index ? geo.toNonIndexed() : geo.clone()); g.applyMatrix4(m);
+      const P = g.attributes.position, N = g.attributes.normal, U = g.attributes.uv, C = g.attributes.color;
+      for (let i = 0; i < P.count; i++) {
+        pos.push(P.getX(i), P.getY(i), P.getZ(i)); nor.push(N.getX(i), N.getY(i), N.getZ(i));
+        uv.push(U ? U.getX(i) : 0, U ? U.getY(i) : 0);
+        if (C) col.push(C.getX(i), C.getY(i), C.getZ(i)); else { const cc = new THREE.Color(c || '#ffffff'); col.push(cc.r, cc.g, cc.b); }
+      }
     }
-    for (let i = 0; i < p.count; i += 3) {
-      const y = (p.getY(i) + p.getY(i + 1) + p.getY(i + 2)) / 3;
-      const t = Math.max(0, Math.min(1, (y + 0.7) / 1.5));
-      c.copy(B).lerp(T, t); const f = 0.88 + h(i, variant, 3) * 0.24; c.multiplyScalar(f);
-      for (let j = 0; j < 3; j++) cols.push(c.r, c.g, c.b);
+    const out = new THREE.BufferGeometry();
+    out.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); out.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+    out.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); out.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    out.computeBoundingSphere();
+    return out;
+  }
+  const treeVariants = {};
+  function treeVariant(type, v) {
+    const k = type + v; if (treeVariants[k]) return treeVariants[k];
+    const sp = TREE_SPECS[type];
+    let seed = (type.length * 7919 + v * 104729) % 2147483647 || 1; const r = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+    const M = (x, y, z, sx, sy, sz, ry) => new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, ry || 0, 0)), new THREE.Vector3(sx, sy, sz));
+    const bark = [], leaf = [];
+    // trunk, root flare and roots
+    bark.push([new THREE.CylinderGeometry(sp.rt, sp.rb, sp.h, 7), M(0, sp.h / 2, 0, 1, 1, 1)]);
+    bark.push([new THREE.CylinderGeometry(sp.rb, sp.rb * 1.7, 0.25, 7), M(0, 0.12, 0, 1, 1, 1)]);
+    const branch = (from, to, r0, r1) => {
+      const dir = new THREE.Vector3().subVectors(to, from), len = dir.length();
+      const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
+      const mid = new THREE.Vector3().addVectors(from, to).multiplyScalar(0.5);
+      bark.push([new THREE.CylinderGeometry(r1, r0, len, 5), new THREE.Matrix4().compose(mid, q, new THREE.Vector3(1, 1, 1))]);
+    };
+    for (let i = 0; i < 3; i++) { const a = i * 2.1 + r(); branch(new THREE.Vector3(0, 0.15, 0), new THREE.Vector3(Math.cos(a) * sp.rb * 2.2, 0.0, Math.sin(a) * sp.rb * 2.2), sp.rb * 0.45, sp.rb * 0.25); }
+    // clumps around a ring, each fed by a branch
+    const T = new THREE.Color(sp.top), Bc = new THREE.Color(sp.bot);
+    const clump = (x, y, z, sz, ysc) => {
+      const g = new THREE.IcosahedronGeometry(1, 1), P = g.attributes.position, cols = [], c = new THREE.Color();
+      const hsh = (a, b, cc) => { const t = Math.sin(a * 12.99 + b * 78.23 + cc * 37.7 + v * 5.1 + x * 3.3) * 43758.55; return t - Math.floor(t); };
+      for (let i = 0; i < P.count; i++) { const px = P.getX(i), py = P.getY(i), pz = P.getZ(i); const d = 0.8 + hsh(Math.round(px * 100), Math.round(py * 100), Math.round(pz * 100)) * 0.38; P.setXYZ(i, px * d, py * d * (py < 0 ? 0.65 : 1), pz * d); }
+      for (let i = 0; i < P.count; i += 3) {
+        const wy = y + (P.getY(i) + P.getY(i + 1) + P.getY(i + 2)) / 3 * sz * ysc;
+        const t = Math.max(0, Math.min(1, (wy - (sp.cy - sp.size * 1.4)) / (sp.size * 2.6)));
+        c.copy(Bc).lerp(T, t).multiplyScalar(0.84 + hsh(i, 1, 2) * 0.32);
+        for (let j = 0; j < 3; j++) cols.push(c.r, c.g, c.b);
+      }
+      g.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+      leaf.push([g, M(x, y, z, sz, sz * ysc, sz, r() * 6.28)]);
+    };
+    const top = new THREE.Vector3(0, sp.h - 0.05, 0);
+    for (let i = 0; i < sp.n; i++) {
+      const a = i / sp.n * Math.PI * 2 + r() * 0.5, rr = sp.ring * (0.75 + r() * 0.35);
+      const x = Math.cos(a) * rr, z = Math.sin(a) * rr, y = sp.cy - 0.15 + (r() - 0.5) * 0.45;
+      clump(x, y, z, sp.size * (0.85 + r() * 0.3), sp.ys);
+      if (i < 4) branch(top, new THREE.Vector3(x * 0.75, y - sp.size * 0.35, z * 0.75), sp.rt * 0.6, sp.rt * 0.3);
     }
-    g.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
-    g.computeVertexNormals();
-    return canopyGeos[k] = g;
-  }
-  const canopyMat = () => mat('#ffffff', { map: Tex.get('leaves'), vertexColors: true });
-  function lump(g, key, top, bot, r, x, y, z, sx, sy, sz) {
-    const m = mesh(canopyGeo(key, top, bot, Math.floor(r() * 4)), canopyMat(), x, y, z, g);
-    m.scale.set(sx, sy, sz); m.rotation.y = r() * 6.28; return m;
-  }
-  function trunk(g, h, rb, rt, col, r, branches) {
-    mesh(cyl(rt, rb, h, 7), barkMat(col), 0, h / 2, 0, g);
-    mesh(cyl(rb, rb * 1.6, 0.22, 7), barkMat(col), 0, 0.11, 0, g); // root flare
-    for (let i = 0; i < (branches || 0); i++) {
-      const a = i / branches * 6.28 + r(), len = 0.55 + r() * 0.3;
-      const b = mesh(cyl(rt * 0.35, rt * 0.7, len, 5), barkMat(col), Math.cos(a) * len * 0.35, h - 0.05 + len * 0.3, Math.sin(a) * len * 0.35, g);
-      b.rotation.set(Math.sin(a) * 0.9, 0, -Math.cos(a) * 0.9);
+    clump((r() - 0.5) * 0.2, sp.cy + sp.size * 0.55, (r() - 0.5) * 0.2, sp.crown, sp.ys);
+    if (sp.fronds) for (let i = 0; i < 16; i++) {
+      const a = i / 16 * Math.PI * 2 + r() * 0.2, rr = sp.ring + 0.25 + r() * 0.15, len = 1.2 + r() * 0.5;
+      const g = new THREE.BoxGeometry(0.16, len, 0.05);
+      leaf.push([g, new THREE.Matrix4().compose(new THREE.Vector3(Math.cos(a) * rr, sp.cy - len / 2 + 0.1, Math.sin(a) * rr), new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.sin(a) * 0.15, -a, -Math.cos(a) * 0.15)), new THREE.Vector3(1, 1, 1)), i % 2 ? sp.fronds : sp.top]);
     }
+    return treeVariants[k] = { bark: mergeGeos(bark), leaf: mergeGeos(leaf) };
   }
+  const rsLeafTex = () => { if (!rsLeafTex.t) { rsLeafTex.t = Tex.get('rsleaf').clone(); rsLeafTex.t.needsUpdate = true; rsLeafTex.t.repeat.set(2, 2); } return rsLeafTex.t; };
   function tree(type, r) {
+    if (TREE_SPECS[type]) {
+      const sp = TREE_SPECS[type], tv = treeVariant(type, Math.floor(r() * 6));
+      const g = new THREE.Group();
+      g.add(new THREE.Mesh(tv.bark, mat('#ffffff', { map: Tex.get('bark'), vertexColors: true, color: sp.bark })));
+      g.add(new THREE.Mesh(tv.leaf, sp.glow ? mat('#ffffff', { map: rsLeafTex(), vertexColors: true, emissive: '#103048' }) : mat('#ffffff', { map: rsLeafTex(), vertexColors: true })));
+      g.rotation.y = r() * Math.PI * 2; g.scale.setScalar((type === 'yew' ? 1.12 : 1) * (0.9 + r() * 0.2));
+      return g;
+    }
     const g = new THREE.Group();
-    if (type === 'tree') {
-      trunk(g, 1.25, 0.2, 0.13, '#6b4a2a', r, 3);
-      lump(g, 'n', '#4f8a2c', '#244a16', r, 0, 1.95, 0, 0.95, 0.75, 0.95);
-      for (let i = 0; i < 3; i++) { const a = i * 2.1 + r(); lump(g, 'n', '#4f8a2c', '#244a16', r, Math.cos(a) * 0.55, 1.75 + r() * 0.35, Math.sin(a) * 0.55, 0.55, 0.48, 0.55); }
-    } else if (type === 'oak') {
-      trunk(g, 1.45, 0.3, 0.2, '#5a3e22', r, 4);
-      lump(g, 'o', '#4c7e28', '#203e16', r, 0, 2.3, 0, 1.25, 0.85, 1.25);
-      for (let i = 0; i < 4; i++) { const a = i * 1.57 + r() * 0.5; lump(g, 'o', '#4c7e28', '#203e16', r, Math.cos(a) * 0.8, 1.95 + r() * 0.4, Math.sin(a) * 0.8, 0.65, 0.55, 0.65); }
-    } else if (type === 'willow') {
-      trunk(g, 1.5, 0.26, 0.16, '#5a4a2a', r, 3);
-      lump(g, 'w', '#8aaa3c', '#4a6a20', r, 0, 2.05, 0, 1.0, 0.55, 1.0);
-      for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2 + r() * 0.3, rr = 0.75 + r() * 0.2; const c = mesh(cone(0.2, 1.3, 4), leafMat(i % 2 ? '#7a9a34' : '#6a8a2c'), Math.cos(a) * rr, 1.35, Math.sin(a) * rr, g); c.rotation.x = Math.PI; c.rotation.z = Math.cos(a) * 0.18; c.rotation.x += Math.sin(a) * 0.18; }
-    } else if (type === 'maple') {
-      trunk(g, 1.45, 0.24, 0.15, '#5a3a22', r, 3);
-      lump(g, 'm', '#d07a2a', '#7a2e10', r, 0, 2.2, 0, 1.0, 0.85, 1.0);
-      for (let i = 0; i < 4; i++) { const a = i * 1.57 + r(); lump(g, 'm', '#d07a2a', '#7a2e10', r, Math.cos(a) * 0.6, 1.95 + r() * 0.4, Math.sin(a) * 0.6, 0.55, 0.5, 0.55); }
-    } else if (type === 'yew') {
-      trunk(g, 1.5, 0.38, 0.26, '#4a3a26', r, 5);
-      lump(g, 'y', '#3e6a28', '#183010', r, 0, 2.35, 0, 1.35, 0.95, 1.35);
-      for (let i = 0; i < 5; i++) { const a = i * 1.26 + r() * 0.4; lump(g, 'y', '#3e6a28', '#183010', r, Math.cos(a) * 0.95, 1.9 + r() * 0.5, Math.sin(a) * 0.95, 0.7, 0.6, 0.7); }
-      g.scale.setScalar(1.12);
-    } else if (type === 'magic') {
-      trunk(g, 1.8, 0.26, 0.16, '#9a9a8a', r, 5);
-      for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; const b = mesh(canopyGeo('mg', '#70d8ff', '#1a5a88', i % 4), mat('#ffffff', { map: Tex.get('leaves'), vertexColors: true, emissive: '#103048' }), Math.cos(a) * 0.65, 2.15 + r() * 0.5, Math.sin(a) * 0.65, g); b.scale.setScalar(0.42 + r() * 0.12); }
-      const t = mesh(canopyGeo('mg', '#70d8ff', '#1a5a88', 1), mat('#ffffff', { map: Tex.get('leaves'), vertexColors: true, emissive: '#103048' }), 0, 2.6, 0, g); t.scale.setScalar(0.6);
-    } else if (type === 'teak') {
-      trunk(g, 1.8, 0.2, 0.13, '#7a6040', r, 3);
-      lump(g, 't', '#5a8a2c', '#2a4a16', r, 0, 2.15, 0, 1.0, 0.45, 1.0);
-      for (let i = 0; i < 3; i++) { const a = i * 2.1 + r(); lump(g, 't', '#5a8a2c', '#2a4a16', r, Math.cos(a) * 0.6, 2.0 + r() * 0.3, Math.sin(a) * 0.6, 0.55, 0.3, 0.55); }
-    } else if (type === 'mahogany') {
-      trunk(g, 2.0, 0.26, 0.17, '#6a3a24', r, 4);
-      lump(g, 'h', '#4a7a26', '#1e3e12', r, 0, 2.4, 0, 1.15, 0.5, 1.15);
-      for (let i = 0; i < 4; i++) { const a = i * 1.57 + r(); lump(g, 'h', '#4a7a26', '#1e3e12', r, Math.cos(a) * 0.7, 2.25 + r() * 0.3, Math.sin(a) * 0.7, 0.6, 0.35, 0.6); }
-    } else if (type === 'banana') {
+    if (type === 'banana') {
       for (let i = 0; i < 4; i++) mesh(cyl(0.08, 0.1, 0.4, 5), barkMat('#7a8a3a'), 0, 0.2 + i * 0.4, 0, g);
       for (let i = 0; i < 6; i++) { const f = box(0.3, 0.03, 1.1, leafMat('#5aa030'), Math.sin(i * 1.05) * 0.45, 1.75, Math.cos(i * 1.05) * 0.45, g); f.rotation.y = i * 1.05; f.rotation.x = 0.5; }
       const fr = new THREE.Group(); g.add(fr); g.userData.goods = fr;
