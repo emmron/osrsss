@@ -650,6 +650,18 @@ const Models = (() => {
       case 'seer': return humanoid({ skin: '#d0a070', hair: '#c0c0c0', shirt: '#4a3a7a', pants: '#4a3a7a', robe: '#3a2a6a', hood: '#3a2a6a', beard: '#d0d0d0' });
       case 'tribesman': return humanoid({ skin: '#5a3a22', hair: '#1a1a1a', shirt: '#5a3a22', pants: '#8a6a3a', boots: '#4a2a14', sleeves: false });
       case 'jackal': return beast(BEASTS.jackal);
+      case 'rock_crab': {
+        const [root, body, P] = quadBase();
+        const sh = mesh(dodeGeo, tmat('rock', '#7a6e62'), 0, 0.32, 0, body); sh.scale.set(0.55, 0.3, 0.48);
+        const sh2 = mesh(dodeGeo, tmat('rock', '#6a6056'), 0.1, 0.48, -0.05, body); sh2.scale.set(0.3, 0.18, 0.28);
+        P.head = pivot(body, 0, 0.28, 0.35);
+        for (const s of [-1, 1]) { box(0.08, 0.06, 0.25, '#8a4a2a', s * 0.2, 0, 0.1, P.head); box(0.14, 0.1, 0.14, '#9a5a32', s * 0.24, 0.02, 0.26, P.head); part(sph(0.03, 4, 3), '#101010', s * 0.07, 0.08, 0.02, P.head); }
+        for (let i = 0; i < 4; i++) { const s = i % 2 ? 1 : -1, z = i < 2 ? 0.12 : -0.12; const l = pivot(body, s * 0.38, 0.22, z); const seg = box(0.3, 0.04, 0.04, '#7a4024', s * 0.12, -0.08, 0, l); seg.rotation.z = -s * 0.7; P.legs.push(l); }
+        return root;
+      }
+      case 'fremennik': return humanoid({ skin: '#e0b088', hair: pickC(['#e8c870', '#c89040', '#a05a20']), shirt: '#7a6a5a', pants: '#4a3a2a', boots: '#3a2a1a', beard: pickC(['#e8c870', '#c89040', '#a05a20']), cape: '#5a4a3a', sleeves: false });
+      case 'ghost': case 'ghost_guard': { const g = humanoid({ skin: '#d8e8e0', hair: '#e8f0ec', shirt: '#c8d8d0', pants: '#c8d8d0', robe: kind === 'ghost' ? '#b8ccc4' : null, boots: '#c8d8d0' }); if (kind === 'ghost_guard') applyEquipment(g, { head: 'iron_full_helm', weapon: 'iron_sword' }); g.traverse(o => { if (o.material) { o.material = o.material.clone(); o.material.transparent = true; o.material.opacity = 0.6; o.material.emissive = new THREE.Color('#203028'); } }); return g; }
+      case 'hetty': return humanoid({ skin: '#c8a888', hair: '#3a3a3a', shirt: '#2a2a2a', pants: '#2a2a2a', robe: '#1a1a1a', wizhat: '#1a1a1a' });
       case 'crocodile': return beast(BEASTS.crocodile);
       case 'hellhound': return beast(BEASTS.hellhound);
       case 'fire_giant': { const g = humanoid({ skin: '#c84a1a', hair: '#ffa020', shirt: '#7a2a10', pants: '#5a1a08', boots: '#2a0a04', beard: '#ff8020', scale: 1.9, sleeves: false }); return g; }

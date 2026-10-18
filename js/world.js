@@ -655,6 +655,50 @@ const World = (() => {
     npc('fire_giant', 226, 172); npc('fire_giant', 229, 168); npc('black_demon', 232, 171);
     // training dummies near the Ardenvale spawn
     { let placed = 0; for (let r = 4; r < 14 && placed < 4; r++) for (const [dx, dz] of [[r, 4], [r, 6], [r, 8], [r, 10]]) { const x = 90 + dx, z = 84 + dz; if (placed < 4 && canPlace(x, z, 1, 1) && !ov(x, z) && roofOf[idx(x, z)] < 0) { addLoc('training_dummy', x, z); placed++; } } }
+    // ===== Rellekka: Fremennik island in the northern sea =====
+    for (let z = 0; z < 40; z++) for (let x = 162; x < 212; x++) {
+      const e = Math.hypot((x - 186) / 20, (z - 18) / 15) + Math.sin(x * 0.5 + z * 0.3) * 0.05;
+      if (e < 1) { setO(x, z, 0); setU(x, z, e > 0.84 ? U.SAND : z < 9 ? U.SNOW : U.GRASS); }
+    }
+    rectO(176, 16, 196, 17, O.PATH); rectO(185, 9, 186, 28, O.PATH);
+    building({ name: 'Rellekka Longhall', x0: 180, z0: 9, x1: 191, z1: 14, style: 'wood', roof: 'thatch', floor: O.WOOD, doors: [{ x: 185, z: 14, s: 'S' }, { x: 186, z: 14, s: 'S' }] });
+    addLoc('range', 182, 10); npc('brundt', 186, 11);
+    building({ name: 'Rellekka Bank', x0: 176, z0: 18, x1: 181, z1: 22, style: 'wood', roof: 'thatch', floor: O.WOOD, doors: [{ x: 178, z: 18, s: 'N' }] });
+    for (const x of [177, 179]) { addLoc('bank_booth', x, 21); npc('banker', x, 22); }
+    building({ name: 'Fremennik House', x0: 190, z0: 18, x1: 195, z1: 22, style: 'wood', roof: 'thatch', floor: O.WOOD, doors: [{ x: 190, z: 20, s: 'W' }] });
+    building({ name: 'Fremennik House', x0: 180, z0: 23, x1: 184, z1: 27, style: 'wood', roof: 'thatch', floor: O.WOOD, doors: [{ x: 182, z: 23, s: 'N' }] });
+    addLoc('silk_stall', 187, 19); addLoc('bakery_stall', 187, 22); addLoc('well', 184, 20);
+    for (let x = 197; x < 206; x++) for (const z of [24, 25]) setO(x, z, O.PIER);
+    npc('rellekka_shop', 189, 24); for (const [x, z] of [[183, 17], [189, 16], [178, 25], [193, 24], [186, 21]]) npc('fremennik', x, z);
+    for (let i = 0; i < 10; i++) { const a = i / 10 * Math.PI * 2 + 0.3; npc('rock_crab', Math.round(186 + Math.cos(a) * 17), Math.round(18 + Math.sin(a) * 12)); }
+    mapIcons.push({ x: 178.5, z: 20, icon: 'bank' }, { x: 188, z: 20.5, icon: 'stall' }, { x: 189, z: 24, icon: 'fish' }, { x: 183, z: 11, icon: 'range' });
+    labels.push(['Rellekka', 186, 5, 1], ['Rock Crabs', 186, 33, 0]);
+    // ===== Port Phasmatys: walled ghost town in the swamp =====
+    clearArea(133, 9, 155, 29, U.DIRT);
+    rectO(134, 18, 154, 19, O.PATH); rectO(143, 10, 144, 29, O.PATH);
+    for (let x = 133; x <= 155; x++) { addWall(x, 9, 'N', fenceSegs); if (x < 143 || x > 144) addWall(x, 29, 'S', fenceSegs); }
+    for (let z = 9; z <= 29; z++) { if (z < 18 || z > 19) addWall(133, z, 'W', fenceSegs); addWall(155, z, 'E', fenceSegs); }
+    building({ name: 'Phasmatys Bank', x0: 135, z0: 11, x1: 141, z1: 15, style: 'stone', roof: 'slate', floor: O.STONE, doors: [{ x: 138, z: 15, s: 'S' }] });
+    for (const x of [136, 138, 140]) { addLoc('bank_booth', x, 12); npc('banker', x, 11); }
+    building({ name: 'Ectofuntus', x0: 146, z0: 10, x1: 154, z1: 16, style: 'stone', roof: 'slate', floor: O.STONE, doors: [{ x: 150, z: 16, s: 'S' }] });
+    addLoc('altar', 149, 12);
+    building({ name: 'The Green Ghost Inn', x0: 135, z0: 21, x1: 141, z1: 27, style: 'stone', roof: 'slate', floor: O.WOOD, doors: [{ x: 138, z: 21, s: 'N' }] });
+    addLoc('range', 136, 26);
+    building({ name: 'Ghostly Goods', x0: 147, z0: 22, x1: 152, z1: 27, style: 'stone', roof: 'slate', floor: O.WOOD, doors: [{ x: 149, z: 22, s: 'N' }] });
+    npc('phas_shop', 149, 25); npc('ghost_guard', 142, 29); npc('ghost_guard', 145, 29); npc('ghost_guard', 133, 17);
+    for (const [x, z] of [[139, 18], [147, 19], [143, 13], [152, 20], [137, 19]]) npc('ghost_villager', x, z);
+    for (const [x, z] of [[134, 10], [154, 10], [134, 28], [154, 28]]) addLoc('cave_torch', x, z);
+    mapIcons.push({ x: 138, z: 13, icon: 'bank' }, { x: 150, z: 12.5, icon: 'altar' }, { x: 149.5, z: 24.5, icon: 'store' }, { x: 137, z: 26, icon: 'range' });
+    labels.push(['Port Phasmatys', 144, 6, 1]);
+    // ===== Rimmington =====
+    rectO(66, 230, 80, 230, O.PATH); rectO(72, 231, 72, 236, O.PATH);
+    building({ name: 'Rimmington Store', x0: 67, z0: 224, x1: 72, z1: 229, style: 'wood', roof: 'thatch', floor: O.WOOD, doors: [{ x: 69, z: 229, s: 'S' }] });
+    building({ name: 'Hetty\'s House', x0: 74, z0: 224, x1: 79, z1: 229, style: 'stone', roof: 'thatch', floor: O.WOOD, doors: [{ x: 76, z: 229, s: 'S' }] });
+    building({ name: 'Rimmington House', x0: 74, z0: 231, x1: 79, z1: 234, style: 'wood', roof: 'thatch', floor: O.WOOD, doors: [{ x: 76, z: 231, s: 'N' }] });
+    addLoc('well', 69, 232); addLoc('range', 78, 233);
+    npc('shopkeeper', 69, 226); npc('hetty', 76, 226); for (const [x, z] of [[68, 231], [73, 232], [79, 230]]) npc(x % 2 ? 'man' : 'woman', x, z);
+    mapIcons.push({ x: 69.5, z: 226.5, icon: 'store' }, { x: 76.5, z: 226.5, icon: 'herb' });
+    labels.push(['Rimmington', 73, 221, 1]);
     // ===== Extra mines =====
     const mineField = (name, cx, cz, list, rad) => {
       for (const [t, n] of list) for (let k = 0; k < n; k++) {
@@ -842,7 +886,7 @@ const World = (() => {
     for (let z = 3; z < H - 3; z++) for (let x = 3; x < W - 3; x++) {
       if (!free(x, z)) continue;
       const u = under[idx(x, z)], r = rnd();
-      if (Math.hypot(x - 90, z - 82) < 15 || Math.hypot(x - 144, z - 81) < 13 || nearRC(x, z) || (x >= 64 && x <= 90 && z >= 6 && z <= 34) || (x >= 186 && x <= 206 && z >= 76 && z <= 96) || (x >= 126 && x <= 180 && z >= 192 && z <= 238) || (x >= 78 && x <= 110 && z >= 206 && z <= 250) || (x < 36 && z > 226) || (x >= 90 && x <= 108 && z >= 184 && z <= 198) || (x >= 16 && x <= 30 && z >= 142 && z <= 164) || Math.hypot(x - 57, z - 206) < 13 || Math.hypot(x - 130, z - 58) < 9 || (x >= 38 && x <= 66 && z >= 224 && z <= 252) || (x >= 37 && x <= 58 && z >= 146 && z <= 168) || (x >= 202 && x <= 234 && z >= 210 && z <= 252) || (x >= 85 && x <= 111 && z >= 156 && z <= 180) || (x >= 99 && x <= 117 && z >= 41 && z <= 58) || (x >= 195 && x <= 237 && z >= 185 && z <= 209) || (x >= 162 && x <= 191 && z >= 235 && z <= 259) || (x >= 61 && x <= 83 && z >= 161 && z <= 181) || (x >= 197 && x <= 215 && z >= 102 && z <= 121)) continue;
+      if (Math.hypot(x - 90, z - 82) < 15 || Math.hypot(x - 144, z - 81) < 13 || nearRC(x, z) || (x >= 64 && x <= 90 && z >= 6 && z <= 34) || (x >= 186 && x <= 206 && z >= 76 && z <= 96) || (x >= 126 && x <= 180 && z >= 192 && z <= 238) || (x >= 78 && x <= 110 && z >= 206 && z <= 250) || (x < 36 && z > 226) || (x >= 90 && x <= 108 && z >= 184 && z <= 198) || (x >= 16 && x <= 30 && z >= 142 && z <= 164) || Math.hypot(x - 57, z - 206) < 13 || Math.hypot(x - 130, z - 58) < 9 || (x >= 38 && x <= 66 && z >= 224 && z <= 252) || (x >= 37 && x <= 58 && z >= 146 && z <= 168) || (x >= 202 && x <= 234 && z >= 210 && z <= 252) || (x >= 85 && x <= 111 && z >= 156 && z <= 180) || (x >= 99 && x <= 117 && z >= 41 && z <= 58) || (x >= 195 && x <= 237 && z >= 185 && z <= 209) || (x >= 162 && x <= 191 && z >= 235 && z <= 259) || (x >= 61 && x <= 83 && z >= 161 && z <= 181) || (x >= 197 && x <= 215 && z >= 102 && z <= 121) || (x >= 175 && x <= 197 && z >= 8 && z <= 28) || (x >= 132 && x <= 156 && z >= 8 && z <= 30) || (x >= 66 && x <= 81 && z >= 223 && z <= 235)) continue;
       if (x >= 64 && x <= 81 && z >= 82 && z <= 104) continue; // farm + agility
       if (x >= 103 && x <= 121 && z >= 63 && z <= 103) continue; // pens
       if (u === U.FOREST) { if (r < 0.1) addLoc('tree', x, z); else if (r < 0.125) addLoc('oak', x, z); else if (r < 0.15) addLoc('pine', x, z); else if (r < 0.17) addLoc('bush', x, z); }
@@ -1197,8 +1241,9 @@ const World = (() => {
     for (let z = 226; z < 252; z += 2) if (ov(34, z) === O.WATER) spots.push([34, z, z % 4 ? 'coast' : 'river']);
     for (let z = 44; z < 52; z++) for (let x = 64; x < 72; x++) if (ov(x, z) === O.WATER && !isWater(x - 1, z)) spots.push([x, z, 'river']);
     for (let z = 60; z < 120; z += 4) for (let x = 230; x > 215; x--) if (ov(x, z) === O.WATER && !isWater(x - 1, z)) { spots.push([x, z, 'sea']); break; }
+    for (let z = 1; z < 40; z++) for (let x = 162; x < 212; x++) if (ov(x, z) === O.WATER && [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dz]) => inb(x + dx, z + dz) && !isWater(x + dx, z + dz) && ov(x + dx, z + dz) !== O.LAVA && (x + dx) >= 162)) spots.push([x, z, (x + z) % 3 === 0 ? 'sea' : 'coast']);
     World.fishTiles = spots;
-    const want = { river: 22, coast: 20, sea: 14 };
+    const want = { river: 22, coast: 26, sea: 18 };
     for (const k in want) for (let i = 0; i < want[k]; i++) { const pool = spots.filter(s => s[2] === k); if (!pool.length) break; const s = pool[Math.floor(rnd() * pool.length)]; spots.splice(spots.indexOf(s), 1); addLoc('fishing_spot', s[0], s[1], { kind: k }); }
     buildTerrain();
     buildWalls();
