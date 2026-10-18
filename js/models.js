@@ -25,6 +25,7 @@ const Tex = (() => {
     stonefloor: (g, r) => { noise(g, r, [104, 100, 94], 18); for (let row = 0; row < 4; row++) { g.fillStyle = 'rgba(36,34,30,0.7)'; g.fillRect(0, row * 16 + 15, 64, 1); for (let x = (row % 2) * 8; x < 64; x += 16) g.fillRect(x, row * 16, 1, 16); } },
     cobble: (g, r) => { noise(g, r, [92, 88, 82], 10); for (let i = 0; i < 46; i++) { const x = r() * 64, y = r() * 64, w = 5 + r() * 5; const v = 100 + r() * 34 | 0; g.fillStyle = `rgb(${v},${v - 3},${v - 8})`; g.beginPath(); g.ellipse(x, y, w / 2, w / 2.6, r() * 3, 0, 7); g.fill(); g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(x - 2, y + 2, 4, 1); } },
     water: (g, r) => { noise(g, r, [44, 74, 132], 10); for (let i = 0; i < 40; i++) { g.fillStyle = `rgba(150,190,240,${0.15 + r() * 0.25})`; g.fillRect(r() * 64, r() * 64, 4 + r() * 8, 1); } },
+    lava: (g, r) => { noise(g, r, [230, 96, 24], 50); for (let i = 0; i < 26; i++) { g.fillStyle = r() < 0.5 ? 'rgba(60,16,8,0.55)' : 'rgba(255,220,80,0.6)'; g.beginPath(); g.ellipse(r() * 64, r() * 64, 2 + r() * 6, 1 + r() * 3, r() * 3, 0, 7); g.fill(); } },
     leaves: (g, r) => { noise(g, r, [255, 255, 255], 40); for (let i = 0; i < 90; i++) { const x = r() * 64, y = r() * 64; g.fillStyle = r() < 0.5 ? 'rgba(0,0,0,0.25)' : 'rgba(255,255,220,0.25)'; g.beginPath(); g.ellipse(x, y, 2.5, 1.5, r() * 3, 0, 7); g.fill(); } },
     bark: (g, r) => { noise(g, r, [235, 235, 235], 30); for (let x = 0; x < 64; x += 4 + (r() * 3 | 0)) { g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(x, 0, 1, 64); } },
     rock: (g, r) => { noise(g, r, [235, 235, 235], 50); for (let i = 0; i < 30; i++) { g.fillStyle = 'rgba(0,0,0,0.2)'; g.fillRect(r() * 64, r() * 64, 3, 2); } },
@@ -462,6 +463,12 @@ const Models = (() => {
       case 'hunter': return humanoid({ skin: '#b07a4c', hair: '#5a3a18', shirt: '#6a5a2a', pants: '#4a3a1a', hood: null, cape: '#3a5a2a', beard: '#5a3a18' });
       case 'demon': { const d = humanoid({ skin: '#a01a10', hair: null, shirt: '#a01a10', pants: '#801408', boots: '#401008', scale: 1.5, sleeves: false, ears: true });
         const P = d.userData.parts; for (const s of [-1, 1]) { const h = Models.cone(0.05, 0.25, 4); const m = new THREE.Mesh(h, mat('#e8e0c0')); m.position.set(s * 0.1, 0.42, 0); m.rotation.z = -s * 0.4; P.head.add(m); const w = box(0.04, 0.6, 0.5, '#601008', s * 0.25, 1.15, -0.25, P.body); w.rotation.y = s * 0.6; } return d; }
+      case 'pker': { const sets = { rune: ['rune_full_helm', 'rune_platebody', 'rune_platelegs', 'rune_scimitar', 'rune_kiteshield'], mithril: ['mithril_full_helm', null, 'mithril_platelegs', 'mithril_scimitar', null], adamant: ['adamant_full_helm', 'adamant_platebody', 'adamant_platelegs', 'adamant_scimitar', 'adamant_kiteshield'], black: ['bk_helm', 'bk_body', 'bk_legs', 'steel_scimitar', null] };
+        const gear = sets[arguments[1]] || sets.rune; const g = humanoid({ skin: pickC(['#c8915c', '#a06a40', '#d0a070']), hair: pickC(['#1a1a1a', '#6a4020', '#c0a040']), shirt: pickC(['#202020', '#6a1a1a', '#1a2a6a']), pants: '#202020', cape: pickC(['#c02020', '#202020', '#2a2a8a', null]) });
+        applyEquipment(g, { head: gear[0], body: gear[1], legs: gear[2], weapon: gear[3], shield: gear[4] }); return g; }
+      case 'emir': return humanoid({ skin: '#a06a40', hair: '#1a1a1a', shirt: '#e8e0c8', pants: '#e8e0c8', robe: '#d8c890', beard: '#1a1a1a', hat: '#e8c030', cape: '#8a1a8a' });
+      case 'duellist': { const g = humanoid({ skin: '#b07a4c', hair: '#3a2410', shirt: '#8a2a2a', pants: '#3a3028', sleeves: false }); applyEquipment(g, { weapon: 'steel_scimitar', shield: 'steel_kiteshield' }); return g; }
+      case 'camel': { const c = npcModel('cow'); c.traverse(o => { if (o.material && o.material.color) { o.material = o.material.clone(); o.material.color.set('#c8a060'); } }); const hump = new THREE.Mesh(blobGeo, mat('#b89050')); hump.scale.set(0.35, 0.3, 0.45); hump.position.set(0, 1.45, 0); c.add(hump); c.scale.set(0.95, 1.1, 1.0); return c; }
       case 'minotaur': { const g = humanoid({ skin: '#6a4428', hair: '#3a2414', shirt: '#6a4428', pants: '#4a3018', boots: '#2a1a0a', scale: 1.15, sleeves: false, ears: true });
         for (const s of [-1, 1]) { const h = new THREE.Mesh(Models.cone(0.05, 0.3, 5), mat('#e8e0c0')); h.position.set(s * 0.16, 0.38, 0); h.rotation.z = -s * 1.0; g.userData.parts.head.add(h); }
         applyEquipment(g, { weapon: 'iron_scimitar' }); return g; }
@@ -860,6 +867,15 @@ const Models = (() => {
       const glow = new THREE.Mesh(new THREE.IcosahedronGeometry(0.16, 1), new THREE.MeshBasicMaterial({ color: '#c0a0ff' })); glow.position.y = 0.75; g.add(glow); g.userData.spin = glow;
     } else if (kind === 'stalagmite') {
       for (let i = 0; i < 3; i++) { const c = mesh(cone(0.22 - i * 0.05, 1.3 - i * 0.35, 6), tmat('rock', '#6a6056'), (i - 1) * 0.22, (1.3 - i * 0.35) / 2, (i % 2) * 0.15, g); c.rotation.y = i; }
+    } else if (kind === 'ditch') {
+      box(1.0, 0.04, 1.0, '#3a2c20', 0, -0.02, 0, g);
+      for (let i = 0; i < 3; i++) { const r = mesh(dodeGeo, tmat('rock', '#5a5048'), -0.3 + i * 0.3, 0.02, (i % 2 ? 0.25 : -0.2), g); r.scale.set(0.1, 0.07, 0.1); }
+    } else if (kind === 'gravestone') {
+      box(0.45, 0.7, 0.12, tmat('rock', '#8a8680'), 0, 0.35, 0, g); box(0.55, 0.08, 0.3, tmat('rock', '#7a7670'), 0, 0.04, 0.05, g);
+      box(0.06, 0.25, 0.02, '#4a4640', 0, 0.48, 0.07, g); box(0.18, 0.06, 0.02, '#4a4640', 0, 0.52, 0.07, g);
+    } else if (kind === 'warnsign') {
+      box(0.08, 1.3, 0.08, '#5a3c20', 0, 0.65, 0, g); box(0.7, 0.45, 0.05, '#c8b070', 0, 1.15, 0, g);
+      box(0.5, 0.06, 0.02, '#a01010', 0, 1.22, 0.03, g); box(0.5, 0.06, 0.02, '#a01010', 0, 1.08, 0.03, g);
     } else if (kind === 'torch') {
       box(0.06, 1.2, 0.06, '#4a3420', 0, 0.6, 0, g);
       const f = new THREE.Mesh(cone(0.09, 0.28, 5), new THREE.MeshBasicMaterial({ color: '#ffa020' })); f.position.y = 1.32; g.add(f); g.userData.flames = [f];

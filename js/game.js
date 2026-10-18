@@ -169,7 +169,7 @@ const Game = (() => {
   function spawnNpc(id, x, z) {
     const def = NPCS[id];
     const n = makeEntity({ isNpc: true, id, def, x, z, sx: x, sz: z, hp: def.hp || 1, dead: false, deathAt: 0, respawnAt: 0, target: null, attackTimer: 0, wanderGoal: null });
-    n.model = Models.npcModel(def.model);
+    n.model = Models.npcModel(def.model, def.gear);
     n.model.userData.ent = n;
     n.face = Math.random() * 6;
     S.scene.add(n.model);
@@ -336,6 +336,9 @@ const Game = (() => {
     if (T === 'trade_board') { S.iface = { type: 'board' }; return; }
     if (loc.dest && (op === 'Climb-down' || op === 'Climb-up')) return climb(loc, op);
     if (T === 'sos_gate') return sosGate(loc);
+    if (T === 'wild_ditch') return crossDitch(loc);
+    if (T === 'warn_sign') { msg('WARNING: Beyond the ditch is the Wilderness. Other players can attack you there,', '#a00000'); msg('and if you die you keep only your 3 most valuable items. The deeper you go, the more dangerous it gets!', '#a00000'); return; }
+    if (T === 'chaos_altar' && op === 'Pray-at') { setAnim(p, 'pray'); S.skills.prayer.cur = lvl('prayer'); msg('You pray at the chaos altar and recharge your Prayer points.'); Sfx.play('prayon'); return; }
     if (T in SOS_REWARD) return sosReward(T);
     if (op === 'Read') { msg('North: Elderwood & the Runestone Circle. South: Ardenvale Mine, Al Kharid.'); msg('East: Port Sarrow. West: The Old Bridge & the Wilderness (beware!).'); return; }
     if (op === 'Prospect') {
@@ -418,6 +421,16 @@ const Game = (() => {
     ['Is it safe to reuse passwords on other sites?', 'No, use a unique password.', 'Yes, it is easier.', 'Only for games.'],
     ['Game staff message you asking for your password.', 'Staff never ask - report it.', 'Give it to them.', 'Send it by email.'],
   ];
+  function crossDitch(loc) {
+    const p = S.player, goingIn = p.x > 36;
+    const jump = () => { moveEnt(p, [[36, loc.z], [goingIn ? 35 : 37, loc.z]]); p.runningStep = true; setAnim(p, 'pickup'); msg(goingIn ? 'You leap across the ditch into the Wilderness...' : 'You leap back across the ditch to safety.', goingIn ? '#a00000' : '#000080'); };
+    if (goingIn && !S.wildOk) {
+      msg('WARNING: In the Wilderness, PKers and monsters can attack you. If you die you keep only 3 items!', '#a00000');
+      options('Enter the Wilderness?', [{ text: 'Yes, enter the Wilderness.', fn: jump }, { text: 'Yes, and don\'t warn me again.', fn: () => { S.wildOk = 1; jump(); } }]);
+      return;
+    }
+    jump();
+  }
   function sosGate(loc) {
     const p = S.player;
     const pass = () => { p.x = loc.x; p.z = loc.z + (p.z < loc.z ? 1 : -1); p.from = null; p.steps = []; setAnim(p, 'pickup'); };
@@ -783,6 +796,10 @@ const Game = (() => {
       if (ent.type === 'fishing_spot') { const op = locOps(ent).find(o => FISHING[o].tool === it.id || FISHING[o].bait === it.id); if (op) return fish(ent, op); msg('You can\'t fish here with that.'); return; }
       if (ent.type === 'furnace') { if (it.id === 'gold_bar') return craftGold(); const r = SMELTING.find(r => r.needs[it.id] && hasMats(r)); if (r) return startSmelting(r); }
       if (ent.type === 'anvil' && /_bar$/.test(it.id)) { const m = METALS.find(m => barOf(m) === it.id); if (m) return openSmithing(m); }
+      if (/bones/.test(it.id) && ent.type === 'chaos_altar') {
+        const bid = it.id; resetActions();
+        return startLoop('pray', null, 3, () => { if (!has(bid)) return false; setAnim(S.player, 'pray'); if (Math.random() < 0.5) { msg('The dark gods spare your bones!', '#7a0000'); } else invRemove(bid); addXp('prayer', ITEMS[bid].bury * 3.5); return has(bid); }, 1);
+      }
       if (/bones/.test(it.id) && ent.type === 'altar') { invRemove(it.id); addXp('prayer', ITEMS[it.id].bury * 3); setAnim(S.player, 'pray'); msg('The gods are very pleased with your offering.'); return; }
       if (it.id === 'vial' && (ent.type === 'fountain' || ent.type === 'well')) { const n = invCount('vial'); invRemove('vial', n); invAdd('vial_water', n); msg('You fill the vial' + (n > 1 ? 's' : '') + ' with water.'); return; }
       if (SEEDS[it.id] && ent.patch) return plantSeed(slot, ent);
@@ -1439,19 +1456,22 @@ const Game = (() => {
     const p = S.player;
     if (n.dead) {
       if (n.deathAt === S.tick - 2) { n.model.visible = false; npcDrops(n); n.respawnAt = S.tick + (n.def.level > 30 ? 60 : 25); }
-      if (n.respawnAt && S.tick >= n.respawnAt) { n.dead = false; n.respawnAt = 0; n.hp = n.def.hp; n.x = n.sx; n.z = n.sz; n.from = null; n.steps = []; n.model.visible = true; n.anim = null; }
+      if (n.respawnAt && S.tick >= n.respawnAt) { n.dead = false; n.respawnAt = 0; n.hp = n.def.hp; n.food = 3; n.x = n.sx; n.z = n.sz; n.from = null; n.steps = []; n.model.visible = true; n.anim = null; }
       return;
     }
     // far away NPCs sleep
     if (Math.abs(n.x - p.x) > 40 || Math.abs(n.z - p.z) > 40) { n.target = null; return; }
     if (n.attackTimer > 0) n.attackTimer--;
     const d = n.def;
-    if (d.aggressive && !n.target && !p.dead && !p.forced && Math.abs(p.x - n.x) <= 3 && Math.abs(p.z - n.z) <= 3 && (combatLevel() <= d.level * 2 + 1 || wildLevel(p.x, p.z) > 0) &&
+    const aggR = d.pker ? 6 : 3;
+    if (d.aggressive && !n.target && !p.dead && !p.forced && Math.abs(p.x - n.x) <= aggR && Math.abs(p.z - n.z) <= aggR && (!d.pker || wildLevel(p.x, p.z) > 0) && (combatLevel() <= d.level * 2 + 1 || wildLevel(p.x, p.z) > 0) &&
       !S.npcs.some(o => o.target === p && !o.dead) && World.roofAt(p.x, p.z) < 0) {
       n.target = p;
       say(n, { ogre: 'RAAARGH!', bandit: 'Hand over your coins!', skeleton: '*rattle*', lesser_demon: 'Graaagh!' }[d.model === 'ogre' ? 'ogre' : n.id] || '');
       if (!n.overhead.text) n.overhead = null;
+      if (d.pker) { say(n, pickR(['Sit.', 'Free loot!', 'ur dead noob', 'Bank sale!', 'Come here!', 'Easy kill'])); msg(`${d.name} is attacking you!`, '#a00000'); }
     }
+    if (d.pker && n.target && n.hp < d.hp * 0.35 && (n.food ?? 3) > 0) { n.food = (n.food ?? 3) - 1; n.hp = Math.min(d.hp, n.hp + 18); n.attackTimer = Math.max(n.attackTimer, 3); say(n, '*eats a lobster*'); }
     if (n.target) {
       if (p.dead || Math.abs(n.x - n.sx) > 14 || Math.abs(n.z - n.sz) > 14) { n.target = null; return; }
       const magicRange = d.magic && cheb(n, p) <= 6 && !(n.x === p.x && n.z === p.z);
@@ -1926,7 +1946,7 @@ const Game = (() => {
     const p = S.player;
     const patches = {};
     for (const l of World.locs) if (l.patch) patches[l.x + ',' + l.z] = l.patch;
-    const data = { v: 2, skills: S.skills, inv: S.inv, equip: S.equip, ammo: S.ammoQty, bank: S.bank, quests: S.quests, qp: S.questPoints, x: p.x, z: p.z, style: S.style, run: p.run, energy: p.energy, ar: S.autoRetaliate, slayer: S.slayer, patches, gift: S.gift, autocast: S.autocast, tradeLog: S.tradeLog, taskProg: S.taskProg, tasksDone: S.tasksDone, gotStarter: S.gotStarter, gift2: S.gift2, gift3: S.gift3, sos: S.sos, wepQty: S.wepQty, pouches: S.pouches, pouchesP: S.pouchesP, agi: S.agi, fairyLog: S.fairyLog, essReturn: S.essReturn, bright: S.settings.brightness, xpRate: S.settings.xpRate };
+    const data = { v: 2, skills: S.skills, inv: S.inv, equip: S.equip, ammo: S.ammoQty, bank: S.bank, quests: S.quests, qp: S.questPoints, x: p.x, z: p.z, style: S.style, run: p.run, energy: p.energy, ar: S.autoRetaliate, slayer: S.slayer, patches, gift: S.gift, autocast: S.autocast, tradeLog: S.tradeLog, taskProg: S.taskProg, tasksDone: S.tasksDone, gotStarter: S.gotStarter, gift2: S.gift2, gift3: S.gift3, sos: S.sos, wildOk: S.wildOk, wepQty: S.wepQty, pouches: S.pouches, pouchesP: S.pouchesP, agi: S.agi, fairyLog: S.fairyLog, essReturn: S.essReturn, bright: S.settings.brightness, xpRate: S.settings.xpRate };
     try { localStorage.setItem(KEY(S.name), JSON.stringify(data)); localStorage.setItem('ardenvale_last', S.name); } catch (e) { }
   }
   function load(name) {
@@ -1941,7 +1961,7 @@ const Game = (() => {
       S.inv = data.inv.map(s => s && ITEMS[s.id] ? s : null); S.equip = data.equip || {}; for (const k in S.equip) if (!ITEMS[S.equip[k]]) delete S.equip[k];
       S.ammoQty = data.ammo || 0; S.bank = (data.bank || []).filter(b => ITEMS[b.id]);
       Object.assign(S.quests, data.quests || {}); S.questPoints = data.qp || 0;
-      S.style = data.style || 0; S.autoRetaliate = data.ar !== false; S.slayer = data.slayer || null; S.gift = data.gift; S.autocast = data.autocast || null; S.pouches = data.pouches || {}; S.tradeLog = data.tradeLog || []; S.taskProg = data.taskProg || {}; S.tasksDone = data.tasksDone || {}; S.gotStarter = data.gotStarter; S.gift2 = data.gift2; S.gift3 = data.gift3; S.sos = data.sos || {}; S.wepQty = data.wepQty || 0; S.pouchesP = data.pouchesP || {}; S.agi = data.agi || {}; S.fairyLog = data.fairyLog || []; S.essReturn = data.essReturn;
+      S.style = data.style || 0; S.autoRetaliate = data.ar !== false; S.slayer = data.slayer || null; S.gift = data.gift; S.autocast = data.autocast || null; S.pouches = data.pouches || {}; S.tradeLog = data.tradeLog || []; S.taskProg = data.taskProg || {}; S.tasksDone = data.tasksDone || {}; S.gotStarter = data.gotStarter; S.gift2 = data.gift2; S.gift3 = data.gift3; S.sos = data.sos || {}; S.wildOk = data.wildOk; S.wepQty = data.wepQty || 0; S.pouchesP = data.pouchesP || {}; S.agi = data.agi || {}; S.fairyLog = data.fairyLog || []; S.essReturn = data.essReturn;
       S.settings.brightness = data.bright == null ? 2 : data.bright;
       S.settings.xpRate = data.xpRate || 5;
       for (const l of World.locs) if (l.patch && data.patches && data.patches[l.x + ',' + l.z]) { l.patch = data.patches[l.x + ',' + l.z]; World.refreshLoc(l); }

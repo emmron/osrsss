@@ -103,7 +103,7 @@ const Sfx = (() => {
 })();
 
 const Render = (() => {
-  let renderer, scene, camera, ambient, sun, seaMesh, underground = false, camTY = null;
+  let renderer, scene, camera, ambient, sun, seaMesh, underground = false, camTY = null, lastWl = 0;
   const cam = { yaw: 0, pitch: 0.62, dist: 9.5, keys: {} };
   const raycaster = new THREE.Raycaster();
   const groundTex = {};
@@ -259,6 +259,8 @@ const Render = (() => {
       if (seaMesh) seaMesh.visible = !ug;
       if (World.waterMesh) World.waterMesh.visible = !ug;
     }
+    if (!ug) { const wl = p && S.loggedIn && tx < 36 ? Math.min(1, (36 - tx) / 22) : 0; if (wl !== lastWl) { lastWl = wl; const c = new THREE.Color('#9cb8d8').lerp(new THREE.Color('#4a3a3e'), wl * 0.8); scene.background.copy(c); scene.fog.color.copy(c); } }
+    else lastWl = -1;
     World.updateChunks(tx, tz, ug ? 18 : 40);
     for (const n of S.npcs) {
       const near = Math.abs(n.x - tx) < 34 && Math.abs(n.z - tz) < 34;
@@ -275,6 +277,7 @@ const Render = (() => {
     camera.lookAt(tx, ty, tz);
     const inside = p && S.loggedIn ? World.roofAt(p.x, p.z) : -1;
     World.roofMeshes.forEach((m, i) => { m.visible = i !== inside; });
+    if (World.lavaTex) { World.lavaTex.offset.x = Math.sin(time * 0.3) * 0.15; World.lavaTex.offset.y = time * 0.03; }
     if (World.waterTex) { World.waterTex.offset.x = time * 0.05; World.waterTex.offset.y = Math.sin(time * 0.6) * 0.06; }
     for (const loc of World.locs) {
       const m = loc.mesh; if (!m || !m.parent || !m.parent.visible) continue;

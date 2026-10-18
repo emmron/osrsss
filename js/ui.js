@@ -149,7 +149,7 @@ const UI = (() => {
     range: ['#d0d0d0', '#5a2a10', 'C'], altar: ['#ffffff', '#3a3a8a', '+'], quest: ['#6aa0ff', '#0a1a5a', '?'], fish: ['#80c0ff', '#103060', '~'], mine: ['#c0a080', '#3a2a1a', 'M'],
     rune: ['#ff6040', '#3a0a40', 'R'], archery: ['#e0c080', '#2a4a1a', 'B'], herb: ['#80e060', '#1a3a10', 'H'], tanner: ['#e0a060', '#4a2a10', 'T'], spin: ['#f0e0c0', '#4a3a2a', 'W'],
     stall: ['#ffd060', '#4a1a1a', '$'], farm: ['#a0e060', '#3a2a10', 'F'], agility: ['#60c0ff', '#1a2a4a', 'A'], slayer: ['#ff4040', '#200000', 'S'], rc: ['#ffffff', '#2a2a6a', 'O'],
-    essence: ['#d0d0ff', '#30305a', 'E'], scimitar: ['#e0e0e0', '#6a1a1a', 'Z'], boat: ['#ffffff', '#1a3a6a', 'P'], gem: ['#60e0ff', '#1a2a4a', 'G'], armour: ['#e0e0e0', '#3a3a5a', 'A'], guild: ['#e8c030', '#3a2a1a', 'M'], staff: ['#c0a0ff', '#2a1a4a', '/'], axe: ['#d0d0d0', '#4a2a1a', 'X'], ring: ['#a0ffb0', '#1a4a2a', '*'], board: ['#f0e0b0', '#5a3a1a', 'T'], spirit: ['#80ff80', '#1a3a1a', 'Y'], dungeon: ['#ff8060', '#1a0a0a', 'D'] };
+    essence: ['#d0d0ff', '#30305a', 'E'], scimitar: ['#e0e0e0', '#6a1a1a', 'Z'], boat: ['#ffffff', '#1a3a6a', 'P'], gem: ['#60e0ff', '#1a2a4a', 'G'], armour: ['#e0e0e0', '#3a3a5a', 'A'], guild: ['#e8c030', '#3a2a1a', 'M'], staff: ['#c0a0ff', '#2a1a4a', '/'], axe: ['#d0d0d0', '#4a2a1a', 'X'], ring: ['#a0ffb0', '#1a4a2a', '*'], board: ['#f0e0b0', '#5a3a1a', 'T'], spirit: ['#80ff80', '#1a3a1a', 'Y'], dungeon: ['#ff8060', '#1a0a0a', 'D'], duel: ['#ffd040', '#5a1010', 'V'] };
   function mapIcon(type, x, y, r) {
     const [fg, bg, ch] = ICONS[type] || ICONS.quest;
     r = r || 6;
@@ -556,7 +556,7 @@ const UI = (() => {
   // ---------- world map ----------
   const ICON_NAMES = { bank: 'Bank', store: 'General store', furnace: 'Furnace', anvil: 'Anvil', range: 'Cooking range', altar: 'Altar', quest: 'Quest start', fish: 'Fishing spot', mine: 'Mining site',
     rune: 'Rune shop', archery: 'Archery shop', herb: 'Herbalist', tanner: 'Tannery', spin: 'Spinning wheel', stall: 'Market stall', farm: 'Farming patch', agility: 'Agility course', slayer: 'Slayer master',
-    rc: 'Runecrafting altar', essence: 'Rune essence', scimitar: 'Scimitar shop', boat: 'Ship / travel', gem: 'Gem store', armour: 'Armour shop', guild: 'Mining Guild', staff: 'Staff shop', axe: 'Axe shop', ring: 'Fairy ring', board: 'Trading board', spirit: 'Spirit tree', dungeon: 'Dungeon entrance' };
+    rc: 'Runecrafting altar', essence: 'Rune essence', scimitar: 'Scimitar shop', boat: 'Ship / travel', gem: 'Gem store', armour: 'Armour shop', guild: 'Mining Guild', staff: 'Staff shop', axe: 'Axe shop', ring: 'Fairy ring', board: 'Trading board', spirit: 'Spirit tree', dungeon: 'Dungeon entrance', duel: 'Duel Arena' };
   function mapToScreen(wx, wz) { const z = worldMap.zoom; return [310 + (wx - worldMap.cx) * z, 264 + (wz - worldMap.cz) * z]; }
   function drawWorldMap() {
     if (!mmCv || mmBridge !== World.bridgeOpen) buildMinimap();
@@ -600,7 +600,7 @@ const UI = (() => {
     const _unused = { bank: 'Bank', store: 'General store', furnace: 'Furnace', anvil: 'Anvil', range: 'Cooking range', altar: 'Altar', quest: 'Quest start', fish: 'Fishing spot', mine: 'Mining site',
       rune: 'Rune shop', archery: 'Archery shop', herb: 'Herbalist', tanner: 'Tannery', spin: 'Spinning wheel', stall: 'Market stall', farm: 'Farming patch', agility: 'Agility course', slayer: 'Slayer master',
       rc: 'Runecrafting altar', essence: 'Rune essence', scimitar: 'Scimitar shop', boat: 'Ship / travel', gem: 'Gem store', armour: 'Armour shop', guild: 'Mining Guild', staff: 'Staff shop', axe: 'Axe shop', ring: 'Fairy ring', board: 'Trading board', spirit: 'Spirit tree' };
-    Object.keys(names).forEach((k, i) => { const y = L.y + 30 + i * 12; if (worldMap.filter === k) { ctx.fillStyle = 'rgba(255,200,64,0.25)'; ctx.fillRect(L.x + 3, y - 6, 132, 12); } mapIcon(k, L.x + 12, y, 5); T(names[k], L.x + 22, y + 4, worldMap.filter && worldMap.filter !== k ? '#8a8070' : C.white, F11); });
+    Object.keys(names).forEach((k, i) => { const y = L.y + 28 + i * 11.6; if (worldMap.filter === k) { ctx.fillStyle = 'rgba(255,200,64,0.25)'; ctx.fillRect(L.x + 3, y - 6, 132, 12); } mapIcon(k, L.x + 12, y, 5); T(names[k], L.x + 22, y + 4, worldMap.filter && worldMap.filter !== k ? '#8a8070' : C.white, F11); });
     T(worldMap.filter ? 'Click again to show all' : 'Click a key to highlight', L.x + 69, L.y + 414, '#c0b090', F11, 'center');
     button(632, 462, 114, 26, 'Close map', false, F12);
     T('Drag to move, scroll to zoom, double-click to walk there', 310, 501, '#c0b090', F11, 'center');
@@ -608,7 +608,7 @@ const UI = (() => {
   function worldMapDown(x, y) {
     if (x >= 632 && y >= 462 && x < 746 && y < 488) { worldMap.open = false; return; }
     if (x >= 620 && x < 758 && y >= 34 && y < 454) {
-      const keys = Object.keys(ICON_NAMES), i = Math.round((y - 64) / 12);
+      const keys = Object.keys(ICON_NAMES), i = Math.round((y - 62) / 11.6);
       if (i >= 0 && i < keys.length) worldMap.filter = worldMap.filter === keys[i] ? null : keys[i];
       return;
     }

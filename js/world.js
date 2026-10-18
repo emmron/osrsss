@@ -146,6 +146,10 @@ const World = (() => {
     sos_grain: { name: 'Grain of Plenty', ops: ['Search'], examine: 'A reward for completing the Catacomb of Famine.' },
     sos_box: { name: 'Box of Health', ops: ['Open'], examine: 'A reward for completing the Pit of Pestilence.' },
     sos_cradle: { name: 'Cradle of Life', ops: ['Search'], examine: 'The final reward of the Stronghold of Security.' },
+    wild_ditch: { name: 'Wilderness Ditch', ops: ['Cross'], examine: 'Beyond this ditch lies the Wilderness. Danger!' },
+    chaos_altar: { name: 'Chaos altar', w: 2, d: 1, ops: ['Pray-at'], examine: 'An altar to the dark god Zamorak. Bones offered here are blessed.' },
+    gravestone: { name: 'Gravestone', ops: [], examine: 'Here lies a fallen adventurer.' },
+    warn_sign: { name: 'Warning sign', ops: ['Read'], examine: 'DANGER: Wilderness ahead!' },
     stalagmite: { name: 'Stalagmite', ops: [], examine: 'A rocky spike rising from the cave floor.' },
     cave_torch: { name: 'Torch', ops: [], examine: 'It lights the dark tunnels.' },
   };
@@ -392,12 +396,54 @@ const World = (() => {
     mapIcons.push({ x: 128, z: 148, icon: 'scimitar' });
     building({ name: 'Kebab House', x0: 137, z0: 146, x1: 141, z1: 150, style: 'stone', roof: 'sandstone', floor: O.WOOD, doors: [{ x: 139, z: 146, s: 'N' }] });
     addLoc('range', 140, 149); addLoc('anvil', 138, 149); mapIcons.push({ x: 140.5, z: 149.5, icon: 'range' });
-    rectO(124, 142, 145, 145, O.SANDPATH);
+    rectO(124, 142, 154, 145, O.SANDPATH);
+    building({ name: 'Al Kharid Palace', x0: 144, z0: 147, x1: 154, z1: 156, style: 'stone', roof: 'sandstone', floor: O.STONE, doors: [{ x: 148, z: 147, s: 'N' }, { x: 149, z: 147, s: 'N' }] });
+    rectO(148, 146, 149, 146, O.SANDPATH);
+    npc('emir', 149, 154); for (const [x, z] of [[146, 150], [152, 150], [146, 154], [152, 154]]) npc('kharid_warrior', x, z);
+    building({ name: 'Ellis\'s Tannery', x0: 125, z0: 153, x1: 129, z1: 157, style: 'stone', roof: 'sandstone', floor: O.WOOD, doors: [{ x: 127, z: 153, s: 'N' }] });
+    npc('tanner', 127, 155); mapIcons.push({ x: 127, z: 155, icon: 'tanner' });
+    addLoc('gem_stall', 131, 147); addLoc('silk_stall', 132, 150); mapIcons.push({ x: 132, z: 148.5, icon: 'stall' });
+    npc('karim', 139, 148); npc('border_guard', 123, 141); npc('border_guard', 123, 146);
+    // Duel Arena
+    rectO(125, 159, 137, 169, O.SANDPATH); rectO(135, 146, 135, 158, O.SANDPATH);
+    for (let x = 125; x <= 137; x++) { if (x < 134 || x > 136) addWall(x, 159, 'N', fenceSegs); addWall(x, 169, 'S', fenceSegs); }
+    for (let z = 159; z <= 169; z++) { addWall(125, z, 'W', fenceSegs); addWall(137, z, 'E', fenceSegs); }
+    for (const [x, z] of [[128, 163], [133, 166], [130, 161]]) npc('duellist', x, z);
+    for (const [x, z] of [[128, 157], [131, 157], [139, 162], [139, 166]]) npc(x % 2 ? 'man' : 'woman', x, z);
+    mapIcons.push({ x: 131, z: 164, icon: 'duel' }, { x: 149, z: 151, icon: 'quest' });
+    labels.push(['Duel Arena', 131, 172, 0], ['Al Kharid Palace', 149, 158, 0]);
+    for (const [x, z] of [[118, 164], [114, 158], [120, 172]]) npc('camel', x, z);
     for (let x = 92; x < 124; x++) for (const z of [143, 144]) if (!isWater(x, z)) setO(x, z, O.SANDPATH);
-    for (const [x, z] of [[124, 136], [145, 136], [124, 152], [145, 152], [134, 146], [135, 140]]) addLoc('palm', x, z);
+    for (const [x, z] of [[124, 136], [145, 136], [134, 146], [135, 140], [143, 157], [155, 146], [124, 150], [140, 157]]) if (canPlace(x, z, 1, 1)) addLoc('palm', x, z);
     for (let z = 134; z < 156; z++) { if (z < 142 || z > 145) { addWall(122, z, 'W', fenceSegs); } }
     // Wilderness ditch
-    for (let z = 3; z < 168; z++) if (!isLiquid(36, z) && !ov(36, z)) setO(36, z, O.MUD);
+    for (let z = 3; z < 168; z++) if (!isLiquid(36, z)) { setO(36, z, O.MUD); if (!locAt[idx(36, z)]) { blocked[idx(36, z)] = 1; addLoc('wild_ditch', 36, z); } }
+    for (const z of [40, 80, 120, 157]) if (canPlace(37, z - 2, 1, 1)) addLoc('warn_sign', 37, z - 2);
+    const ruin = (x0, z0, x1, z1, keep, gaps) => {
+      const gap = (x, z) => (gaps || []).some(([gx, gz]) => gx === x && gz === z);
+      for (let x = x0; x <= x1; x++) { if (!gap(x, z0) && rnd() < keep) addWall(x, z0, 'N', wallSegs, 'stone'); if (!gap(x, z1) && rnd() < keep) addWall(x, z1, 'S', wallSegs, 'stone'); }
+      for (let z = z0; z <= z1; z++) { if (!gap(x0, z) && rnd() < keep) addWall(x0, z, 'W', wallSegs, 'stone'); if (!gap(x1, z) && rnd() < keep) addWall(x1, z, 'E', wallSegs, 'stone'); }
+    };
+    // Chaos Temple
+    rectO(22, 50, 28, 56, O.STONE); ruin(22, 50, 28, 56, 0.75, [[28, 53], [28, 54]]);
+    addLoc('chaos_altar', 24, 52); mapIcons.push({ x: 25, z: 52.5, icon: 'altar' }); labels.push(['Chaos Temple', 25, 48, 0]);
+    for (const [x, z] of [[20, 52], [30, 56], [26, 59], [19, 57]]) npc('chaos_druid', x, z);
+    // Graveyard of Shadows
+    for (let z = 80; z <= 90; z += 2) for (let x = 6; x <= 16; x += 2) if ((x + z) % 4 === 0 || rnd() < 0.4) { if (canPlace(x, z, 1, 1)) addLoc('gravestone', x, z); }
+    for (const [x, z] of [[9, 83], [13, 87], [7, 89], [15, 81]]) npc('zombie', x, z); npc('skeleton', 11, 85);
+    labels.push(['Graveyard of Shadows', 11, 77, 0]);
+    // Dark Warriors' Fortress
+    rectO(22, 106, 32, 116, O.STONE); ruin(22, 106, 32, 116, 1, [[32, 110], [32, 111]]);
+    for (const [x, z] of [[24, 108], [29, 109], [25, 114], [30, 114], [27, 111]]) npc('dark_warrior', x, z);
+    labels.push(['Dark Warriors\' Fortress', 27, 104, 0]);
+    // Green dragons
+    for (const [x, z] of [[6, 58], [10, 62], [7, 68], [12, 66]]) npc('green_dragon', x, z);
+    labels.push(['Green Dragons', 9, 55, 0]);
+    // ruins in the far north
+    ruin(24, 6, 32, 14, 0.5); ruin(8, 12, 14, 18, 0.45); labels.push(['Ruins', 28, 18, 0]);
+    // player killers roam the deep wilderness
+    for (const [i, x, z] of [[0, 20, 40], [1, 30, 76], [2, 24, 96], [3, 22, 128], [4, 16, 20], [5, 14, 106]]) npc('pker' + i, x, z);
+    labels.push(['PKers!', 22, 92, 0]);
     // ===== Whitecliff (walled white city) =====
     for (let x = 66; x <= 88; x++) { addWall(x, 8, 'N', wallSegs, 'white'); if (x !== 77 && x !== 78) addWall(x, 32, 'S', wallSegs, 'white'); }
     for (let z = 8; z <= 32; z++) { addWall(66, z, 'W', wallSegs, 'white'); if (z !== 20) addWall(88, z, 'E', wallSegs, 'white'); }
@@ -702,6 +748,7 @@ const World = (() => {
       let h = baseH(x, z), wet = false;
       for (let dz = -1; dz <= 0; dz++) for (let dx = -1; dx <= 0; dx++) if (isLiquid(x + dx, z + dz)) wet = true;
       if (wet) h = WATER_H;
+      if ((x === 36 || x === 37) && z >= 3 && z <= 168 && !wet) h -= 0.5;
       let cf = 0, cr = 0;
       for (let dz = -1; dz <= 0; dz++) for (let dx = -1; dx <= 0; dx++) { const tx = x + dx, tz = z + dz; if (!inb(tx, tz) || !inCave(tx, tz)) continue; if (under[idx(tx, tz)] === U.CAVEROCK) cr++; else cf++; }
       if (cf) h = 0.05 + Math.sin(x * 1.7 + z * 2.3) * 0.04;
@@ -767,7 +814,7 @@ const World = (() => {
     // lava glow
     const lava = [];
     for (let z = 0; z < H; z++) for (let x = 0; x < W; x++) if (ov(x, z) === O.LAVA) for (const [cx, cz] of [[x, z], [x, z + 1], [x + 1, z], [x + 1, z], [x, z + 1], [x + 1, z + 1]]) lava.push(cx, WATER_H + 0.02, cz);
-    if (lava.length) { const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute(lava, 3)); lg.computeVertexNormals(); scene.add(new THREE.Mesh(lg, new THREE.MeshBasicMaterial({ color: '#ff6a10' }))); }
+    if (lava.length) { const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute(lava, 3)); const luv = []; for (let i = 0; i < lava.length; i += 3) luv.push(lava[i] / 3, lava[i + 2] / 3); lg.setAttribute('uv', new THREE.Float32BufferAttribute(luv, 2)); lg.computeVertexNormals(); const lt = Tex.get('lava').clone(); lt.needsUpdate = true; World.lavaTex = lt; scene.add(new THREE.Mesh(lg, new THREE.MeshBasicMaterial({ map: lt }))); }
   }
 
   function edgeEnds(x, z, side) {
@@ -910,6 +957,10 @@ const World = (() => {
       case 'sos_cradle': return Models.dungeon('cradle');
       case 'stalagmite': return Models.dungeon('stalagmite');
       case 'cave_torch': return Models.dungeon('torch');
+      case 'wild_ditch': return Models.dungeon('ditch');
+      case 'gravestone': return Models.dungeon('gravestone');
+      case 'warn_sign': return Models.dungeon('warnsign');
+      case 'chaos_altar': { const a = Models.altar(); a.traverse(o => { if (o.material && o.material.color) { o.material = o.material.clone(); o.material.color.multiplyScalar(0.45); } }); return a; }
       case 'gnome_hut': return Models.gnomeHut();
       case 'goblin_hut': return Models.gnomeHut('#8a6a3a');
       case 'grand_tree': return Models.grandTree();

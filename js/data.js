@@ -203,6 +203,8 @@ defItem('dragon_bones', { name: 'Dragon bones', value: 1500, icon: { t: 'bones',
 defItem('unicorn_horn', { name: 'Unicorn horn', value: 60, icon: { t: 'horn' }, examine: 'This horn has restorative properties. Grind it with a pestle.' });
 defItem('bear_fur', { name: 'Bear fur', value: 20, icon: { t: 'hide', c: '#6a4a2a' }, examine: 'This would make warm clothing.' });
 defItem('wolf_bones', { name: 'Wolf bones', value: 1, icon: { t: 'bones' }, bury: 4.5, examine: 'Bones of a wolf.' });
+defItem('green_dhide', { name: 'Green dragonhide', value: 900, icon: { t: 'hide', c: '#2a9a3a' }, examine: 'The scaly hide of a green dragon.' });
+defItem('kebab', { name: 'Kebab', value: 4, icon: { t: 'drumstick', c: '#c08a40' }, food: 10, examine: 'A meaty kebab, Al Kharid\'s finest.' });
 defItem('blue_dhide', { name: 'Blue dragonhide', value: 1500, icon: { t: 'hide', c: '#3050b0' }, examine: 'The scaly hide of a blue dragon.' });
 defItem('cowhide', { name: 'Cowhide', value: 1, icon: { t: 'hide' }, examine: 'I should take this to a tanner.' });
 defItem('leather', { name: 'Leather', value: 1, icon: { t: 'leather' }, examine: 'It\'s a piece of leather.' });
@@ -575,6 +577,28 @@ const NPCS = {
   draynor_shop: { name: 'Market seller', level: 0, model: 'farmer', wander: 1, talk: 'generic', shop: 'draynor', examine: 'He sells farming goods.', greet: 'Seeds! Fresh seeds! Plant them in any patch you like.' },
   edge_shop: { name: 'Shopkeeper', level: 0, model: 'shopkeeper', wander: 1, talk: 'shop', shop: 'edge', examine: 'He supplies adventurers heading into the Wilderness.' },
   guide: { name: 'Adventure Guide', level: 0, model: 'guide', wander: 0, talk: 'guide', examine: 'He helps new adventurers find their feet.' },
+  pker0: { name: 'Zezima PK', level: 72, hp: 76, att: 57, str: 57, def: 57, maxHit: 13, speed: 4, model: 'pker', gear: 'rune', wander: 6, aggressive: true, pker: true, combatName: true,
+    drops: [{ id: 'coins', qty: [300, 4000], always: true }, { id: 'lobster', qty: [1, 3], chance: 0.6 }, { id: 'rune_scimitar', chance: 0.25 }, { id: 'rune_full_helm', chance: 0.06 }, { id: 'adamant_platebody', chance: 0.08 }, { id: 'death_rune', qty: [10, 40], chance: 0.2 }, { id: 'law_rune', qty: [5, 20], chance: 0.2 }], examine: 'A player looking for a fight. Run!' },
+  pker1: { name: 'xX Pure Xx', level: 48, hp: 64, att: 38, str: 38, def: 38, maxHit: 10, speed: 4, model: 'pker', gear: 'mithril', wander: 6, aggressive: true, pker: true, combatName: true,
+    drops: [{ id: 'coins', qty: [300, 4000], always: true }, { id: 'lobster', qty: [1, 3], chance: 0.6 }, { id: 'mithril_scimitar', chance: 0.25 }, { id: 'rune_full_helm', chance: 0.06 }, { id: 'adamant_platebody', chance: 0.08 }, { id: 'death_rune', qty: [10, 40], chance: 0.2 }, { id: 'law_rune', qty: [5, 20], chance: 0.2 }], examine: 'A player looking for a fight. Run!' },
+  pker2: { name: 'Mod Rekt', level: 64, hp: 72, att: 51, str: 51, def: 51, maxHit: 12, speed: 4, model: 'pker', gear: 'adamant', wander: 6, aggressive: true, pker: true, combatName: true,
+    drops: [{ id: 'coins', qty: [300, 4000], always: true }, { id: 'lobster', qty: [1, 3], chance: 0.6 }, { id: 'adamant_scimitar', chance: 0.25 }, { id: 'rune_full_helm', chance: 0.06 }, { id: 'adamant_platebody', chance: 0.08 }, { id: 'death_rune', qty: [10, 40], chance: 0.2 }, { id: 'law_rune', qty: [5, 20], chance: 0.2 }], examine: 'A player looking for a fight. Run!' },
+  pker3: { name: 'Bandos Boi', level: 58, hp: 69, att: 46, str: 46, def: 46, maxHit: 11, speed: 4, model: 'pker', gear: 'rune', wander: 6, aggressive: true, pker: true, combatName: true,
+    drops: [{ id: 'coins', qty: [300, 4000], always: true }, { id: 'lobster', qty: [1, 3], chance: 0.6 }, { id: 'rune_scimitar', chance: 0.25 }, { id: 'rune_full_helm', chance: 0.06 }, { id: 'adamant_platebody', chance: 0.08 }, { id: 'death_rune', qty: [10, 40], chance: 0.2 }, { id: 'law_rune', qty: [5, 20], chance: 0.2 }], examine: 'A player looking for a fight. Run!' },
+  pker4: { name: 'Hybrid 4 U', level: 68, hp: 74, att: 54, str: 54, def: 54, maxHit: 12, speed: 4, model: 'pker', gear: 'rune', wander: 6, aggressive: true, pker: true, combatName: true,
+    drops: [{ id: 'coins', qty: [300, 4000], always: true }, { id: 'lobster', qty: [1, 3], chance: 0.6 }, { id: 'rune_scimitar', chance: 0.25 }, { id: 'rune_full_helm', chance: 0.06 }, { id: 'adamant_platebody', chance: 0.08 }, { id: 'death_rune', qty: [10, 40], chance: 0.2 }, { id: 'law_rune', qty: [5, 20], chance: 0.2 }], examine: 'A player looking for a fight. Run!' },
+  pker5: { name: 'Skull Trick', level: 44, hp: 62, att: 35, str: 35, def: 35, maxHit: 10, speed: 4, model: 'pker', gear: 'black', wander: 6, aggressive: true, pker: true, combatName: true,
+    drops: [{ id: 'coins', qty: [300, 4000], always: true }, { id: 'lobster', qty: [1, 3], chance: 0.6 }, { id: 'steel_scimitar', chance: 0.25 }, { id: 'rune_full_helm', chance: 0.06 }, { id: 'adamant_platebody', chance: 0.08 }, { id: 'death_rune', qty: [10, 40], chance: 0.2 }, { id: 'law_rune', qty: [5, 20], chance: 0.2 }], examine: 'A player looking for a fight. Run!' },
+  green_dragon: { name: 'Green dragon', level: 79, hp: 75, att: 68, str: 68, def: 68, maxHit: 8, speed: 4, model: 'dragon', wander: 4, aggressive: true,
+    drops: [{ id: 'dragon_bones', always: true }, { id: 'green_dhide', always: true }, { id: 'coins', qty: [50, 600], chance: 0.7 }, { id: 'nature_rune', qty: [5, 15], chance: 0.15 }, { id: 'adamant_platebody', chance: 0.02 }, { id: 'rune_full_helm', chance: 0.01 }, { id: 'uncut_diamond', chance: 0.03 }], examine: 'Must be related to Elvarg.' },
+  dark_warrior: { name: 'Dark warrior', level: 8, hp: 17, att: 7, str: 7, def: 8, maxHit: 2, speed: 4, model: 'black_knight', wander: 4, aggressive: true,
+    drops: [{ id: 'bones', always: true }, { id: 'coins', qty: [5, 60], chance: 0.6 }, { id: 'iron_full_helm', chance: 0.04 }, { id: 'steel_scimitar', chance: 0.02 }, { id: 'nature_rune', qty: [1, 4], chance: 0.08 }, ...HERB_DROPS], examine: 'A warrior touched by chaos.' },
+  emir: { name: 'Emir Ali', level: 0, model: 'emir', wander: 1, talk: 'generic', examine: 'The ruler of Al Kharid.', greet: 'Welcome to my palace, traveller. Al Kharid prospers under the sun!' },
+  karim: { name: 'Karim', level: 0, model: 'kharid', wander: 1, talk: 'generic', shop: 'kebabs', examine: 'He sells kebabs.', greet: 'Would you like to buy a nice kebab? Only one gold!' },
+  border_guard: { name: 'Border guard', level: 20, hp: 24, att: 18, str: 18, def: 18, maxHit: 3, speed: 4, model: 'guard', wander: 0, examine: 'He guards the Al Kharid border.' },
+  duellist: { name: 'Duellist', level: 30, hp: 32, att: 26, str: 26, def: 22, maxHit: 4, speed: 4, model: 'duellist', wander: 4,
+    drops: [{ id: 'bones', always: true }, { id: 'coins', qty: [20, 150], always: true }, { id: 'steel_scimitar', chance: 0.05 }, { id: 'mithril_scimitar', chance: 0.015 }], examine: 'Training for the Duel Arena.' },
+  camel: { name: 'Camel', level: 3, hp: 8, att: 1, str: 1, def: 2, maxHit: 1, speed: 4, model: 'camel', wander: 5, drops: [{ id: 'bones', always: true }], examine: 'A camel. It looks grumpy.' },
   minotaur: { name: 'Minotaur', level: 19, hp: 22, att: 16, str: 16, def: 14, maxHit: 3, speed: 4, model: 'minotaur', wander: 3, aggressive: true,
     drops: [{ id: 'bones', always: true }, { id: 'coins', qty: [10, 60], chance: 0.6 }, { id: 'iron_arrow', qty: [5, 20], chance: 0.2 }, { id: 'iron_full_helm', chance: 0.03 }, ...HERB_DROPS], examine: 'Half man, half bull, all angry.' },
   flesh_crawler: { name: 'Flesh Crawler', level: 28, hp: 25, att: 22, str: 20, def: 18, maxHit: 3, speed: 3, model: 'flesh_crawler', wander: 4, aggressive: true,
@@ -612,6 +636,7 @@ const NPCS = {
 };
 
 const SHOPS = {
+  kebabs: { name: 'Karim\'s Kebabs', stock: [['kebab', 100]] },
   scimitars: { name: 'Zeke\'s Superior Scimitars', stock: [['bronze_scimitar', 5], ['iron_scimitar', 3], ['steel_scimitar', 2], ['mithril_scimitar', 1], ['adamant_scimitar', 1]] },
   armour: { name: 'Whitecliff Armoury', stock: [['wk_helm', 1], ['wk_body', 1], ['wk_legs', 1], ['wk_shield', 1], ['steel_full_helm', 3], ['steel_platebody', 2], ['steel_platelegs', 2], ['steel_kiteshield', 2], ['mithril_full_helm', 1], ['mithril_platebody', 1], ['mithril_kiteshield', 1], ['steel_scimitar', 2]] },
   gems: { name: 'Whitecliff Gem Store', stock: [['chisel', 10], ['uncut_sapphire', 5], ['uncut_emerald', 3], ['sapphire', 2], ['gold_bar', 5]] },
