@@ -516,6 +516,51 @@ const World = (() => {
     for (const [x, z] of [[44, 236], [62, 236], [44, 241]]) addLoc('lamp', x, z);
     for (let z = 228; z < 252; z += 3) if (canPlace(36, z, 1, 1)) addLoc('willow', 36, z);
     mapIcons.push({ x: 49, z: 230, icon: 'bank' }, { x: 51, z: 238.5, icon: 'stall' }, { x: 59, z: 246, icon: 'quest' });
+    // ===== Canifis (Morrow Mire) =====
+    const clearArea = (x0, z0, x1, z1, u) => { for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) { setO(x, z, 0); if (u) setU(x, z, u); } };
+    clearArea(203, 211, 229, 235, U.DIRT); clearArea(218, 235, 234, 252, U.DIRT);
+    rectO(212, 220, 219, 226, O.COBBLE); rectO(204, 222, 229, 223, O.PATH); rectO(226, 224, 227, 237, O.PATH);
+    for (let x = 178; x < 204; x++) for (const z of [222, 223]) setO(x, z, isWater(x, z) ? O.PIER : O.PATH);
+    building({ name: 'Canifis Bank', x0: 205, z0: 213, x1: 211, z1: 218, style: 'wood', roof: 'slate', floor: O.WOOD, doors: [{ x: 208, z: 218, s: 'S' }] });
+    for (const x of [206, 208, 210]) addLoc('bank_booth', x, 215);
+    building({ name: 'The Rising Sun Inn', x0: 220, z0: 213, x1: 227, z1: 218, style: 'wood', roof: 'slate', floor: O.WOOD, doors: [{ x: 223, z: 218, s: 'S' }] });
+    addLoc('range', 221, 214);
+    building({ name: 'Canifis General Store', x0: 205, z0: 227, x1: 211, z1: 232, style: 'wood', roof: 'slate', floor: O.WOOD, doors: [{ x: 208, z: 227, s: 'N' }] });
+    building({ name: 'Canifis House', x0: 214, z0: 228, x1: 219, z1: 233, style: 'wood', roof: 'slate', floor: O.WOOD, doors: [{ x: 216, z: 228, s: 'N' }] });
+    building({ name: 'Slayer Tower', x0: 220, z0: 238, x1: 232, z1: 250, style: 'stone', roof: 'slate', floor: O.STONE, doors: [{ x: 226, z: 238, s: 'N' }, { x: 227, z: 238, s: 'N' }] });
+    addLoc('well', 216, 221); for (const [x, z] of [[212, 220], [219, 226], [204, 224]]) addLoc('lamp', x, z);
+    for (const x of [206, 208, 210]) npc('banker', x, 214);
+    npc('canifis_shop', 208, 230); for (const [x, z] of [[214, 224], [218, 222], [210, 221], [223, 221], [216, 226], [224, 230]]) npc('werewolf', x, z);
+    for (const [x, z] of [[223, 242], [229, 242], [223, 247]]) npc('crawling_hand', x, z);
+    for (const [x, z] of [[229, 247], [226, 245]]) npc('banshee', x, z);
+    for (const [x, z] of [[212, 240], [208, 246], [214, 250]]) npc('ghast', x, z);
+    mapIcons.push({ x: 208, z: 216, icon: 'bank' }, { x: 208, z: 230, icon: 'store' }, { x: 222, z: 215, icon: 'range' }, { x: 226, z: 244, icon: 'slayer' });
+    labels.push(['Canifis', 216, 209, 1], ['Slayer Tower', 226, 254, 0]);
+    // ===== Pollnivneach (desert) =====
+    rectO(86, 167, 110, 168, O.SANDPATH); rectO(97, 156, 98, 182, O.SANDPATH);
+    building({ name: 'Pollnivneach Bank', x0: 88, z0: 159, x1: 94, z1: 164, style: 'stone', roof: 'sandstone', floor: O.STONE, doors: [{ x: 91, z: 164, s: 'S' }] });
+    for (const x of [89, 91, 93]) addLoc('bank_booth', x, 161);
+    building({ name: 'Pollnivneach Store', x0: 101, z0: 159, x1: 106, z1: 164, style: 'stone', roof: 'sandstone', floor: O.WOOD, doors: [{ x: 103, z: 164, s: 'S' }] });
+    building({ name: 'Desert House', x0: 88, z0: 171, x1: 93, z1: 176, style: 'stone', roof: 'sandstone', floor: O.WOOD, doors: [{ x: 90, z: 171, s: 'N' }] });
+    building({ name: 'Desert House', x0: 102, z0: 171, x1: 107, z1: 176, style: 'stone', roof: 'sandstone', floor: O.WOOD, doors: [{ x: 104, z: 171, s: 'N' }] });
+    addLoc('well', 100, 170); addLoc('range', 106, 175); addLoc('silk_stall', 94, 166);
+    for (const x of [89, 91, 93]) npc('banker', x, 160);
+    npc('polln_shop', 103, 161); for (const [x, z] of [[96, 172], [100, 165], [108, 169], [86, 166]]) npc('thug', x, z);
+    for (const [x, z] of [[95, 162], [99, 175]]) npc('camel', x, z);
+    for (const [x, z] of [[86, 158], [110, 158], [86, 178], [110, 178], [95, 170], [109, 164]]) if (canPlace(x, z, 1, 1)) addLoc('palm', x, z);
+    mapIcons.push({ x: 91, z: 162, icon: 'bank' }, { x: 103.5, z: 161.5, icon: 'store' }, { x: 95, z: 166.5, icon: 'stall' });
+    labels.push(['Pollnivneach', 98, 155, 1]);
+    // ===== Taverley (druid village) =====
+    rectO(92, 49, 116, 50, O.PATH);
+    building({ name: 'Taverley Herbs', x0: 101, z0: 43, x1: 106, z1: 47, style: 'stone', roof: 'thatch', floor: O.WOOD, doors: [{ x: 103, z: 47, s: 'S' }] });
+    building({ name: 'Druid House', x0: 109, z0: 43, x1: 114, z1: 47, style: 'stone', roof: 'thatch', floor: O.WOOD, doors: [{ x: 111, z: 47, s: 'S' }] });
+    building({ name: 'Druid House', x0: 101, z0: 52, x1: 106, z1: 56, style: 'stone', roof: 'thatch', floor: O.WOOD, doors: [{ x: 103, z: 52, s: 'N' }] });
+    building({ name: 'Taverley Smithy', x0: 109, z0: 52, x1: 114, z1: 56, style: 'stone', roof: 'thatch', floor: O.STONE, doors: [{ x: 111, z: 52, s: 'N' }] });
+    addLoc('anvil', 112, 55); addLoc('furnace', 109, 53);
+    npc('kaqemeex', 103, 45); for (const [x, z] of [[99, 48], [108, 51], [114, 49], [104, 54]]) npc('druid', x, z);
+    for (const [x, z] of [[100, 46], [100, 53], [116, 46], [116, 53]]) if (canPlace(x, z, 1, 1)) addLoc('flowers', x, z);
+    mapIcons.push({ x: 103.5, z: 45, icon: 'herb' }, { x: 112, z: 55, icon: 'anvil' }, { x: 110, z: 54, icon: 'furnace' });
+    labels.push(['Taverley', 108, 40, 1]);
     // ===== Extra mines =====
     const mineField = (name, cx, cz, list, rad) => {
       for (const [t, n] of list) for (let k = 0; k < n; k++) {
@@ -704,7 +749,7 @@ const World = (() => {
     for (let z = 3; z < H - 3; z++) for (let x = 3; x < W - 3; x++) {
       if (!free(x, z)) continue;
       const u = under[idx(x, z)], r = rnd();
-      if (Math.hypot(x - 90, z - 82) < 15 || Math.hypot(x - 144, z - 81) < 13 || nearRC(x, z) || (x >= 64 && x <= 90 && z >= 6 && z <= 34) || (x >= 186 && x <= 206 && z >= 76 && z <= 96) || (x >= 126 && x <= 180 && z >= 192 && z <= 238) || (x >= 78 && x <= 110 && z >= 206 && z <= 250) || (x < 36 && z > 226) || (x >= 90 && x <= 108 && z >= 184 && z <= 198) || (x >= 16 && x <= 30 && z >= 142 && z <= 164) || Math.hypot(x - 57, z - 206) < 13 || Math.hypot(x - 130, z - 58) < 9 || (x >= 38 && x <= 66 && z >= 224 && z <= 252) || (x >= 37 && x <= 58 && z >= 146 && z <= 168)) continue;
+      if (Math.hypot(x - 90, z - 82) < 15 || Math.hypot(x - 144, z - 81) < 13 || nearRC(x, z) || (x >= 64 && x <= 90 && z >= 6 && z <= 34) || (x >= 186 && x <= 206 && z >= 76 && z <= 96) || (x >= 126 && x <= 180 && z >= 192 && z <= 238) || (x >= 78 && x <= 110 && z >= 206 && z <= 250) || (x < 36 && z > 226) || (x >= 90 && x <= 108 && z >= 184 && z <= 198) || (x >= 16 && x <= 30 && z >= 142 && z <= 164) || Math.hypot(x - 57, z - 206) < 13 || Math.hypot(x - 130, z - 58) < 9 || (x >= 38 && x <= 66 && z >= 224 && z <= 252) || (x >= 37 && x <= 58 && z >= 146 && z <= 168) || (x >= 202 && x <= 234 && z >= 210 && z <= 252) || (x >= 85 && x <= 111 && z >= 156 && z <= 180) || (x >= 99 && x <= 117 && z >= 41 && z <= 58)) continue;
       if (x >= 64 && x <= 81 && z >= 82 && z <= 104) continue; // farm + agility
       if (x >= 103 && x <= 121 && z >= 63 && z <= 103) continue; // pens
       if (u === U.FOREST) { if (r < 0.1) addLoc('tree', x, z); else if (r < 0.125) addLoc('oak', x, z); else if (r < 0.15) addLoc('pine', x, z); else if (r < 0.17) addLoc('bush', x, z); }

@@ -599,6 +599,14 @@ const NPCS = {
   duellist: { name: 'Duellist', level: 30, hp: 32, att: 26, str: 26, def: 22, maxHit: 4, speed: 4, model: 'duellist', wander: 4,
     drops: [{ id: 'bones', always: true }, { id: 'coins', qty: [20, 150], always: true }, { id: 'steel_scimitar', chance: 0.05 }, { id: 'mithril_scimitar', chance: 0.015 }], examine: 'Training for the Duel Arena.' },
   camel: { name: 'Camel', level: 3, hp: 8, att: 1, str: 1, def: 2, maxHit: 1, speed: 4, model: 'camel', wander: 5, drops: [{ id: 'bones', always: true }], examine: 'A camel. It looks grumpy.' },
+  werewolf: { name: 'Werewolf', level: 24, hp: 30, att: 20, str: 20, def: 18, maxHit: 3, speed: 4, model: 'werewolf', wander: 4, talk: 'generic', greet: 'Grrr... I mean, welcome to Canifis, stranger.',
+    drops: [{ id: 'bones', always: true }, { id: 'coins', qty: [10, 80], chance: 0.6 }, { id: 'grimy_ranarr', chance: 0.05 }, ...HERB_DROPS], examine: 'A villager... with very hairy arms.' },
+  canifis_shop: { name: 'Fidelio', level: 0, model: 'werewolf', wander: 1, talk: 'generic', shop: 'canifis', examine: 'He runs the Canifis general store.', greet: 'Welcome! Buy something before the moon rises.' },
+  druid: { name: 'Druid', level: 0, model: 'druid', wander: 3, talk: 'generic', examine: 'A wise follower of Guthix.', greet: 'Welcome to Taverley, home of the druids. Balance in all things.' },
+  kaqemeex: { name: 'Kaqemeex', level: 0, model: 'druid', wander: 1, talk: 'generic', shop: 'druidic', examine: 'The druid elder.', greet: 'Herblore is the art of the druids. I can sell you what you need to begin.' },
+  polln_shop: { name: 'Ali the Merchant', level: 0, model: 'kharid', wander: 1, talk: 'generic', shop: 'polln', examine: 'A desert merchant.', greet: 'Water? Kebabs? Everything a desert traveller needs!' },
+  thug: { name: 'Menaphite thug', level: 18, hp: 24, att: 15, str: 16, def: 14, maxHit: 3, speed: 4, model: 'thug', wander: 4, pickpocket: { level: 30, xp: 40, coins: 30, stun: 3 },
+    drops: [{ id: 'bones', always: true }, { id: 'coins', qty: [10, 120], always: true }, { id: 'kebab', chance: 0.2 }, { id: 'steel_scimitar', chance: 0.02 }], examine: 'Not someone to mess with.' },
   minotaur: { name: 'Minotaur', level: 19, hp: 22, att: 16, str: 16, def: 14, maxHit: 3, speed: 4, model: 'minotaur', wander: 3, aggressive: true,
     drops: [{ id: 'bones', always: true }, { id: 'coins', qty: [10, 60], chance: 0.6 }, { id: 'iron_arrow', qty: [5, 20], chance: 0.2 }, { id: 'iron_full_helm', chance: 0.03 }, ...HERB_DROPS], examine: 'Half man, half bull, all angry.' },
   flesh_crawler: { name: 'Flesh Crawler', level: 28, hp: 25, att: 22, str: 20, def: 18, maxHit: 3, speed: 3, model: 'flesh_crawler', wander: 4, aggressive: true,
@@ -636,6 +644,9 @@ const NPCS = {
 };
 
 const SHOPS = {
+  canifis: { name: 'Canifis General Store', stock: [['lobster', 20], ['shrimps', 20], ['tinderbox', 5], ['knife', 5], ['vial', 20], ['bronze_pickaxe', 3], ['bronze_axe', 3], ['fishing_bait', 200]] },
+  druidic: { name: 'Taverley Herbs', stock: [['vial', 50], ['vial_water', 50], ['eye_of_newt', 50], ['grimy_guam', 10]] },
+  polln: { name: 'Pollnivneach Supplies', stock: [['kebab', 50], ['shrimps', 20], ['vial_water', 20], ['tinderbox', 5], ['bronze_pickaxe', 3], ['knife', 3]] },
   kebabs: { name: 'Karim\'s Kebabs', stock: [['kebab', 100]] },
   scimitars: { name: 'Zeke\'s Superior Scimitars', stock: [['bronze_scimitar', 5], ['iron_scimitar', 3], ['steel_scimitar', 2], ['mithril_scimitar', 1], ['adamant_scimitar', 1]] },
   armour: { name: 'Whitecliff Armoury', stock: [['wk_helm', 1], ['wk_body', 1], ['wk_legs', 1], ['wk_shield', 1], ['steel_full_helm', 3], ['steel_platebody', 2], ['steel_platelegs', 2], ['steel_kiteshield', 2], ['mithril_full_helm', 1], ['mithril_platebody', 1], ['mithril_kiteshield', 1], ['steel_scimitar', 2]] },

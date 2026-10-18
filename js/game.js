@@ -1558,7 +1558,7 @@ const Game = (() => {
     'big_bones', 'nature_rune', 'law_rune', 'air_rune', 'mind_rune', 'uncut_sapphire', 'grimy_ranarr', 'rune_essence', 'bow_string', 'steel_platebody', 'mithril_scimitar', 'prayer_potion3', 'cake'];
   const BUY_GOODS = ['logs', 'oak_logs', 'willow_logs', 'maple_logs', 'yew_logs', 'iron_ore', 'coal', 'copper_ore', 'tin_ore', 'bones', 'big_bones', 'cowhide', 'feather', 'raw_shrimps',
     'raw_lobster', 'raw_trout', 'bronze_bar', 'iron_bar', 'steel_bar', 'rune_essence', 'flax', 'bow_string', 'egg', 'raw_chicken', 'raw_beef', 'grimy_guam', 'leather', 'gold_ore'];
-  const HUBS = [[52, 238], [46, 158], [90, 82], [154, 216], [99, 234], [144, 82], [77, 22], [135, 143], [100, 24], [87, 108], [110, 66], [70, 92], [196, 86]];
+  const HUBS = [[216, 223], [98, 168], [108, 50], [52, 238], [46, 158], [90, 82], [154, 216], [99, 234], [144, 82], [77, 22], [135, 143], [100, 24], [87, 108], [110, 66], [70, 92], [196, 86]];
   const OUTFIT = ['#7a2a2a', '#2a5a7a', '#5a6a2a', '#6a4a2a', '#4a2a6a', '#8a6a2a', '#2a2a2a', '#a0a0a0', '#1a4a1a', '#7a1a5a'];
   const METALS_B = ['bronze', 'iron', 'steel', 'mithril', 'adamant', 'rune'];
   const pickR = a => a[Math.floor(Math.random() * a.length)];
