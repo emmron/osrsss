@@ -726,7 +726,7 @@ const UI = (() => {
     Render.cam.tDist = Math.max(4.5, Math.min(16, (Render.cam.tDist ?? Render.cam.dist) + Math.sign(e.deltaY) * 0.9));
   }
   function onKey(e, down) {
-    if (kb && e.target === kb && e.key !== 'Escape') return;
+    if (e.target && e.target.tagName === 'INPUT' && e.key !== 'Escape') return;
     const st = S();
     if (e.key.startsWith('Arrow')) { Render.cam.keys[e.key] = down; e.preventDefault(); return; }
     if (!down) return;
@@ -1350,6 +1350,7 @@ const UI = (() => {
   function draw() {
     ctx.clearRect(0, 0, 765, 503);
     const st = S();
+    syncFields();
     if (!st.loggedIn) { drawLogin(); return; }
     Render.setDestTile(S().loggedIn ? S().flag : null);
     if (worldMap.open) { drawWorldMap(); return; }
@@ -1384,8 +1385,25 @@ const UI = (() => {
   const kbRules = () => !S().loggedIn ? { get: () => loginName, set: v => { loginName = v; }, ok: /[^a-zA-Z0-9 ]/g, max: 12 }
     : prompt ? { get: () => prompt.text, set: v => { prompt.text = v; }, ok: /[^0-9kmKM]/g, max: 10 }
     : { get: () => chatInput, set: v => { chatInput = v; }, ok: null, max: 80 };
-  function focusKb() { if (!kb) return; const r = kbRules(); kb.value = r.get(); kb.focus({ preventScroll: true }); }
+  function focusKb() { const el = (!S().loggedIn && loginField) ? loginField : (!prompt && chatField && isTouch) ? chatField : kb; if (!el) return; const r = kbRules(); el.value = r.get(); el.focus({ preventScroll: true }); }
+  function bindField(input, form, rules, after) {
+    if (!input || !form) return;
+    input.addEventListener('focus', () => { input.value = rules().get(); });
+    input.addEventListener('input', () => { const r = rules(); let v = input.value; if (r.ok) v = v.replace(r.ok, ''); v = v.slice(0, r.max); r.set(v); if (input.value !== v) input.value = v; });
+    form.addEventListener('submit', e => { e.preventDefault(); onKey({ key: 'Enter', target: null, preventDefault() { } }, true); input.value = rules().get(); if (after) after(input); });
+  }
+  const loginRules = () => ({ get: () => loginName, set: v => { loginName = v; }, ok: /[^a-zA-Z0-9 ]/g, max: 12 });
+  const chatRules = () => ({ get: () => chatInput, set: v => { chatInput = v; }, ok: null, max: 80 });
+  let loginField = null, chatField = null;
+  function syncFields() {
+    const st = S();
+    if (loginField) { const want = st.loggedIn ? 'none' : 'block'; if (loginField.parentNode.style.display !== want) { loginField.parentNode.style.display = want; if (st.loggedIn) loginField.blur(); } }
+    if (chatField) { const want = st.loggedIn && isTouch ? 'block' : 'none'; if (chatField.parentNode.style.display !== want) chatField.parentNode.style.display = want; }
+  }
   function setupKb() {
+    loginField = document.getElementById('loginField'); chatField = document.getElementById('chatField');
+    bindField(loginField, document.getElementById('loginForm'), loginRules, i => { if (S().loggedIn) i.blur(); });
+    bindField(chatField, document.getElementById('chatForm'), chatRules);
     kb = document.getElementById('kb'); const form = document.getElementById('kbform');
     if (!kb || !form) return;
     kb.addEventListener('input', () => { const r = kbRules(); let v = kb.value; if (r.ok) v = v.replace(r.ok, ''); v = v.slice(0, r.max); r.set(v); if (kb.value !== v) kb.value = v; });
