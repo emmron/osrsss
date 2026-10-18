@@ -334,6 +334,9 @@ const Game = (() => {
       return;
     }
     if (T === 'trade_board') { S.iface = { type: 'board' }; return; }
+    if (loc.dest && (op === 'Climb-down' || op === 'Climb-up')) return climb(loc, op);
+    if (T === 'sos_gate') return sosGate(loc);
+    if (T in SOS_REWARD) return sosReward(T);
     if (op === 'Read') { msg('North: Elderwood & the Runestone Circle. South: Ardenvale Mine, Al Kharid.'); msg('East: Port Sarrow. West: The Old Bridge & the Wilderness (beware!).'); return; }
     if (op === 'Prospect') {
       if (loc.depletedUntil > S.tick) { msg('There is currently no ore available in this rock.'); return; }
@@ -398,13 +401,52 @@ const Game = (() => {
     if (T === 'snare' || T === 'boxtrap') return trapAction(loc, op);
   }
 
+  // ---------- dungeons ----------
+  function climb(loc, op) {
+    const p = S.player;
+    setAnim(p, 'pickup'); msg(op === 'Climb-down' ? 'You climb down into the darkness...' : 'You climb back up the ladder.');
+    p.task = { timer: 2, interval: 2, fn: () => { p.x = loc.dest[0]; p.z = loc.dest[1]; p.from = null; p.steps = []; p.path = []; S.flag = null; S.walkGoal = null;
+      if (loc.type === 'sos_entrance') msg('Welcome to the Stronghold of Security. Answer the gates\' questions to go deeper!', '#000080');
+      if (loc.type === 'ladder_down') msg('You descend to the next floor of the Stronghold.', '#000080');
+      return false; } };
+  }
+  const SOS_Q = [
+    ['Should you ever tell anyone your password?', 'No, never.', 'Yes, if they are a friend.', 'Only if they ask nicely.'],
+    ['Who can you give your bank PIN to?', 'Nobody.', 'A moderator who asks for it.', 'My best friend.'],
+    ['A player offers free gold for your password.', 'Decline and report them.', 'Accept, free gold!', 'Ask for more gold first.'],
+    ['Where should you type your password?', 'Only on the real login screen.', 'In public chat.', 'On any website that asks.'],
+    ['Is it safe to reuse passwords on other sites?', 'No, use a unique password.', 'Yes, it is easier.', 'Only for games.'],
+    ['Game staff message you asking for your password.', 'Staff never ask - report it.', 'Give it to them.', 'Send it by email.'],
+  ];
+  function sosGate(loc) {
+    const p = S.player;
+    const pass = () => { p.x = loc.x; p.z = loc.z + (p.z < loc.z ? 1 : -1); p.from = null; p.steps = []; setAnim(p, 'pickup'); };
+    if (p.z > loc.z) { pass(); msg('The gate lets you back through.'); return; }
+    const q = SOS_Q[ri(0, SOS_Q.length - 1)];
+    const ans = q.slice(1).map((t, i) => ({ t, ok: i === 0 })).sort(() => Math.random() - 0.5);
+    options(q[0], ans.map(a => ({ text: a.t, fn: () => { if (a.ok) { pass(); msg('Correct! The gate swings open and you walk through.', '#000080'); } else msg('Wrong answer! The gate remains locked.', '#a00000'); } })));
+  }
+  const SOS_REWARD = { sos_gift: 2000, sos_grain: 3000, sos_box: 5000, sos_cradle: 0 };
+  function sosReward(T) {
+    S.sos = S.sos || {};
+    if (T === 'sos_cradle') {
+      const owns = id => has(id) || Object.values(S.equip).includes(id) || S.bank.some(b => b.id === id);
+      if (owns('fancy_boots') || owns('fighting_boots')) { msg('You already have a pair of boots from the Cradle of Life.'); return; }
+      options('Choose your reward:', [{ text: 'Fancy boots', fn: () => { invAddOrDrop('fancy_boots', 1); msg('You take the Fancy boots from the cradle!', '#000080'); S.sos[T] = 1; } }, { text: 'Fighting boots', fn: () => { invAddOrDrop('fighting_boots', 1); msg('You take the Fighting boots from the cradle!', '#000080'); S.sos[T] = 1; } }]);
+      return;
+    }
+    if (S.sos[T]) { msg('The chest is empty - you have already claimed this reward.'); return; }
+    S.sos[T] = 1; invAddOrDrop('coins', SOS_REWARD[T]);
+    if (T === 'sos_box') { S.skills.hitpoints.cur = Math.max(S.skills.hitpoints.cur, lvl('hitpoints')); S.skills.prayer.cur = Math.max(S.skills.prayer.cur, lvl('prayer')); }
+    msg(`You find ${SOS_REWARD[T].toLocaleString()} coins inside!`, '#000080'); Sfx.play('levelup');
+  }
   function fish(loc, op) {
     const p = S.player, f = FISHING[op];
     if (!f) return;
     const minLv = f.fish[0][1];
     if (lvl('fishing') < minLv) { msg(`You need a Fishing level of ${minLv} to fish here.`); return; }
     if (!has(f.tool)) { msg(`You need a ${ITEMS[f.tool].name.toLowerCase()} to fish here.`); return; }
-    if (f.bait && !has(f.bait)) { msg(`You don't have any ${ITEMS[f.bait].name.toLowerCase()}${f.bait === 'feather' ? 's' : ''} left.`); return; }
+    if (f.bait && !has(f.bait)) { msg(`You don't have any ${ITEMS[f.bait].name.toLowerCase()}${f.bait === 'feather' ? 's' : ''} left.`); msg('You can buy more at any general store or fishing shop, or find bait while net fishing.', '#000080'); return; }
     if (!freeSlots()) { msg('You can\'t carry any more fish.'); return; }
     msg({ Net: 'You cast out your net...', Bait: 'You cast out your line...', Lure: 'You cast out your line...', Cage: 'You attempt to catch a lobster.', Harpoon: 'You start harpooning fish.' }[op]);
     startLoop('fish', f.tool, 4, () => {
@@ -418,6 +460,7 @@ const Game = (() => {
         invAdd(pickF[0]); addXp('fishing', pickF[2]); track('fish');
         const nm = ITEMS[pickF[0]].name.replace('Raw ', '');
         msg(`You catch ${/s$/.test(nm) ? 'some' : /^[aeiou]/.test(nm) ? 'an' : 'a'} ${nm}.`); Sfx.play('splash');
+        if (op === 'Net' && Math.random() < 0.12) { const q = ri(5, 15); invAdd('fishing_bait', q); msg(`You find ${q} fishing bait tangled in your net.`); }
       }
       return true;
     });
@@ -737,6 +780,7 @@ const Game = (() => {
     if (kind === 'loc') {
       faceEnt(S.player, ent);
       if (COOKING[it.id] && (ent.type === 'fire' || ent.type === 'range')) return startCooking(it.id, ent);
+      if (ent.type === 'fishing_spot') { const op = locOps(ent).find(o => FISHING[o].tool === it.id || FISHING[o].bait === it.id); if (op) return fish(ent, op); msg('You can\'t fish here with that.'); return; }
       if (ent.type === 'furnace') { if (it.id === 'gold_bar') return craftGold(); const r = SMELTING.find(r => r.needs[it.id] && hasMats(r)); if (r) return startSmelting(r); }
       if (ent.type === 'anvil' && /_bar$/.test(it.id)) { const m = METALS.find(m => barOf(m) === it.id); if (m) return openSmithing(m); }
       if (/bones/.test(it.id) && ent.type === 'altar') { invRemove(it.id); addXp('prayer', ITEMS[it.id].bury * 3); setAnim(S.player, 'pray'); msg('The gods are very pleased with your offering.'); return; }
@@ -1882,7 +1926,7 @@ const Game = (() => {
     const p = S.player;
     const patches = {};
     for (const l of World.locs) if (l.patch) patches[l.x + ',' + l.z] = l.patch;
-    const data = { v: 2, skills: S.skills, inv: S.inv, equip: S.equip, ammo: S.ammoQty, bank: S.bank, quests: S.quests, qp: S.questPoints, x: p.x, z: p.z, style: S.style, run: p.run, energy: p.energy, ar: S.autoRetaliate, slayer: S.slayer, patches, gift: S.gift, autocast: S.autocast, tradeLog: S.tradeLog, taskProg: S.taskProg, tasksDone: S.tasksDone, gotStarter: S.gotStarter, gift2: S.gift2, wepQty: S.wepQty, pouches: S.pouches, pouchesP: S.pouchesP, agi: S.agi, fairyLog: S.fairyLog, essReturn: S.essReturn, bright: S.settings.brightness, xpRate: S.settings.xpRate };
+    const data = { v: 2, skills: S.skills, inv: S.inv, equip: S.equip, ammo: S.ammoQty, bank: S.bank, quests: S.quests, qp: S.questPoints, x: p.x, z: p.z, style: S.style, run: p.run, energy: p.energy, ar: S.autoRetaliate, slayer: S.slayer, patches, gift: S.gift, autocast: S.autocast, tradeLog: S.tradeLog, taskProg: S.taskProg, tasksDone: S.tasksDone, gotStarter: S.gotStarter, gift2: S.gift2, gift3: S.gift3, sos: S.sos, wepQty: S.wepQty, pouches: S.pouches, pouchesP: S.pouchesP, agi: S.agi, fairyLog: S.fairyLog, essReturn: S.essReturn, bright: S.settings.brightness, xpRate: S.settings.xpRate };
     try { localStorage.setItem(KEY(S.name), JSON.stringify(data)); localStorage.setItem('ardenvale_last', S.name); } catch (e) { }
   }
   function load(name) {
@@ -1897,7 +1941,7 @@ const Game = (() => {
       S.inv = data.inv.map(s => s && ITEMS[s.id] ? s : null); S.equip = data.equip || {}; for (const k in S.equip) if (!ITEMS[S.equip[k]]) delete S.equip[k];
       S.ammoQty = data.ammo || 0; S.bank = (data.bank || []).filter(b => ITEMS[b.id]);
       Object.assign(S.quests, data.quests || {}); S.questPoints = data.qp || 0;
-      S.style = data.style || 0; S.autoRetaliate = data.ar !== false; S.slayer = data.slayer || null; S.gift = data.gift; S.autocast = data.autocast || null; S.pouches = data.pouches || {}; S.tradeLog = data.tradeLog || []; S.taskProg = data.taskProg || {}; S.tasksDone = data.tasksDone || {}; S.gotStarter = data.gotStarter; S.gift2 = data.gift2; S.wepQty = data.wepQty || 0; S.pouchesP = data.pouchesP || {}; S.agi = data.agi || {}; S.fairyLog = data.fairyLog || []; S.essReturn = data.essReturn;
+      S.style = data.style || 0; S.autoRetaliate = data.ar !== false; S.slayer = data.slayer || null; S.gift = data.gift; S.autocast = data.autocast || null; S.pouches = data.pouches || {}; S.tradeLog = data.tradeLog || []; S.taskProg = data.taskProg || {}; S.tasksDone = data.tasksDone || {}; S.gotStarter = data.gotStarter; S.gift2 = data.gift2; S.gift3 = data.gift3; S.sos = data.sos || {}; S.wepQty = data.wepQty || 0; S.pouchesP = data.pouchesP || {}; S.agi = data.agi || {}; S.fairyLog = data.fairyLog || []; S.essReturn = data.essReturn;
       S.settings.brightness = data.bright == null ? 2 : data.bright;
       S.settings.xpRate = data.xpRate || 5;
       for (const l of World.locs) if (l.patch && data.patches && data.patches[l.x + ',' + l.z]) { l.patch = data.patches[l.x + ',' + l.z]; World.refreshLoc(l); }
@@ -1919,6 +1963,16 @@ const Game = (() => {
       const give = (id, q) => { if (!invAdd(id, q)) { const b = S.bank.find(b => b.id === id); if (b) b.qty += q; else S.bank.push({ id, qty: q }); } };
       for (const [id, q] of [['staff_of_air', 1], ['law_rune', 100], ['air_rune', 500], ['water_rune', 200], ['earth_rune', 200], ['fire_rune', 200], ['mind_rune', 300], ['chaos_rune', 100], ['death_rune', 50], ['tab_ardenvale', 10], ['tab_varrock', 10], ['tab_lumbridge', 10], ['tab_whitecliff', 10], ['tab_gnome', 10], ['tab_draynor', 10]]) give(id, q);
       msg('You have been given a staff of air, runes and teleport tablets (any overflow went to your bank). Break a tablet to teleport!', '#000080');
+    }
+    if (!S.gift3) {
+      S.gift3 = 1;
+      const give = (id, q) => { if (!invAdd(id, q)) { const b = S.bank.find(b => b.id === id); if (b) b.qty += q; else S.bank.push({ id, qty: q }); } };
+      const set = { head: 'rune_full_helm', body: 'rune_platebody', legs: 'rune_platelegs', shield: 'rune_kiteshield', weapon: 'rune_scimitar' };
+      for (const k in set) { if (S.equip[k] && S.equip[k] !== set[k]) { const b = S.bank.find(b => b.id === S.equip[k]); if (b) b.qty++; else S.bank.push({ id: S.equip[k], qty: 1 }); } S.equip[k] = set[k]; }
+      give('fishing_bait', 500); give('fishing_rod', 1);
+      for (const [id, q] of [['fly_fishing_rod', 1], ['feather', 500], ['big_net', 1], ['lobster_pot', 1], ['harpoon', 1]]) { const b = S.bank.find(b => b.id === id); if (b) b.qty += q; else S.bank.push({ id, qty: q }); }
+      msg('You have been given a full set of rune armour and a rune scimitar! (your old gear went to the bank)', '#000080');
+      msg('You also got fishing bait and a rod. More fishing gear (fly rod, feathers, harpoon, lobster pot, big net) is waiting in your bank.', '#000080');
     }
     if (data) {
       if (data.v === 2 && World.walkable(data.x, data.z)) { S.player.x = data.x; S.player.z = data.z; }

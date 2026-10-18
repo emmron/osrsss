@@ -103,7 +103,7 @@ const Sfx = (() => {
 })();
 
 const Render = (() => {
-  let renderer, scene, camera, ambient, sun;
+  let renderer, scene, camera, ambient, sun, seaMesh, underground = false;
   const cam = { yaw: 0, pitch: 0.62, dist: 9.5, keys: {} };
   const raycaster = new THREE.Raycaster();
   const groundTex = {};
@@ -119,7 +119,7 @@ const Render = (() => {
     scene.fog = new THREE.Fog('#9cb8d8', 20, 42);
     const sea = new THREE.Mesh(new THREE.PlaneGeometry(1400, 1400), new THREE.MeshLambertMaterial({ color: '#2c4a84' }));
     sea.rotation.x = -Math.PI / 2; sea.position.set(120, -0.42, 132);
-    scene.add(sea);
+    scene.add(sea); seaMesh = sea;
     camera = new THREE.PerspectiveCamera(46, VW / VH, 0.1, 80);
     ambient = new THREE.AmbientLight(0xffffff, 0.6);
     sun = new THREE.DirectionalLight(0xfff4e0, 0.8);
@@ -244,7 +244,15 @@ const Render = (() => {
     let tx, tz, ty;
     if (p && S.loggedIn) { updateEntity(p, t, dt); tx = p.rx; tz = p.rz; ty = World.heightAt(tx, tz) + 0.9; }
     else { cam.yaw += dt * 0.08; tx = 90; tz = 81; ty = 1.5; cam.pitch = 0.5; cam.dist = 14; }
-    World.updateChunks(tx, tz, 40);
+    const ug = !!(p && S.loggedIn && tx >= 162 && tz >= 134 && tz <= 185);
+    if (ug !== underground) {
+      underground = ug;
+      scene.background.set(ug ? '#000000' : '#9cb8d8'); scene.fog.color.set(ug ? '#000000' : '#9cb8d8');
+      scene.fog.near = ug ? 9 : 20; scene.fog.far = ug ? 19 : 42;
+      if (seaMesh) seaMesh.visible = !ug;
+      if (World.waterMesh) World.waterMesh.visible = !ug;
+    }
+    World.updateChunks(tx, tz, ug ? 18 : 40);
     for (const n of S.npcs) {
       const near = Math.abs(n.x - tx) < 34 && Math.abs(n.z - tz) < 34;
       n.model.visible = near && (!n.dead || (S.tick - n.deathAt) < 2);

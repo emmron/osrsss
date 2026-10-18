@@ -5,7 +5,7 @@ const UI = (() => {
   const mouse = { x: -1, y: -1 };
   let menu = null, tab = 3, crosses = [], chatInput = '', loginName = '', tooltip = null, drag = null, mapDrag = null;
   let bankScroll = 0, chatScroll = 0, guideScroll = 0, frameCv, parchCv, mmCv, mmBridge = null, hoverOpts = [];
-  const worldMap = { open: false, zoom: 2.6, cx: 90, cz: 82 };
+  const worldMap = { open: false, zoom: 2.6, cx: 90, cz: 82, filter: null };
   let mmZ = 4, prompt = null, tracker = false, ctrlHeld = false, lastMapClick = null;
   const ORB = { hp: { cx: 532, cy: 64 }, pr: { cx: 532, cy: 90 }, run: { cx: 532, cy: 116 } };
   const F12 = 'bold 12px Arial', F11 = '11px Arial', F11B = 'bold 11px Arial', F13 = 'bold 13px Arial';
@@ -149,7 +149,7 @@ const UI = (() => {
     range: ['#d0d0d0', '#5a2a10', 'C'], altar: ['#ffffff', '#3a3a8a', '+'], quest: ['#6aa0ff', '#0a1a5a', '?'], fish: ['#80c0ff', '#103060', '~'], mine: ['#c0a080', '#3a2a1a', 'M'],
     rune: ['#ff6040', '#3a0a40', 'R'], archery: ['#e0c080', '#2a4a1a', 'B'], herb: ['#80e060', '#1a3a10', 'H'], tanner: ['#e0a060', '#4a2a10', 'T'], spin: ['#f0e0c0', '#4a3a2a', 'W'],
     stall: ['#ffd060', '#4a1a1a', '$'], farm: ['#a0e060', '#3a2a10', 'F'], agility: ['#60c0ff', '#1a2a4a', 'A'], slayer: ['#ff4040', '#200000', 'S'], rc: ['#ffffff', '#2a2a6a', 'O'],
-    essence: ['#d0d0ff', '#30305a', 'E'], scimitar: ['#e0e0e0', '#6a1a1a', 'Z'], boat: ['#ffffff', '#1a3a6a', 'P'], gem: ['#60e0ff', '#1a2a4a', 'G'], armour: ['#e0e0e0', '#3a3a5a', 'A'], guild: ['#e8c030', '#3a2a1a', 'M'], staff: ['#c0a0ff', '#2a1a4a', '/'], axe: ['#d0d0d0', '#4a2a1a', 'X'], ring: ['#a0ffb0', '#1a4a2a', '*'], board: ['#f0e0b0', '#5a3a1a', 'T'], spirit: ['#80ff80', '#1a3a1a', 'Y'] };
+    essence: ['#d0d0ff', '#30305a', 'E'], scimitar: ['#e0e0e0', '#6a1a1a', 'Z'], boat: ['#ffffff', '#1a3a6a', 'P'], gem: ['#60e0ff', '#1a2a4a', 'G'], armour: ['#e0e0e0', '#3a3a5a', 'A'], guild: ['#e8c030', '#3a2a1a', 'M'], staff: ['#c0a0ff', '#2a1a4a', '/'], axe: ['#d0d0d0', '#4a2a1a', 'X'], ring: ['#a0ffb0', '#1a4a2a', '*'], board: ['#f0e0b0', '#5a3a1a', 'T'], spirit: ['#80ff80', '#1a3a1a', 'Y'], dungeon: ['#ff8060', '#1a0a0a', 'D'] };
   function mapIcon(type, x, y, r) {
     const [fg, bg, ch] = ICONS[type] || ICONS.quest;
     r = r || 6;
@@ -556,7 +556,7 @@ const UI = (() => {
   // ---------- world map ----------
   const ICON_NAMES = { bank: 'Bank', store: 'General store', furnace: 'Furnace', anvil: 'Anvil', range: 'Cooking range', altar: 'Altar', quest: 'Quest start', fish: 'Fishing spot', mine: 'Mining site',
     rune: 'Rune shop', archery: 'Archery shop', herb: 'Herbalist', tanner: 'Tannery', spin: 'Spinning wheel', stall: 'Market stall', farm: 'Farming patch', agility: 'Agility course', slayer: 'Slayer master',
-    rc: 'Runecrafting altar', essence: 'Rune essence', scimitar: 'Scimitar shop', boat: 'Ship / travel', gem: 'Gem store', armour: 'Armour shop', guild: 'Mining Guild', staff: 'Staff shop', axe: 'Axe shop', ring: 'Fairy ring', board: 'Trading board', spirit: 'Spirit tree' };
+    rc: 'Runecrafting altar', essence: 'Rune essence', scimitar: 'Scimitar shop', boat: 'Ship / travel', gem: 'Gem store', armour: 'Armour shop', guild: 'Mining Guild', staff: 'Staff shop', axe: 'Axe shop', ring: 'Fairy ring', board: 'Trading board', spirit: 'Spirit tree', dungeon: 'Dungeon entrance' };
   function mapToScreen(wx, wz) { const z = worldMap.zoom; return [310 + (wx - worldMap.cx) * z, 264 + (wz - worldMap.cz) * z]; }
   function drawWorldMap() {
     if (!mmCv || mmBridge !== World.bridgeOpen) buildMinimap();
@@ -570,9 +570,11 @@ const UI = (() => {
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(mmCv, ox, oy, World.W * z, World.H * z);
     const [wx] = mapToScreen(36, 0);
-    ctx.fillStyle = 'rgba(120,0,0,0.18)'; ctx.fillRect(R.x, R.y, Math.max(0, wx - R.x), R.h);
-    ctx.strokeStyle = 'rgba(255,40,40,0.8)'; ctx.setLineDash([6, 4]); ctx.beginPath(); ctx.moveTo(wx, R.y); ctx.lineTo(wx, R.y + R.h); ctx.stroke(); ctx.setLineDash([]);
-    for (const ic of World.mapIcons) { const [x, y] = mapToScreen(ic.x, ic.z); mapIcon(ic.icon, x, y, z > 3 ? 7 : 6); }
+    const [, wy0] = mapToScreen(0, 0), [wx0, wy1] = mapToScreen(0, 170); ctx.fillStyle = 'rgba(120,0,0,0.18)'; ctx.fillRect(wx0, wy0, Math.max(0, wx - wx0), wy1 - wy0);
+    ctx.strokeStyle = 'rgba(255,40,40,0.8)'; ctx.setLineDash([6, 4]); ctx.beginPath(); ctx.moveTo(wx, wy0); ctx.lineTo(wx, wy1); ctx.stroke(); ctx.setLineDash([]);
+    let hoverIc = null;
+    const pulse = 7 + Math.sin(performance.now() / 150) * 2;
+    for (const ic of World.mapIcons) { if (worldMap.filter && ic.icon !== worldMap.filter) continue; const [x, y] = mapToScreen(ic.x, ic.z); mapIcon(ic.icon, x, y, worldMap.filter ? pulse : z > 3 ? 7 : 6); if (Math.hypot(mouse.x - x, mouse.y - y) < 7) hoverIc = [ic, x, y]; }
     for (const c in FAIRY) { const [x, y] = mapToScreen(FAIRY[c].x + 0.5, FAIRY[c].z + 0.5); T(c, x + 8, y + 4, '#a0ffb0', F11B); }
     for (const [name, x, zz, big] of World.labels) { const [sx, sy] = mapToScreen(x, zz); T(name, sx, sy, big ? '#ffb040' : '#ffe0a0', big ? 'bold 15px Georgia, serif' : F12, 'center'); }
     const p = S().player;
@@ -584,7 +586,10 @@ const UI = (() => {
       ctx.fillStyle = '#000'; ctx.fillRect(fx - 1, fy - 14, 2, 15); ctx.fillStyle = '#ff2020'; ctx.beginPath(); ctx.moveTo(fx + 1, fy - 14); ctx.lineTo(fx + 10, fy - 11); ctx.lineTo(fx + 1, fy - 8); ctx.fill();
     }
     { const z = worldMap.zoom, mx = mouse.x, my = mouse.y; if (mx >= R.x && my >= R.y && mx < R.x + R.w && my < R.y + R.h) { const hx = Math.floor(worldMap.cx + (mx - 310) / z), hz = Math.floor(worldMap.cz + (my - 264) / z); let rg = '', bd = 26; for (const [nm, lx, lz] of World.labels) { const d = Math.hypot(lx - hx, lz - hz); if (d < bd) { bd = d; rg = nm; } } const wl = Game.wildLevel(hx, hz); T((rg || '') + (wl > 0 ? '  (Wilderness lvl ' + wl + ')' : ''), R.x + 6, R.y + R.h - 8, wl > 0 ? '#ff6060' : '#ffffa0', F12); } }
-    ctx.fillStyle = Math.floor(performance.now() / 400) % 2 ? '#ffffff' : '#ff0000'; ctx.fillRect(px - 3, py - 3, 7, 7); ctx.strokeStyle = '#000'; ctx.strokeRect(px - 3.5, py - 3.5, 8, 8);
+    ctx.fillStyle = Math.floor(performance.now() / 400) % 2 ? '#ffffff' : '#ff0000'; ctx.fillRect(px - 3, py - 3, 7, 7);
+    if (hoverIc) { const nm = ICON_NAMES[hoverIc[0].icon] || hoverIc[0].icon, w = W(nm, F12) + 8; ctx.fillStyle = '#ffffa0'; ctx.fillRect(hoverIc[1] + 9, hoverIc[2] - 20, w, 16); ctx.strokeStyle = '#000'; ctx.strokeRect(hoverIc[1] + 9.5, hoverIc[2] - 19.5, w, 16); T(nm, hoverIc[1] + 13, hoverIc[2] - 8, '#000', F12, 'left', false); }
+    // zoom / centre buttons
+    for (const [i, lbl] of [[0, '+'], [1, '-'], [2, 'Me']]) { const bx = R.x + R.w - 92 + i * 30, by = R.y + 6; ctx.fillStyle = '#3a3226'; ctx.fillRect(bx, by, 26, 22); ctx.strokeStyle = '#8a7a5a'; ctx.strokeRect(bx + 0.5, by + 0.5, 25, 21); T(lbl, bx + 13, by + 16, C.orange, F12, 'center'); } ctx.strokeStyle = '#000'; ctx.strokeRect(px - 3.5, py - 3.5, 8, 8);
     ctx.restore();
     T(WORLD_NAME + ' World Map', 310, 24, C.orange, 'bold 16px Georgia, serif', 'center');
     const L = { x: 620, y: 34 };
@@ -595,12 +600,22 @@ const UI = (() => {
     const _unused = { bank: 'Bank', store: 'General store', furnace: 'Furnace', anvil: 'Anvil', range: 'Cooking range', altar: 'Altar', quest: 'Quest start', fish: 'Fishing spot', mine: 'Mining site',
       rune: 'Rune shop', archery: 'Archery shop', herb: 'Herbalist', tanner: 'Tannery', spin: 'Spinning wheel', stall: 'Market stall', farm: 'Farming patch', agility: 'Agility course', slayer: 'Slayer master',
       rc: 'Runecrafting altar', essence: 'Rune essence', scimitar: 'Scimitar shop', boat: 'Ship / travel', gem: 'Gem store', armour: 'Armour shop', guild: 'Mining Guild', staff: 'Staff shop', axe: 'Axe shop', ring: 'Fairy ring', board: 'Trading board', spirit: 'Spirit tree' };
-    Object.keys(names).forEach((k, i) => { mapIcon(k, L.x + 14, L.y + 34 + i * 18); T(names[k], L.x + 26, L.y + 38 + i * 18, C.white, F11); });
+    Object.keys(names).forEach((k, i) => { const y = L.y + 30 + i * 12; if (worldMap.filter === k) { ctx.fillStyle = 'rgba(255,200,64,0.25)'; ctx.fillRect(L.x + 3, y - 6, 132, 12); } mapIcon(k, L.x + 12, y, 5); T(names[k], L.x + 22, y + 4, worldMap.filter && worldMap.filter !== k ? '#8a8070' : C.white, F11); });
+    T(worldMap.filter ? 'Click again to show all' : 'Click a key to highlight', L.x + 69, L.y + 414, '#c0b090', F11, 'center');
     button(632, 462, 114, 26, 'Close map', false, F12);
     T('Drag to move, scroll to zoom, double-click to walk there', 310, 501, '#c0b090', F11, 'center');
   }
   function worldMapDown(x, y) {
     if (x >= 632 && y >= 462 && x < 746 && y < 488) { worldMap.open = false; return; }
+    if (x >= 620 && x < 758 && y >= 34 && y < 454) {
+      const keys = Object.keys(ICON_NAMES), i = Math.round((y - 64) / 12);
+      if (i >= 0 && i < keys.length) worldMap.filter = worldMap.filter === keys[i] ? null : keys[i];
+      return;
+    }
+    for (const [i, act2] of [[0, () => { worldMap.zoom = Math.min(8, worldMap.zoom * 1.25); }], [1, () => { worldMap.zoom = Math.max(1.5, worldMap.zoom / 1.25); }], [2, () => { const p = S().player; worldMap.cx = p.x; worldMap.cz = p.z; }]]) {
+      const bx = 10 + 600 - 92 + i * 30, by = 34 + 6;
+      if (x >= bx && x < bx + 26 && y >= by && y < by + 22) { act2(); return; }
+    }
     if (x < 610) {
       const now = performance.now();
       if (lastMapClick && now - lastMapClick.t < 350 && Math.hypot(x - lastMapClick.x, y - lastMapClick.y) < 6) {
@@ -1057,6 +1072,7 @@ const UI = (() => {
     ctx.fillStyle = '#000'; ctx.fillRect(MM.cx - MM.r, MM.cy - MM.r, MM.r * 2, MM.r * 2);
     ctx.translate(MM.cx, MM.cy); ctx.rotate(a); ctx.scale(mmZ / 4, mmZ / 4);
     ctx.drawImage(mmCv, -p.rx * 4, -p.rz * 4);
+    if (p.x >= 162 && p.z >= 134 && p.z <= 185) { ctx.fillStyle = '#000'; ctx.beginPath(); ctx.rect(-2000, -2000, 4000, 4000); ctx.rect((162 - p.rx) * 4, (134 - p.rz) * 4, 78 * 4, 51 * 4); ctx.fill('evenodd'); }
     if (st.flag) { const fx = (st.flag[0] + 0.5 - p.rx) * 4, fz = (st.flag[1] + 0.5 - p.rz) * 4; ctx.save(); ctx.translate(fx, fz); ctx.rotate(-a); const k = 4 / mmZ; ctx.scale(k, k); ctx.fillStyle = '#000'; ctx.fillRect(-1, -12, 2, 13); ctx.fillStyle = '#ff2020'; ctx.beginPath(); ctx.moveTo(1, -12); ctx.lineTo(9, -9); ctx.lineTo(1, -6); ctx.fill(); ctx.restore(); }
     if (st.flag && p.path.length) { ctx.fillStyle = 'rgba(255,255,255,0.75)'; for (let i = 0; i < p.path.length; i += 2) { const [tx, tz] = p.path[i]; ctx.fillRect((tx + 0.5 - p.rx) * 4 - 0.75, (tz + 0.5 - p.rz) * 4 - 0.75, 1.5, 1.5); } }
     for (const g of st.ground) { if (Math.abs(g.x - p.x) > 22 || Math.abs(g.z - p.z) > 22) continue; ctx.fillStyle = '#000'; ctx.fillRect((g.x + 0.5 - p.rx) * 4 - 1.5, (g.z + 0.5 - p.rz) * 4 - 1.5, 4, 4); ctx.fillStyle = '#ff0000'; ctx.fillRect((g.x + 0.5 - p.rx) * 4 - 1, (g.z + 0.5 - p.rz) * 4 - 1, 3, 3); }

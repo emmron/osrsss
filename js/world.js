@@ -3,8 +3,11 @@ const World = (() => {
   const W = 240, H = 264;
   const OX = 40, OZ = 36; // offset of the original Ardenvale village layout
   const WATER_H = -0.35;
-  const U = { GRASS: 1, FOREST: 2, DIRT: 3, SAND: 4, DARK: 5, SWAMP: 6, DESERT: 7, JUNGLE: 8, ESS: 9, SNOW: 10 };
-  const UCOL = { 1: [84, 114, 40], 2: [66, 94, 32], 3: [108, 90, 62], 4: [172, 156, 100], 5: [58, 50, 42], 6: [70, 80, 44], 7: [196, 170, 108], 8: [50, 98, 28], 9: [150, 150, 170], 10: [214, 222, 232] };
+  const U = { GRASS: 1, FOREST: 2, DIRT: 3, SAND: 4, DARK: 5, SWAMP: 6, DESERT: 7, JUNGLE: 8, ESS: 9, SNOW: 10, CAVE: 11, CAVEROCK: 12 };
+  const UCOL = { 1: [84, 114, 40], 2: [66, 94, 32], 3: [108, 90, 62], 4: [172, 156, 100], 5: [58, 50, 42], 6: [70, 80, 44], 7: [196, 170, 108], 8: [50, 98, 28], 9: [150, 150, 170], 10: [214, 222, 232], 11: [96, 84, 66], 12: [58, 52, 46] };
+  // underground area (Stronghold of Security + Edgeville Dungeon) lives in the sealed-off south-east
+  const CAVE = { x0: 162, z0: 134, x1: 239, z1: 184 };
+  const inCave = (x, z) => x >= CAVE.x0 && x <= CAVE.x1 && z >= CAVE.z0 && z <= CAVE.z1;
   const O = { PATH: 1, WATER: 2, WOOD: 3, STONE: 4, BRIDGE: 5, MUD: 6, COBBLE: 7, LAVA: 8, PIER: 9, SANDPATH: 10 };
   const OCOL = { 1: [122, 100, 66], 2: [40, 66, 120], 3: [104, 72, 40], 4: [96, 92, 86], 5: [40, 66, 120], 6: [80, 66, 46], 7: [112, 108, 100], 8: [220, 90, 20], 9: [40, 66, 120], 10: [170, 140, 90] };
 
@@ -134,6 +137,17 @@ const World = (() => {
     herbpatch: { name: 'Herb patch', w: 2, d: 2, ops: ['Inspect'], examine: 'A patch for growing herbs.' },
     tent: { name: 'Tent', w: 2, d: 2, ops: [], examine: 'A sturdy canvas tent.' },
     boat: { name: 'Ship', w: 3, d: 5, ops: [], examine: 'The Sea Maiden. She looks seaworthy enough.' },
+    sos_entrance: { name: 'Entrance', ops: ['Climb-down'], examine: 'A dark hole leading to the Stronghold of Security.' },
+    trapdoor: { name: 'Trapdoor', ops: ['Climb-down'], examine: 'A trapdoor leading down into the Edgeville Dungeon.' },
+    ladder_up: { name: 'Ladder', ops: ['Climb-up'], examine: 'It leads back to the surface.' },
+    ladder_down: { name: 'Ladder', ops: ['Climb-down'], examine: 'It leads deeper underground.' },
+    sos_gate: { name: 'Gate of War', ops: ['Open'], examine: 'A heavily guarded gate. Answer its question to pass.' },
+    sos_gift: { name: 'Gift of Peace', ops: ['Open'], examine: 'A reward for completing the Vault of War.' },
+    sos_grain: { name: 'Grain of Plenty', ops: ['Search'], examine: 'A reward for completing the Catacomb of Famine.' },
+    sos_box: { name: 'Box of Health', ops: ['Open'], examine: 'A reward for completing the Pit of Pestilence.' },
+    sos_cradle: { name: 'Cradle of Life', ops: ['Search'], examine: 'The final reward of the Stronghold of Security.' },
+    stalagmite: { name: 'Stalagmite', ops: [], examine: 'A rocky spike rising from the cave floor.' },
+    cave_torch: { name: 'Torch', ops: [], examine: 'It lights the dark tunnels.' },
   };
   for (const k in RC_ALTARS) LOCDEF['rc_' + k] = { name: k.charAt(0).toUpperCase() + k.slice(1) + ' altar', w: 2, d: 2, ops: ['Craft-rune'], examine: `A mysterious altar humming with ${k} energy.`, rune: k };
   const AG = AGILITY.map((a, i) => a.abs ? Object.assign({}, a, { i }) : Object.assign({}, a, { i, start: [a.start[0] + OX, a.start[1] + OZ], path: a.path.map(([x, z]) => [x + OX, z + OZ]) }));
@@ -456,6 +470,19 @@ const World = (() => {
     for (const [x, z] of [[44, 236], [62, 236], [44, 241]]) addLoc('lamp', x, z);
     for (let z = 228; z < 252; z += 3) if (canPlace(36, z, 1, 1)) addLoc('willow', 36, z);
     mapIcons.push({ x: 49, z: 230, icon: 'bank' }, { x: 51, z: 238.5, icon: 'stall' }, { x: 59, z: 246, icon: 'quest' });
+    // ===== Extra mines =====
+    const mineField = (name, cx, cz, list, rad) => {
+      for (const [t, n] of list) for (let k = 0; k < n; k++) {
+        for (let tries = 0; tries < 40; tries++) { const x = Math.round(cx + (rnd() - 0.5) * 2 * rad), z = Math.round(cz + (rnd() - 0.5) * 2 * rad); if (canPlace(x, z, 1, 1) && !ov(x, z)) { addLoc(t, x, z); break; } }
+      }
+      mapIcons.push({ x: cx, z: cz, icon: 'mine' }); labels.push([name, cx, cz - rad - 2, 0]);
+    };
+    for (let z = 160; z < 180; z++) for (let x = 138; x < 156; x++) setO(x, z, 0);
+    mineField('Al Kharid Mine', 147, 170, [['iron', 7], ['copper', 4], ['tin', 4], ['coal', 4], ['gold', 3], ['mithril', 2], ['adamantite', 1]], 7);
+    mineField('Dwarven Mine', 47, 26, [['coal', 4], ['iron', 3], ['mithril', 2], ['gold', 1], ['adamantite', 1]], 4);
+    mineField('Rimmington Mine', 77, 240, [['copper', 3], ['tin', 2], ['iron', 3], ['gold', 2]], 4);
+    mineField('Varrock West Mine', 124, 226, [['copper', 3], ['tin', 4], ['iron', 2]], 3);
+    mineField('Swamp Mine', 74, 252, [['coal', 4], ['mithril', 2]], 3);
     // ===== Edgeville =====
     building({ name: 'Edgeville Bank', x0: 40, z0: 149, x1: 46, z1: 153, style: 'stone', roof: 'slate', floor: O.STONE, doors: [{ x: 43, z: 153, s: 'S' }] });
     for (const x of [41, 43, 45]) addLoc('bank_booth', x, 150);
@@ -575,6 +602,52 @@ const World = (() => {
     npc('harbourmaster', 148, 72); npc('sailor', 166, 82); npc('man', 145, 82); npc('woman', 150, 79); npc('guard', 140, 80); npc('man', 143, 86);
   }
 
+  // ===== Underground: Stronghold of Security (4 floors) and Edgeville Dungeon =====
+  const CAVE_LINKS = {};
+  function buildCave() {
+    for (let z = CAVE.z0; z <= CAVE.z1; z++) for (let x = CAVE.x0; x <= CAVE.x1; x++) { setO(x, z, 0); setU(x, z, U.CAVEROCK); blocked[idx(x, z)] = 1; }
+    const carve = (x0, z0, x1, z1) => { for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) { setU(x, z, U.CAVE); blocked[idx(x, z)] = 0; } };
+    const rough = (x0, z0, x1, z1) => { carve(x0, z0, x1, z1); for (let z = z0; z <= z1; z++) for (const x of [x0, x1]) if (rnd() < 0.3) { setU(x, z, U.CAVEROCK); blocked[idx(x, z)] = 1; } };
+    const deco = (x0, z0, x1, z1, n) => { for (let i = 0; i < n; i++) { const x = x0 + 1 + Math.floor(rnd() * (x1 - x0 - 1)), z = z0 + 1 + Math.floor(rnd() * (z1 - z0 - 1)); if (canPlace(x, z, 1, 1)) addLoc('stalagmite', x, z); } };
+    const torches = (x0, z0, x1, z1) => { for (const [x, z] of [[x0, z0], [x1, z0], [x0, z1], [x1, z1]]) if (canPlace(x, z, 1, 1)) addLoc('cave_torch', x, z); };
+    const floors = [
+      { x: 169, name: 'Vault of War', mons: [['goblin_warrior', 3], ['minotaur', 4]], reward: 'sos_gift' },
+      { x: 186, name: 'Catacomb of Famine', mons: [['zombie', 3], ['flesh_crawler', 4]], reward: 'sos_grain' },
+      { x: 203, name: 'Pit of Pestilence', mons: [['pit_spider', 3], ['catablepon', 3]], reward: 'sos_box' },
+      { x: 220, name: 'Sepulchre of Death', mons: [['skeleton', 3], ['ankou', 3]], reward: 'sos_cradle' },
+    ];
+    const surface = [104, 199];
+    floors.forEach((f, i) => {
+      const x0 = f.x, x1 = f.x + 13;
+      rough(x0, 139, x1, 147); rough(x0, 151, x1, 159);
+      carve(x0 + 6, 147, x0 + 6, 151);
+      addLoc('sos_gate', x0 + 6, 149, { floor: i });
+      deco(x0, 139, x1, 147, 3); deco(x0, 151, x1, 159, 3);
+      torches(x0 + 1, 140, x1 - 1, 146); torches(x0 + 1, 152, x1 - 1, 158);
+      addLoc('ladder_up', x0 + 1, 140, { dest: [surface[0] + 1, surface[1]] });
+      addLoc(f.reward, x0 + 1, 158);
+      if (i < 3) addLoc('ladder_down', x1 - 1, 158, { dest: [floors[i + 1].x + 2, 141] });
+      const [m1, n1] = f.mons[0], [m2, n2] = f.mons[1];
+      for (let k = 0; k < n1; k++) npc(m1, x0 + 3 + k * 3, 143 + (k % 2) * 2);
+      for (let k = 0; k < n2; k++) npc(m2, x0 + 2 + k * 3, 154 + (k % 2) * 2);
+      labels.push([f.name, x0 + 7, 137, 0]);
+    });
+    // surface entrance at the Barbarian Camp
+    addLoc('sos_entrance', surface[0], surface[1], { dest: [floors[0].x + 2, 141] });
+    mapIcons.push({ x: surface[0] + 0.5, z: surface[1] + 0.5, icon: 'dungeon' });
+    labels.push(['Stronghold of Security', surface[0], surface[1] + 4, 0]);
+    // Edgeville Dungeon: one long winding cave
+    rough(169, 164, 186, 175); rough(186, 167, 200, 172); rough(200, 164, 234, 176);
+    for (let i = 0; i < 14; i++) { const x = 172 + Math.floor(rnd() * 60), z = 165 + Math.floor(rnd() * 10); if (rnd() < 0.6) { setU(x, z, U.CAVEROCK); blocked[idx(x, z)] = 1; } }
+    carve(169, 165, 172, 168);
+    addLoc('ladder_up', 170, 165, { dest: [54, 162] });
+    addLoc('trapdoor', 54, 163, { dest: [171, 166] });
+    mapIcons.push({ x: 54.5, z: 163.5, icon: 'dungeon' });
+    labels.push(['Edgeville Dungeon', 202, 179, 0], ['Underground', 200, 150, 1]);
+    deco(169, 164, 234, 176, 14); torches(170, 165, 185, 174); torches(201, 165, 233, 175);
+    for (const [id, x, z] of [['chaos_druid', 178, 168], ['chaos_druid', 182, 172], ['chaos_druid', 176, 173], ['zombie', 190, 169], ['zombie', 195, 170], ['skeleton', 205, 168], ['skeleton', 210, 172], ['hill_giant', 216, 167], ['hill_giant', 220, 173], ['hill_giant', 224, 168], ['moss_giant', 230, 172], ['rat', 184, 166]]) npc(id, x, z);
+    for (const [t, x, z] of [['iron', 228, 165], ['iron', 230, 166], ['coal', 232, 165], ['coal', 233, 168], ['mithril', 233, 174], ['iron', 226, 175]]) if (canPlace(x, z, 1, 1)) addLoc(t, x, z);
+  }
   function scatterNature() {
     const free = (x, z) => canPlace(x, z, 1, 1) && !over[idx(x, z)] && roofOf[idx(x, z)] < 0 && !wall[idx(x, z)];
     for (let z = 0; z < H; z++) for (let x = 0; x < W; x++) {
@@ -629,6 +702,10 @@ const World = (() => {
       let h = baseH(x, z), wet = false;
       for (let dz = -1; dz <= 0; dz++) for (let dx = -1; dx <= 0; dx++) if (isLiquid(x + dx, z + dz)) wet = true;
       if (wet) h = WATER_H;
+      let cf = 0, cr = 0;
+      for (let dz = -1; dz <= 0; dz++) for (let dx = -1; dx <= 0; dx++) { const tx = x + dx, tz = z + dz; if (!inb(tx, tz) || !inCave(tx, tz)) continue; if (under[idx(tx, tz)] === U.CAVEROCK) cr++; else cf++; }
+      if (cf) h = 0.05 + Math.sin(x * 1.7 + z * 2.3) * 0.04;
+      else if (cr) h = 2.6 + Math.abs(Math.sin(x * 0.9) * Math.cos(z * 1.3)) * 0.9;
       vh[z * (W + 1) + x] = h;
     }
     for (const b of buildings) {
@@ -685,7 +762,7 @@ const World = (() => {
       let m;
       if (t === 'water') { waterTex = Tex.get('water').clone(); waterTex.needsUpdate = true; m = new THREE.MeshLambertMaterial({ map: waterTex }); }
       else m = new THREE.MeshLambertMaterial({ map: Tex.get(t), color: t === 'planks' ? '#d8c0a0' : '#ffffff' });
-      scene.add(new THREE.Mesh(gg, m));
+      const tm = new THREE.Mesh(gg, m); scene.add(tm); if (t === 'water') World.waterMesh = tm;
     }
     // lava glow
     const lava = [];
@@ -823,6 +900,16 @@ const World = (() => {
       case 'portal': return Models.portal();
       case 'fairy_ring': return Models.fairyRing();
       case 'trade_board': return Models.board();
+      case 'sos_entrance': return Models.dungeon('hole');
+      case 'trapdoor': return Models.dungeon('trapdoor');
+      case 'ladder_up': return Models.dungeon('ladder');
+      case 'ladder_down': return Models.dungeon('ladder_down');
+      case 'sos_gate': return Models.dungeon('gate');
+      case 'sos_gift': case 'sos_box': return Models.dungeon('chest');
+      case 'sos_grain': { const g = Models.dungeon('chest'); g.scale.set(1, 0.8, 1); return g; }
+      case 'sos_cradle': return Models.dungeon('cradle');
+      case 'stalagmite': return Models.dungeon('stalagmite');
+      case 'cave_torch': return Models.dungeon('torch');
       case 'gnome_hut': return Models.gnomeHut();
       case 'goblin_hut': return Models.gnomeHut('#8a6a3a');
       case 'grand_tree': return Models.grandTree();
@@ -886,6 +973,7 @@ const World = (() => {
     scene = sc;
     design();
     placeStructures();
+    buildCave();
     scatterNature();
     const spots = [];
     for (let z = 50; z < 76; z++) { const cx = riverX(z); const x = Math.floor(cx + 1.4); if (isWater(x, z) && !isWater(x + 1, z) && ov(x, z) === O.WATER) spots.push([x, z, 'river']); }
@@ -989,6 +1077,7 @@ const World = (() => {
     const o = over[idx(x, z)];
     if (o === O.BRIDGE) return bridgeOpen ? [120, 86, 50] : OCOL[2];
     if (o === O.PIER) return [120, 86, 50];
+    if (inCave(x, z) && under[idx(x, z)] === U.CAVEROCK) return [14, 12, 10];
     const c = o ? OCOL[o] : UCOL[under[idx(x, z)]];
     const n = tileNoise[idx(x, z)];
     return [Math.min(255, c[0] * n * 1.05), Math.min(255, c[1] * n * 1.05), Math.min(255, c[2] * n * 1.05)];

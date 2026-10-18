@@ -195,7 +195,7 @@ const Models = (() => {
       a.userData.upper.material = cmat(ac); a.userData.shoulder.material = cmat(ac);
       a.userData.hand.material = cmat(equip.hands ? '#7a4a24' : o.skin);
     }
-    for (const l of [P.legL, P.legR]) { l.userData.upper.material = cmat(legCol); l.userData.knee.material = cmat(legCol); l.userData.foot.material = cmat(equip.feet ? '#6a3a1a' : o.boots); }
+    for (const l of [P.legL, P.legR]) { l.userData.upper.material = cmat(legCol); l.userData.knee.material = cmat(legCol); l.userData.foot.material = cmat(equip.feet ? ((ITEMS[equip.feet].equip && ITEMS[equip.feet].equip.color) || '#6a3a1a') : o.boots); }
     P.hips.material = cmat(legCol);
     if (P.equip.head) { P.head.remove(P.equip.head); P.equip.head = null; }
     if (P.hair) P.hair.visible = !equip.head;
@@ -462,6 +462,14 @@ const Models = (() => {
       case 'hunter': return humanoid({ skin: '#b07a4c', hair: '#5a3a18', shirt: '#6a5a2a', pants: '#4a3a1a', hood: null, cape: '#3a5a2a', beard: '#5a3a18' });
       case 'demon': { const d = humanoid({ skin: '#a01a10', hair: null, shirt: '#a01a10', pants: '#801408', boots: '#401008', scale: 1.5, sleeves: false, ears: true });
         const P = d.userData.parts; for (const s of [-1, 1]) { const h = Models.cone(0.05, 0.25, 4); const m = new THREE.Mesh(h, mat('#e8e0c0')); m.position.set(s * 0.1, 0.42, 0); m.rotation.z = -s * 0.4; P.head.add(m); const w = box(0.04, 0.6, 0.5, '#601008', s * 0.25, 1.15, -0.25, P.body); w.rotation.y = s * 0.6; } return d; }
+      case 'minotaur': { const g = humanoid({ skin: '#6a4428', hair: '#3a2414', shirt: '#6a4428', pants: '#4a3018', boots: '#2a1a0a', scale: 1.15, sleeves: false, ears: true });
+        for (const s of [-1, 1]) { const h = new THREE.Mesh(Models.cone(0.05, 0.3, 5), mat('#e8e0c0')); h.position.set(s * 0.16, 0.38, 0); h.rotation.z = -s * 1.0; g.userData.parts.head.add(h); }
+        applyEquipment(g, { weapon: 'iron_scimitar' }); return g; }
+      case 'flesh_crawler': { const s = npcModel('spider'); s.traverse(o => { if (o.material && o.material.color) { o.material = o.material.clone(); o.material.color.multiply(new THREE.Color('#ff9a80')).multiplyScalar(2.4); } }); s.scale.setScalar(0.75); return s; }
+      case 'catablepon': { const c = npcModel('cow'); c.traverse(o => { if (o.material && o.material.color) { o.material = o.material.clone(); o.material.color.set('#3a4a2a'); } }); c.scale.set(1.1, 1.05, 1.0); return c; }
+      case 'pit_spider': { const s = npcModel('spider'); s.scale.setScalar(0.85); return s; }
+      case 'ankou': { const g = humanoid({ skin: '#e0dce8', hair: null, shirt: '#3a1a5a', pants: '#3a1a5a', robe: '#2a1048', hood: '#2a1048' }); g.traverse(o => { if (o.material) { o.material = o.material.clone(); o.material.transparent = true; o.material.opacity = 0.82; } }); applyEquipment(g, { weapon: 'steel_scimitar' }); return g; }
+      case 'chaos_druid': return humanoid({ skin: '#c8a080', hair: '#5a5a4a', shirt: '#2a2a2a', pants: '#2a2a2a', robe: '#3a3a2a', hood: '#1a1a1a', beard: '#8a8a7a' });
       case 'sailor': return humanoid({ skin: '#b07a4c', hair: '#202020', shirt: '#e8e8e8', pants: '#2a3a6a', hat: '#2a3a6a', beard: '#3a2a1a' });
     }
     return humanoid({});
@@ -476,47 +484,87 @@ const Models = (() => {
   const dodeGeo = new THREE.DodecahedronGeometry(1, 0);
   const leafMat = c => tmat('leaves', c);
   const barkMat = c => tmat('bark', c);
+  // RS2-style canopy: one lumpy, faceted mass with darker underside, built from a displaced icosphere
+  const canopyGeos = {};
+  function canopyGeo(key, top, bot, variant) {
+    const k = key + variant;
+    if (canopyGeos[k]) return canopyGeos[k];
+    const g = new THREE.IcosahedronGeometry(1, 1);
+    const p = g.attributes.position, cols = [];
+    const T = new THREE.Color(top), B = new THREE.Color(bot), c = new THREE.Color();
+    const h = (x, y, z) => { const v = Math.sin(x * 12.9898 + y * 78.233 + z * 37.719 + variant * 11.3) * 43758.5453; return v - Math.floor(v); };
+    for (let i = 0; i < p.count; i++) {
+      const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+      const d = 0.78 + h(Math.round(x * 100), Math.round(y * 100), Math.round(z * 100)) * 0.42;
+      p.setXYZ(i, x * d, y * d * (y < 0 ? 0.62 : 1), z * d);
+    }
+    for (let i = 0; i < p.count; i += 3) {
+      const y = (p.getY(i) + p.getY(i + 1) + p.getY(i + 2)) / 3;
+      const t = Math.max(0, Math.min(1, (y + 0.7) / 1.5));
+      c.copy(B).lerp(T, t); const f = 0.88 + h(i, variant, 3) * 0.24; c.multiplyScalar(f);
+      for (let j = 0; j < 3; j++) cols.push(c.r, c.g, c.b);
+    }
+    g.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+    g.computeVertexNormals();
+    return canopyGeos[k] = g;
+  }
+  const canopyMat = () => mat('#ffffff', { map: Tex.get('leaves'), vertexColors: true });
+  function lump(g, key, top, bot, r, x, y, z, sx, sy, sz) {
+    const m = mesh(canopyGeo(key, top, bot, Math.floor(r() * 4)), canopyMat(), x, y, z, g);
+    m.scale.set(sx, sy, sz); m.rotation.y = r() * 6.28; return m;
+  }
+  function trunk(g, h, rb, rt, col, r, branches) {
+    mesh(cyl(rt, rb, h, 7), barkMat(col), 0, h / 2, 0, g);
+    mesh(cyl(rb, rb * 1.6, 0.22, 7), barkMat(col), 0, 0.11, 0, g); // root flare
+    for (let i = 0; i < (branches || 0); i++) {
+      const a = i / branches * 6.28 + r(), len = 0.55 + r() * 0.3;
+      const b = mesh(cyl(rt * 0.35, rt * 0.7, len, 5), barkMat(col), Math.cos(a) * len * 0.35, h - 0.05 + len * 0.3, Math.sin(a) * len * 0.35, g);
+      b.rotation.set(Math.sin(a) * 0.9, 0, -Math.cos(a) * 0.9);
+    }
+  }
   function tree(type, r) {
     const g = new THREE.Group();
     if (type === 'tree') {
-      mesh(cyl(0.1, 0.17, 1.3, 6), barkMat('#6b4a2a'), 0, 0.65, 0, g);
-      const greens = ['#3f7a26', '#4a8a2c', '#386e22'];
-      for (let i = 0; i < 4; i++) { const b = mesh(blobGeo, leafMat(greens[i % 3]), (r() - 0.5) * 0.4, 1.45 + r() * 0.45, (r() - 0.5) * 0.4, g); b.scale.setScalar(0.42 + r() * 0.18); b.rotation.set(r() * 3, r() * 3, r() * 3); }
+      trunk(g, 1.25, 0.2, 0.13, '#6b4a2a', r, 3);
+      lump(g, 'n', '#4f8a2c', '#244a16', r, 0, 1.95, 0, 0.95, 0.75, 0.95);
+      for (let i = 0; i < 3; i++) { const a = i * 2.1 + r(); lump(g, 'n', '#4f8a2c', '#244a16', r, Math.cos(a) * 0.55, 1.75 + r() * 0.35, Math.sin(a) * 0.55, 0.55, 0.48, 0.55); }
     } else if (type === 'oak') {
-      mesh(cyl(0.16, 0.26, 1.5, 7), barkMat('#5a3e22'), 0, 0.75, 0, g);
-      const br = mesh(cyl(0.06, 0.1, 0.8, 5), barkMat('#5a3e22'), 0.3, 1.4, 0, g); br.rotation.z = -0.8;
-      const greens = ['#3d6a22', '#467a28', '#355e1c'];
-      for (let i = 0; i < 7; i++) { const a = i / 7 * Math.PI * 2; const b = mesh(blobGeo, leafMat(greens[i % 3]), Math.cos(a) * 0.5 * r(), 1.7 + r() * 0.6, Math.sin(a) * 0.5 * r(), g); b.scale.setScalar(0.5 + r() * 0.2); b.rotation.set(r() * 3, r() * 3, r() * 3); }
+      trunk(g, 1.45, 0.3, 0.2, '#5a3e22', r, 4);
+      lump(g, 'o', '#4c7e28', '#203e16', r, 0, 2.3, 0, 1.25, 0.85, 1.25);
+      for (let i = 0; i < 4; i++) { const a = i * 1.57 + r() * 0.5; lump(g, 'o', '#4c7e28', '#203e16', r, Math.cos(a) * 0.8, 1.95 + r() * 0.4, Math.sin(a) * 0.8, 0.65, 0.55, 0.65); }
     } else if (type === 'willow') {
-      mesh(cyl(0.12, 0.22, 1.6, 6), barkMat('#5a4a2a'), 0, 0.8, 0, g);
-      const crown = mesh(blobGeo, leafMat('#6a8a2a'), 0, 1.8, 0, g); crown.scale.set(0.7, 0.4, 0.7);
-      for (let i = 0; i < 10; i++) { const a = i / 10 * Math.PI * 2 + r() * 0.3; const c = mesh(cone(0.18, 1.1, 4), leafMat(i % 2 ? '#7a9a34' : '#6a8a2c'), Math.cos(a) * 0.55, 1.4, Math.sin(a) * 0.55, g); c.rotation.x = Math.PI; c.rotation.z = Math.cos(a) * 0.25; c.rotation.y = r(); }
+      trunk(g, 1.5, 0.26, 0.16, '#5a4a2a', r, 3);
+      lump(g, 'w', '#8aaa3c', '#4a6a20', r, 0, 2.05, 0, 1.0, 0.55, 1.0);
+      for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2 + r() * 0.3, rr = 0.75 + r() * 0.2; const c = mesh(cone(0.2, 1.3, 4), leafMat(i % 2 ? '#7a9a34' : '#6a8a2c'), Math.cos(a) * rr, 1.35, Math.sin(a) * rr, g); c.rotation.x = Math.PI; c.rotation.z = Math.cos(a) * 0.18; c.rotation.x += Math.sin(a) * 0.18; }
     } else if (type === 'maple') {
-      mesh(cyl(0.14, 0.22, 1.5, 7), barkMat('#5a3a22'), 0, 0.75, 0, g);
-      const cols = ['#a0461a', '#b85a20', '#8a3a14', '#c06a28'];
-      for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; const b = mesh(blobGeo, leafMat(cols[i % 4]), Math.cos(a) * 0.4 * r(), 1.8 + r() * 0.5, Math.sin(a) * 0.4 * r(), g); b.scale.setScalar(0.48 + r() * 0.2); b.rotation.set(r() * 3, r() * 3, r() * 3); }
+      trunk(g, 1.45, 0.24, 0.15, '#5a3a22', r, 3);
+      lump(g, 'm', '#d07a2a', '#7a2e10', r, 0, 2.2, 0, 1.0, 0.85, 1.0);
+      for (let i = 0; i < 4; i++) { const a = i * 1.57 + r(); lump(g, 'm', '#d07a2a', '#7a2e10', r, Math.cos(a) * 0.6, 1.95 + r() * 0.4, Math.sin(a) * 0.6, 0.55, 0.5, 0.55); }
     } else if (type === 'yew') {
-      mesh(cyl(0.22, 0.34, 1.6, 8), barkMat('#4a3a26'), 0, 0.8, 0, g);
-      for (let i = 0; i < 9; i++) { const a = i / 9 * Math.PI * 2; const b = mesh(blobGeo, leafMat(i % 2 ? '#2a4a1e' : '#30561f'), Math.cos(a) * 0.7 * (0.5 + r() * 0.5), 1.7 + r() * 0.8, Math.sin(a) * 0.7 * (0.5 + r() * 0.5), g); b.scale.setScalar(0.6 + r() * 0.2); b.rotation.set(r() * 3, r() * 3, r() * 3); }
-      g.scale.setScalar(1.15);
+      trunk(g, 1.5, 0.38, 0.26, '#4a3a26', r, 5);
+      lump(g, 'y', '#3e6a28', '#183010', r, 0, 2.35, 0, 1.35, 0.95, 1.35);
+      for (let i = 0; i < 5; i++) { const a = i * 1.26 + r() * 0.4; lump(g, 'y', '#3e6a28', '#183010', r, Math.cos(a) * 0.95, 1.9 + r() * 0.5, Math.sin(a) * 0.95, 0.7, 0.6, 0.7); }
+      g.scale.setScalar(1.12);
     } else if (type === 'magic') {
-      mesh(cyl(0.16, 0.26, 1.8, 7), barkMat('#8a8a7a'), 0, 0.9, 0, g);
-      for (let i = 0; i < 5; i++) { const b = mesh(cyl(0.04, 0.08, 0.9, 5), barkMat('#8a8a7a'), 0, 1.6, 0, g); b.rotation.z = 0.9; b.rotation.y = i * 1.25; b.position.set(Math.cos(i * 1.25) * 0.3, 1.8, -Math.sin(i * 1.25) * 0.3); }
-      for (let i = 0; i < 7; i++) { const a = i / 7 * Math.PI * 2; const b = mesh(blobGeo, mat(i % 2 ? '#40a0d0' : '#5ac0e8', { map: Tex.get('leaves'), emissive: '#103048' }), Math.cos(a) * 0.6, 2.1 + r() * 0.5, Math.sin(a) * 0.6, g); b.scale.setScalar(0.38 + r() * 0.15); }
+      trunk(g, 1.8, 0.26, 0.16, '#9a9a8a', r, 5);
+      for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; const b = mesh(canopyGeo('mg', '#70d8ff', '#1a5a88', i % 4), mat('#ffffff', { map: Tex.get('leaves'), vertexColors: true, emissive: '#103048' }), Math.cos(a) * 0.65, 2.15 + r() * 0.5, Math.sin(a) * 0.65, g); b.scale.setScalar(0.42 + r() * 0.12); }
+      const t = mesh(canopyGeo('mg', '#70d8ff', '#1a5a88', 1), mat('#ffffff', { map: Tex.get('leaves'), vertexColors: true, emissive: '#103048' }), 0, 2.6, 0, g); t.scale.setScalar(0.6);
     } else if (type === 'teak') {
-      mesh(cyl(0.13, 0.2, 1.8, 6), barkMat('#7a6040'), 0, 0.9, 0, g);
-      for (let i = 0; i < 6; i++) { const b = mesh(blobGeo, leafMat(i % 2 ? '#3a6a20' : '#4a7a24'), (r() - 0.5) * 0.7, 1.9 + r() * 0.5, (r() - 0.5) * 0.7, g); b.scale.set(0.55 + r() * 0.2, 0.3, 0.55 + r() * 0.2); }
+      trunk(g, 1.8, 0.2, 0.13, '#7a6040', r, 3);
+      lump(g, 't', '#5a8a2c', '#2a4a16', r, 0, 2.15, 0, 1.0, 0.45, 1.0);
+      for (let i = 0; i < 3; i++) { const a = i * 2.1 + r(); lump(g, 't', '#5a8a2c', '#2a4a16', r, Math.cos(a) * 0.6, 2.0 + r() * 0.3, Math.sin(a) * 0.6, 0.55, 0.3, 0.55); }
     } else if (type === 'mahogany') {
-      mesh(cyl(0.16, 0.26, 2.0, 7), barkMat('#6a3a24'), 0, 1.0, 0, g);
-      for (let i = 0; i < 7; i++) { const a = i / 7 * Math.PI * 2; const b = mesh(blobGeo, leafMat(i % 2 ? '#2a5a1a' : '#36681e'), Math.cos(a) * 0.55, 2.2 + r() * 0.4, Math.sin(a) * 0.55, g); b.scale.set(0.6, 0.35, 0.6); }
+      trunk(g, 2.0, 0.26, 0.17, '#6a3a24', r, 4);
+      lump(g, 'h', '#4a7a26', '#1e3e12', r, 0, 2.4, 0, 1.15, 0.5, 1.15);
+      for (let i = 0; i < 4; i++) { const a = i * 1.57 + r(); lump(g, 'h', '#4a7a26', '#1e3e12', r, Math.cos(a) * 0.7, 2.25 + r() * 0.3, Math.sin(a) * 0.7, 0.6, 0.35, 0.6); }
     } else if (type === 'banana') {
       for (let i = 0; i < 4; i++) mesh(cyl(0.08, 0.1, 0.4, 5), barkMat('#7a8a3a'), 0, 0.2 + i * 0.4, 0, g);
       for (let i = 0; i < 6; i++) { const f = box(0.3, 0.03, 1.1, leafMat('#5aa030'), Math.sin(i * 1.05) * 0.45, 1.75, Math.cos(i * 1.05) * 0.45, g); f.rotation.y = i * 1.05; f.rotation.x = 0.5; }
       const fr = new THREE.Group(); g.add(fr); g.userData.goods = fr;
       for (let i = 0; i < 4; i++) box(0.06, 0.18, 0.06, '#f0d040', Math.cos(i * 1.6) * 0.12, 1.45, Math.sin(i * 1.6) * 0.12, fr);
     } else if (type === 'pine') {
-      mesh(cyl(0.1, 0.15, 0.8, 5), barkMat('#4a3420'), 0, 0.4, 0, g);
-      for (let i = 0; i < 3; i++) mesh(cone(0.75 - i * 0.18, 1.0, 6), leafMat(i % 2 ? '#2a5a26' : '#244e22'), 0, 1.0 + i * 0.6, 0, g);
+      mesh(cyl(0.1, 0.17, 0.9, 6), barkMat('#4a3420'), 0, 0.45, 0, g);
+      for (let i = 0; i < 4; i++) { const c = mesh(cone(0.85 - i * 0.18, 0.95, 7), leafMat(['#2a5a26', '#2e6228', '#244e22', '#30682a'][i]), 0, 0.95 + i * 0.5, 0, g); c.rotation.y = i * 0.4; }
       g.scale.setScalar(0.9 + r() * 0.5);
     } else if (type === 'deadtree') {
       mesh(cyl(0.08, 0.16, 1.6, 5), barkMat('#4a3a2a'), 0, 0.8, 0, g);
@@ -780,12 +828,50 @@ const Models = (() => {
     box(0.3, 0.08, 0.05, '#101010', 0, 1.5, 0.62, g);
     return g;
   }
+  // dungeon scenery
+  function dungeon(kind) {
+    const g = new THREE.Group();
+    if (kind === 'ladder') {
+      for (const x of [-0.25, 0.25]) box(0.07, 2.4, 0.07, '#7a5228', x, 1.2, -0.35, g);
+      for (let i = 0; i < 7; i++) box(0.5, 0.05, 0.05, '#8a6232', 0, 0.25 + i * 0.32, -0.35, g);
+    } else if (kind === 'ladder_down') {
+      const h = new THREE.Mesh(cyl(0.45, 0.45, 0.03, 10), mat('#050505')); h.position.y = 0.02; g.add(h);
+      for (const x of [-0.2, 0.2]) box(0.06, 0.5, 0.06, '#7a5228', x, 0.2, 0, g);
+      for (let i = 0; i < 2; i++) box(0.4, 0.04, 0.04, '#8a6232', 0, 0.12 + i * 0.25, 0, g);
+    } else if (kind === 'hole') {
+      const h = new THREE.Mesh(cyl(0.48, 0.48, 0.03, 10), mat('#050505')); h.position.y = 0.02; g.add(h);
+      for (let i = 0; i < 8; i++) { const a = i / 8 * 6.28; const r = mesh(dodeGeo, tmat('rock', '#6a645a'), Math.cos(a) * 0.5, 0.1, Math.sin(a) * 0.5, g); r.scale.set(0.16, 0.14, 0.16); r.rotation.set(a, a * 2, 0); }
+    } else if (kind === 'trapdoor') {
+      box(0.9, 0.06, 0.9, tmat('planks', '#a07848'), 0, 0.03, 0, g);
+      box(0.95, 0.04, 0.08, '#4a3a2a', 0, 0.07, -0.3, g); box(0.95, 0.04, 0.08, '#4a3a2a', 0, 0.07, 0.3, g);
+      box(0.1, 0.05, 0.1, '#2a2a2a', 0.3, 0.1, 0, g);
+    } else if (kind === 'gate') {
+      for (const x of [-0.48, 0.48]) box(0.14, 2.0, 0.24, tmat('rock', '#7a7268'), x, 1.0, 0, g);
+      box(1.1, 0.2, 0.26, tmat('rock', '#7a7268'), 0, 2.05, 0, g);
+      for (let i = 0; i < 5; i++) box(0.05, 1.9, 0.05, '#3a3a3e', -0.32 + i * 0.16, 0.95, 0, g);
+      for (let i = 0; i < 3; i++) box(0.84, 0.05, 0.05, '#3a3a3e', 0, 0.4 + i * 0.6, 0, g);
+    } else if (kind === 'chest') {
+      box(0.7, 0.4, 0.45, tmat('planks', '#8a5a2a'), 0, 0.2, 0, g);
+      const lid = box(0.72, 0.14, 0.47, tmat('planks', '#9a6a32'), 0, 0.47, 0, g);
+      box(0.74, 0.05, 0.05, '#c8a030', 0, 0.3, 0.23, g); box(0.1, 0.12, 0.03, '#e8c040', 0, 0.36, 0.24, g);
+    } else if (kind === 'cradle') {
+      box(0.8, 0.12, 0.5, tmat('whitestone', '#e8e0f0'), 0, 0.5, 0, g);
+      for (const x of [-0.3, 0.3]) box(0.12, 0.5, 0.12, tmat('whitestone', '#d8d0e0'), x, 0.25, 0, g);
+      const glow = new THREE.Mesh(new THREE.IcosahedronGeometry(0.16, 1), new THREE.MeshBasicMaterial({ color: '#c0a0ff' })); glow.position.y = 0.75; g.add(glow); g.userData.spin = glow;
+    } else if (kind === 'stalagmite') {
+      for (let i = 0; i < 3; i++) { const c = mesh(cone(0.22 - i * 0.05, 1.3 - i * 0.35, 6), tmat('rock', '#6a6056'), (i - 1) * 0.22, (1.3 - i * 0.35) / 2, (i % 2) * 0.15, g); c.rotation.y = i; }
+    } else if (kind === 'torch') {
+      box(0.06, 1.2, 0.06, '#4a3420', 0, 0.6, 0, g);
+      const f = new THREE.Mesh(cone(0.09, 0.28, 5), new THREE.MeshBasicMaterial({ color: '#ffa020' })); f.position.y = 1.32; g.add(f); g.userData.flames = [f];
+    }
+    return g;
+  }
   function portal() { const g = new THREE.Group(); const r = mesh(G('portal', () => new THREE.TorusGeometry(0.7, 0.12, 6, 14)), mat('#b0a0ff', { emissive: '#6050c0' }), 0, 1.0, 0, g); const c = mesh(G('portalc', () => new THREE.CircleGeometry(0.62, 14)), mat('#8070e0', { emissive: '#4030a0', transparent: true, opacity: 0.7, side: THREE.DoubleSide }), 0, 1.0, 0, g); g.userData.spin = c; return g; }
   function bones() { const g = new THREE.Group(); for (let i = 0; i < 4; i++) { const b = box(0.4, 0.05, 0.05, '#e0dccc', (i - 1.5) * 0.12, 0.03, (i % 2) * 0.15, g); b.rotation.y = i * 0.8; } mesh(G('skull', () => new THREE.IcosahedronGeometry(0.1, 0)), '#e0dccc', 0.1, 0.08, -0.1, g); return g; }
 
   return {
     mat, tmat, box, mesh, taper, cyl, cone, humanoid, applyEquipment, setHeldTool, npcModel, animate, weaponMesh,
     tree, stump, rock, essenceRock, runeAltar, furnace, anvil, range, bankBooth, altar, fountain, fishingSpot, fire, crate, barrel, signpost,
-    flowers, bush, trap, stall, guildDoor, portal, fairyRing, board, gnomeHut, grandTree, spiritTree, spinningWheel, flaxPlant, patch, agility, tent, boat, well, lamp, bones,
+    flowers, bush, trap, stall, guildDoor, portal, fairyRing, board, dungeon, gnomeHut, grandTree, spiritTree, spinningWheel, flaxPlant, patch, agility, tent, boat, well, lamp, bones,
   };
 })();
