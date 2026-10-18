@@ -6,7 +6,7 @@ const UI = (() => {
   let menu = null, tab = 3, crosses = [], chatInput = '', loginName = '', tooltip = null, drag = null, mapDrag = null;
   let bankScroll = 0, chatScroll = 0, guideScroll = 0, frameCv, parchCv, mmCv, mmBridge = null, hoverOpts = [];
   const worldMap = { open: false, zoom: 2.6, cx: 90, cz: 82 };
-  let mmZ = 4, prompt = null, tracker = false;
+  let mmZ = 4, prompt = null, tracker = false, ctrlHeld = false, lastMapClick = null;
   const ORB = { hp: { cx: 532, cy: 64 }, pr: { cx: 532, cy: 90 }, run: { cx: 532, cy: 116 } };
   const F12 = 'bold 12px Arial', F11 = '11px Arial', F11B = 'bold 11px Arial', F13 = 'bold 13px Arial';
   const VP = { x: 4, y: 4, w: 512, h: 334 };
@@ -289,7 +289,7 @@ const UI = (() => {
         exam.push(O(act('Examine', ITEMS[g.id].name, C.itemc), () => Game.msg(ITEMS[g.id].examine)));
       }
     }
-    if (tile) opts.push(O(act('Walk here'), () => { st.spellSel = null; Game.walkTo(tile[0], tile[1]); }, { cross: 'yellow' }));
+    if (tile) opts.push(O(act('Walk here'), () => { st.spellSel = null; Game.walkTo(tile[0], tile[1], { run: ctrlHeld }); }, { cross: 'yellow' }));
     return opts.concat(exam);
   }
 
@@ -422,7 +422,12 @@ const UI = (() => {
     const a = Render.cam.yaw, cs = Math.cos(a), sn = Math.sin(a);
     const dx = dx0 * cs + dy0 * sn, dz = -dx0 * sn + dy0 * cs;
     const tx = Math.floor(p.rx + dx / mmZ), tz = Math.floor(p.rz + dz / mmZ);
-    return [O(act('Walk here'), () => Game.walkTo(tx, tz))];
+    let near = null, nd = 7;
+    for (const ic of World.mapIcons) { const d = Math.hypot((ic.x - p.rx) * mmZ - dx, (ic.z - p.rz) * mmZ - dz); if (d < nd) { nd = d; near = ic; } }
+    if (near) tooltip = { x: x + 12, y: y + 4, lines: [ICON_NAMES[near.icon] || near.icon] };
+    const opts = [O(act('Walk here'), () => Game.walkTo(tx, tz, { run: ctrlHeld }), { cross: 'yellow' })];
+    if (mmZ !== 4) opts.push(O(act('Reset zoom'), () => { mmZ = 4; }));
+    return opts;
   }
   function chatOptions(x, y) {
     const st = S(), d = st.dialog;
@@ -549,6 +554,9 @@ const UI = (() => {
   }
 
   // ---------- world map ----------
+  const ICON_NAMES = { bank: 'Bank', store: 'General store', furnace: 'Furnace', anvil: 'Anvil', range: 'Cooking range', altar: 'Altar', quest: 'Quest start', fish: 'Fishing spot', mine: 'Mining site',
+    rune: 'Rune shop', archery: 'Archery shop', herb: 'Herbalist', tanner: 'Tannery', spin: 'Spinning wheel', stall: 'Market stall', farm: 'Farming patch', agility: 'Agility course', slayer: 'Slayer master',
+    rc: 'Runecrafting altar', essence: 'Rune essence', scimitar: 'Scimitar shop', boat: 'Ship / travel', gem: 'Gem store', armour: 'Armour shop', guild: 'Mining Guild', staff: 'Staff shop', axe: 'Axe shop', ring: 'Fairy ring', board: 'Trading board', spirit: 'Spirit tree' };
   function mapToScreen(wx, wz) { const z = worldMap.zoom; return [310 + (wx - worldMap.cx) * z, 264 + (wz - worldMap.cz) * z]; }
   function drawWorldMap() {
     if (!mmCv || mmBridge !== World.bridgeOpen) buildMinimap();
@@ -569,6 +577,13 @@ const UI = (() => {
     for (const [name, x, zz, big] of World.labels) { const [sx, sy] = mapToScreen(x, zz); T(name, sx, sy, big ? '#ffb040' : '#ffe0a0', big ? 'bold 15px Georgia, serif' : F12, 'center'); }
     const p = S().player;
     const [px, py] = mapToScreen(p.x + 0.5, p.z + 0.5);
+    const stw = S();
+    if (stw.flag) {
+      const [fx, fy] = mapToScreen(stw.flag[0] + 0.5, stw.flag[1] + 0.5);
+      ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.setLineDash([3, 3]); ctx.beginPath(); ctx.moveTo(px, py); for (const [tx, tz] of p.path) { const [sx, sy] = mapToScreen(tx + 0.5, tz + 0.5); ctx.lineTo(sx, sy); } ctx.lineTo(fx, fy); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = '#000'; ctx.fillRect(fx - 1, fy - 14, 2, 15); ctx.fillStyle = '#ff2020'; ctx.beginPath(); ctx.moveTo(fx + 1, fy - 14); ctx.lineTo(fx + 10, fy - 11); ctx.lineTo(fx + 1, fy - 8); ctx.fill();
+    }
+    { const z = worldMap.zoom, mx = mouse.x, my = mouse.y; if (mx >= R.x && my >= R.y && mx < R.x + R.w && my < R.y + R.h) { const hx = Math.floor(worldMap.cx + (mx - 310) / z), hz = Math.floor(worldMap.cz + (my - 264) / z); let rg = '', bd = 26; for (const [nm, lx, lz] of World.labels) { const d = Math.hypot(lx - hx, lz - hz); if (d < bd) { bd = d; rg = nm; } } const wl = Game.wildLevel(hx, hz); T((rg || '') + (wl > 0 ? '  (Wilderness lvl ' + wl + ')' : ''), R.x + 6, R.y + R.h - 8, wl > 0 ? '#ff6060' : '#ffffa0', F12); } }
     ctx.fillStyle = Math.floor(performance.now() / 400) % 2 ? '#ffffff' : '#ff0000'; ctx.fillRect(px - 3, py - 3, 7, 7); ctx.strokeStyle = '#000'; ctx.strokeRect(px - 3.5, py - 3.5, 8, 8);
     ctx.restore();
     T(WORLD_NAME + ' World Map', 310, 24, C.orange, 'bold 16px Georgia, serif', 'center');
@@ -576,16 +591,25 @@ const UI = (() => {
     ctx.fillStyle = '#2a241b'; ctx.fillRect(L.x, L.y, 138, 420);
     ctx.strokeStyle = '#5a4e3c'; ctx.strokeRect(L.x + 0.5, L.y + 0.5, 137, 419);
     T('Key', L.x + 69, L.y + 16, C.orange, F13, 'center');
-    const names = { bank: 'Bank', store: 'General store', furnace: 'Furnace', anvil: 'Anvil', range: 'Cooking range', altar: 'Altar', quest: 'Quest start', fish: 'Fishing spot', mine: 'Mining site',
+    const names = ICON_NAMES;
+    const _unused = { bank: 'Bank', store: 'General store', furnace: 'Furnace', anvil: 'Anvil', range: 'Cooking range', altar: 'Altar', quest: 'Quest start', fish: 'Fishing spot', mine: 'Mining site',
       rune: 'Rune shop', archery: 'Archery shop', herb: 'Herbalist', tanner: 'Tannery', spin: 'Spinning wheel', stall: 'Market stall', farm: 'Farming patch', agility: 'Agility course', slayer: 'Slayer master',
       rc: 'Runecrafting altar', essence: 'Rune essence', scimitar: 'Scimitar shop', boat: 'Ship / travel', gem: 'Gem store', armour: 'Armour shop', guild: 'Mining Guild', staff: 'Staff shop', axe: 'Axe shop', ring: 'Fairy ring', board: 'Trading board', spirit: 'Spirit tree' };
     Object.keys(names).forEach((k, i) => { mapIcon(k, L.x + 14, L.y + 34 + i * 18); T(names[k], L.x + 26, L.y + 38 + i * 18, C.white, F11); });
     button(632, 462, 114, 26, 'Close map', false, F12);
-    T('Drag to move, scroll to zoom', 310, 501, '#c0b090', F11, 'center');
+    T('Drag to move, scroll to zoom, double-click to walk there', 310, 501, '#c0b090', F11, 'center');
   }
   function worldMapDown(x, y) {
     if (x >= 632 && y >= 462 && x < 746 && y < 488) { worldMap.open = false; return; }
-    if (x < 610) mapDrag = { x, y, cx: worldMap.cx, cz: worldMap.cz };
+    if (x < 610) {
+      const now = performance.now();
+      if (lastMapClick && now - lastMapClick.t < 350 && Math.hypot(x - lastMapClick.x, y - lastMapClick.y) < 6) {
+        const z = worldMap.zoom, wx = Math.floor(worldMap.cx + (x - 310) / z), wz = Math.floor(worldMap.cz + (y - 264) / z);
+        Game.walkTo(wx, wz, { run: ctrlHeld }); lastMapClick = null; return;
+      }
+      lastMapClick = { x, y, t: now };
+      mapDrag = { x, y, cx: worldMap.cx, cz: worldMap.cz };
+    }
   }
 
   // ---------- gather options under mouse ----------
@@ -600,6 +624,7 @@ const UI = (() => {
       return worldOptions(x - VP.x, y - VP.y);
     }
     if (Math.hypot(x - ORB.run.cx, y - ORB.run.cy) <= 12) return [O(act(st.player.run ? 'Toggle Run (on)' : 'Toggle Run (off)'), () => { st.player.run = !st.player.run; })];
+    if (Math.hypot(x - ORB.run.cx, y - ORB.run.cy) <= 12) tooltip = { x, y, lines: [`Run energy: ${Math.floor(st.player.energy)}%`, 'Ctrl-click a tile to run there once'] };
     if (Math.hypot(x - ORB.hp.cx, y - ORB.hp.cy) <= 12) { tooltip = { x, y, lines: [`Hitpoints: ${Game.cur('hitpoints')} / ${Game.lvl('hitpoints')}`] }; return []; }
     if (Math.hypot(x - ORB.pr.cx, y - ORB.pr.cy) <= 12) { tooltip = { x, y, lines: [`Prayer: ${Math.ceil(Game.cur('prayer'))} / ${Game.lvl('prayer')}`] }; return []; }
     const nearMap = Math.hypot(x - MM.cx, y - MM.cy) <= MM.r || Math.hypot(x - COMPASS.cx, y - COMPASS.cy) <= COMPASS.r || Math.hypot(x - MAPBTN.cx, y - MAPBTN.cy) <= MAPBTN.r;
@@ -624,7 +649,7 @@ const UI = (() => {
     e.preventDefault();
     Sfx.resume();
     const [x, y] = toCanvas(e);
-    mouse.x = x; mouse.y = y;
+    mouse.x = x; mouse.y = y; ctrlHeld = e.ctrlKey;
     if (e.button === 1) { midDrag = { x, y, yaw: Render.cam.yaw, pitch: Render.cam.pitch }; return; }
     const st = S();
     if (!st.loggedIn) { loginClick(x, y); return; }
@@ -1033,15 +1058,18 @@ const UI = (() => {
     ctx.translate(MM.cx, MM.cy); ctx.rotate(a); ctx.scale(mmZ / 4, mmZ / 4);
     ctx.drawImage(mmCv, -p.rx * 4, -p.rz * 4);
     if (st.flag) { const fx = (st.flag[0] + 0.5 - p.rx) * 4, fz = (st.flag[1] + 0.5 - p.rz) * 4; ctx.save(); ctx.translate(fx, fz); ctx.rotate(-a); const k = 4 / mmZ; ctx.scale(k, k); ctx.fillStyle = '#000'; ctx.fillRect(-1, -12, 2, 13); ctx.fillStyle = '#ff2020'; ctx.beginPath(); ctx.moveTo(1, -12); ctx.lineTo(9, -9); ctx.lineTo(1, -6); ctx.fill(); ctx.restore(); }
+    if (st.flag && p.path.length) { ctx.fillStyle = 'rgba(255,255,255,0.75)'; for (let i = 0; i < p.path.length; i += 2) { const [tx, tz] = p.path[i]; ctx.fillRect((tx + 0.5 - p.rx) * 4 - 0.75, (tz + 0.5 - p.rz) * 4 - 0.75, 1.5, 1.5); } }
     for (const g of st.ground) { if (Math.abs(g.x - p.x) > 22 || Math.abs(g.z - p.z) > 22) continue; ctx.fillStyle = '#000'; ctx.fillRect((g.x + 0.5 - p.rx) * 4 - 1.5, (g.z + 0.5 - p.rz) * 4 - 1.5, 4, 4); ctx.fillStyle = '#ff0000'; ctx.fillRect((g.x + 0.5 - p.rx) * 4 - 1, (g.z + 0.5 - p.rz) * 4 - 1, 3, 3); }
     for (const b of st.bots) { if (Math.abs(b.x - p.x) > 22 || Math.abs(b.z - p.z) > 22) continue; const x = ((b.rx ?? b.x + 0.5) - p.rx) * 4, z = ((b.rz ?? b.z + 0.5) - p.rz) * 4; ctx.fillStyle = '#000'; ctx.fillRect(x - 1.5, z - 1.5, 4, 4); ctx.fillStyle = '#ffffff'; ctx.fillRect(x - 1, z - 1, 3, 3); }
     for (const n of st.npcs) { if (n.dead || Math.abs(n.x - p.x) > 22 || Math.abs(n.z - p.z) > 22) continue; const x = ((n.rx ?? n.x + 0.5) - p.rx) * 4, z = ((n.rz ?? n.z + 0.5) - p.rz) * 4; ctx.fillStyle = '#000'; ctx.fillRect(x - 1.5, z - 1.5, 4, 4); ctx.fillStyle = '#ffff00'; ctx.fillRect(x - 1, z - 1, 3, 3); }
+    { const f = p.face || 0, s = 4 / mmZ, ux = Math.sin(f), uz = Math.cos(f); ctx.save(); ctx.scale(s, s); ctx.fillStyle = '#000'; ctx.beginPath(); ctx.moveTo(ux * 6, uz * 6); ctx.lineTo(-ux * 3 + uz * 4, -uz * 3 - ux * 4); ctx.lineTo(-ux * 3 - uz * 4, -uz * 3 + ux * 4); ctx.closePath(); ctx.fill(); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.moveTo(ux * 4.5, uz * 4.5); ctx.lineTo(-ux * 2 + uz * 2.8, -uz * 2 - ux * 2.8); ctx.lineTo(-ux * 2 - uz * 2.8, -uz * 2 + ux * 2.8); ctx.closePath(); ctx.fill(); ctx.restore(); }
     ctx.restore();
     ctx.save(); ctx.beginPath(); ctx.arc(MM.cx, MM.cy, MM.r, 0, Math.PI * 2); ctx.clip();
     const cs = Math.cos(a), sn = Math.sin(a);
     for (const ic of World.mapIcons) { const dx = (ic.x - p.rx) * mmZ, dz = (ic.z - p.rz) * mmZ; if (Math.hypot(dx, dz) > MM.r + 6) continue; mapIcon(ic.icon, MM.cx + dx * cs - dz * sn, MM.cy + dx * sn + dz * cs); }
     ctx.restore();
-    ctx.fillStyle = '#fff'; ctx.fillRect(MM.cx - 1, MM.cy - 1, 3, 3);
+    ctx.strokeStyle = '#3a3226'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(MM.cx, MM.cy, MM.r + 0.5, 0, 7); ctx.stroke(); ctx.lineWidth = 1;
+    if (mmZ !== 4) T('x' + (mmZ / 4).toFixed(1).replace('.0', ''), MM.cx + MM.r - 18, MM.cy + MM.r - 4, '#ffff00', F11);
     ctx.save(); ctx.beginPath(); ctx.arc(COMPASS.cx, COMPASS.cy, COMPASS.r, 0, Math.PI * 2); ctx.clip();
     ctx.fillStyle = '#5a5040'; ctx.fillRect(COMPASS.cx - 20, COMPASS.cy - 20, 40, 40);
     ctx.fillStyle = '#7a6e58'; ctx.beginPath(); ctx.arc(COMPASS.cx, COMPASS.cy, COMPASS.r - 3, 0, Math.PI * 2); ctx.fill();
@@ -1049,6 +1077,7 @@ const UI = (() => {
     ctx.fillStyle = '#c02020'; ctx.beginPath(); ctx.moveTo(0, -13); ctx.lineTo(4, 0); ctx.lineTo(-4, 0); ctx.fill();
     ctx.fillStyle = '#e8e8e8'; ctx.beginPath(); ctx.moveTo(0, 13); ctx.lineTo(4, 0); ctx.lineTo(-4, 0); ctx.fill();
     ctx.restore();
+    { const nx = COMPASS.cx + Math.sin(a) * (COMPASS.r - 5), ny = COMPASS.cy - Math.cos(a) * (COMPASS.r - 5); T('N', nx, ny + 4, '#ffff00', 'bold 10px Arial', 'center'); }
     // orbs
     const orb = (o, frac, col, txt, glyph) => {
       ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(o.cx, o.cy, 12, 0, 7); ctx.fill();
@@ -1249,6 +1278,7 @@ const UI = (() => {
     ctx.clearRect(0, 0, 765, 503);
     const st = S();
     if (!st.loggedIn) { drawLogin(); return; }
+    Render.setDestTile(S().loggedIn ? S().flag : null);
     if (worldMap.open) { drawWorldMap(); return; }
     ctx.drawImage(frameCv, 0, 0);
     Render.setHoverTile(null);

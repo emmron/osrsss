@@ -212,15 +212,21 @@ const Game = (() => {
     p.pending = null; p.combat = null; p.castOnce = null; p.follow = null;
     if (S.iface && S.iface.type === 'trade') declineTrade();
     stopTask();
-    S.dialog = null; S.iface = null;
+    S.dialog = null; S.iface = null; S.walkGoal = null; p.tempRun = false;
   }
   function busy() { const p = S.player; return p.dead || p.forced; }
-  function walkTo(x, z) {
+  function walkTo(x, z, opt) {
     const p = S.player;
     if (busy()) return;
     if (p.stun) { msg('You\'re stunned!'); return; }
     resetActions();
+    x = Math.max(0, Math.min(World.W - 1, x | 0)); z = Math.max(0, Math.min(World.H - 1, z | 0));
     pathTo((a, b) => a === x && b === z, x, z);
+    p.tempRun = !!(opt && opt.run);
+    const end = p.path.length ? p.path[p.path.length - 1] : null;
+    S.walkGoal = (end && (end[0] !== x || end[1] !== z)) ? { x, z, last: -1 } : null;
+    if (S.walkGoal) S.flag = [x, z];
+    else if (!p.path.length) msg('I can\'t reach that!');
   }
   function interact(kind, ent, op, useSlot) {
     const p = S.player;
@@ -1458,7 +1464,7 @@ const Game = (() => {
   function playerMove() {
     const p = S.player;
     if (!p.path.length || p.stun > 0) return;
-    const n = (p.run && p.energy >= 1 && p.path.length >= 2) ? 2 : 1;
+    const n = ((p.run || p.tempRun) && p.energy >= 1 && p.path.length >= 2) ? 2 : 1;
     const tiles = [];
     for (let i = 0; i < n && p.path.length; i++) {
       const [nx, nz] = p.path[0];
@@ -1469,7 +1475,7 @@ const Game = (() => {
     if (tiles.length) {
       moveEnt(p, tiles);
       p.runningStep = tiles.length === 2;
-      if (tiles.length === 2) { p.energy = Math.max(0, p.energy - 0.67); if (p.energy <= 0) p.run = false; }
+      if (tiles.length === 2) { p.energy = Math.max(0, p.energy - 0.67); if (p.energy <= 0) { p.run = false; p.tempRun = false; } }
       if (p.task && p.loop) stopTask();
       p.anim = null;
     }
@@ -1835,7 +1841,12 @@ const Game = (() => {
     for (const b of S.bots) botTick(b);
     for (const b of S.bots) if (b.moveTick !== S.tick) { if (b.moveTick !== S.tick - 1) { b.from = null; b.steps = []; } }
     tradeTick();
-    if (!p.path.length) S.flag = null;
+    if (!p.path.length && S.walkGoal && !p.dead) {
+      const g = S.walkGoal, key = p.x * 1000 + p.z;
+      if ((p.x === g.x && p.z === g.z) || key === g.last) { if (key === g.last) msg('You can\'t find a way any further.'); S.walkGoal = null; }
+      else { g.last = key; const run = p.tempRun; pathTo((a, b) => a === g.x && b === g.z, g.x, g.z); p.tempRun = run; const end = p.path[p.path.length - 1]; if (!end) S.walkGoal = null; else if (end[0] === g.x && end[1] === g.z) S.walkGoal = null; else S.flag = [g.x, g.z]; }
+    }
+    if (!p.path.length && !S.walkGoal) { S.flag = null; p.tempRun = false; }
     if (p.follow && !p.dead) { if (!npcReach(p, p.follow) && (p.path.length === 0 || S.tick % 2 === 0)) pathToNpc(p.follow); }
     if (S.tick % (S.prayers.rapid_heal ? 50 : 100) === 0 && cur('hitpoints') < lvl('hitpoints') && !p.dead) S.skills.hitpoints.cur++;
     if (S.tick % 100 === 0) for (const k of SKILLS) { if (k === 'hitpoints' || k === 'prayer') continue; if (S.skills[k].cur < lvl(k)) S.skills[k].cur++; else if (S.skills[k].cur > lvl(k)) S.skills[k].cur--; }

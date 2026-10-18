@@ -960,7 +960,15 @@ const World = (() => {
         const d = (x - tx) * (x - tx) + (z - tz) * (z - tz);
         if (d < bd || (d === bd && dist[n] < bl)) { bd = d; bl = dist[n]; best = n; }
       }
-      if (best < 0) return null;
+      if (best < 0) {
+        // nothing near the target: head for the reachable tile that gets closest to it
+        for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) {
+          const n = idx(x, z); if (dist[n] < 0) continue;
+          const d = (x - tx) * (x - tx) + (z - tz) * (z - tz);
+          if (d < bd || (d === bd && dist[n] < bl)) { bd = d; bl = dist[n]; best = n; }
+        }
+      }
+      if (best < 0 || best === s) return null;
       found = best;
     }
     const path = [];

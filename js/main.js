@@ -139,6 +139,19 @@ const Render = (() => {
     [[x, z], [x + 1, z], [x + 1, z + 1], [x, z + 1]].forEach(([px, pz], i) => a.setXYZ(i, px, World.heightAt(Math.min(px, World.W - 0.01), Math.min(pz, World.H - 0.01)) + 0.03, pz));
     a.needsUpdate = true; hoverLine.geometry.computeBoundingSphere(); hoverLine.visible = true;
   }
+  let destLine = null;
+  function setDestTile(t) {
+    if (!destLine) {
+      destLine = new THREE.LineLoop(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.9, depthTest: false }));
+      destLine.geometry.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(12), 3));
+      destLine.renderOrder = 998; scene.add(destLine);
+    }
+    if (!t || t[0] < 0 || t[1] < 0 || t[0] >= World.W || t[1] >= World.H) { destLine.visible = false; return; }
+    const [x, z] = t, a = destLine.geometry.attributes.position, e = 0.06;
+    [[x + e, z + e], [x + 1 - e, z + e], [x + 1 - e, z + 1 - e], [x + e, z + 1 - e]].forEach(([px, pz], i) => a.setXYZ(i, px, World.heightAt(Math.min(px, World.W - 0.01), Math.min(pz, World.H - 0.01)) + 0.04, pz));
+    a.needsUpdate = true; destLine.geometry.computeBoundingSphere(); destLine.visible = true;
+    destLine.material.opacity = 0.55 + 0.35 * Math.abs(Math.sin(performance.now() / 300));
+  }
   function setBrightness(b) { ambient.intensity = [0.42, 0.52, 0.6, 0.74][b]; }
 
   function groundMesh(g) {
@@ -289,7 +302,7 @@ const Render = (() => {
     if (v3.z > 1) return null;
     return [(v3.x + 1) / 2 * VW, (1 - v3.y) / 2 * VH];
   }
-  return { init, update, pick, project, groundMesh, projectile, cam, setBrightness, setHoverTile, get camera() { return camera; } };
+  return { init, update, pick, project, groundMesh, projectile, cam, setBrightness, setHoverTile, setDestTile, get camera() { return camera; } };
 })();
 
 // ===== Boot =====
