@@ -1,0 +1,769 @@
+// ===== World: big tile map, textured terrain, walls, roofs, locs, chunks, pathfinding =====
+const World = (() => {
+  const W = 176, H = 168;
+  const OX = 40, OZ = 36; // offset of the original Ardenvale village layout
+  const WATER_H = -0.35;
+  const U = { GRASS: 1, FOREST: 2, DIRT: 3, SAND: 4, DARK: 5, SWAMP: 6, DESERT: 7 };
+  const UCOL = { 1: [84, 114, 40], 2: [66, 94, 32], 3: [108, 90, 62], 4: [172, 156, 100], 5: [58, 50, 42], 6: [70, 80, 44], 7: [196, 170, 108] };
+  const O = { PATH: 1, WATER: 2, WOOD: 3, STONE: 4, BRIDGE: 5, MUD: 6, COBBLE: 7, LAVA: 8, PIER: 9, SANDPATH: 10 };
+  const OCOL = { 1: [122, 100, 66], 2: [40, 66, 120], 3: [104, 72, 40], 4: [96, 92, 86], 5: [40, 66, 120], 6: [80, 66, 46], 7: [112, 108, 100], 8: [220, 90, 20], 9: [40, 66, 120], 10: [170, 140, 90] };
+
+  const under = new Uint8Array(W * H).fill(U.GRASS);
+  const over = new Uint8Array(W * H);
+  const blocked = new Uint8Array(W * H);
+  const wall = new Uint8Array(W * H);
+  const roofOf = new Int16Array(W * H).fill(-1);
+  const locAt = new Array(W * H).fill(null);
+  const vh = new Float32Array((W + 1) * (H + 1));
+  const tileNoise = new Float32Array(W * H);
+  const idx = (x, z) => z * W + x;
+  const inb = (x, z) => x >= 0 && z >= 0 && x < W && z < H;
+
+  let seed = 1337;
+  function rnd() { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }
+
+  const buildings = [], wallSegs = [], fenceSegs = [], locs = [], bridgeTiles = [], mapIcons = [], labels = [];
+  let bridgeOpen = false;
+  const SPAWN = { x: 90, z: 84 };
+  const NPC_SPAWNS = [];
+  const npc = (id, x, z) => NPC_SPAWNS.push([id, x, z]);
+  const vnpc = (id, x, z) => npc(id, x + OX, z + OZ);
+
+  function setU(x, z, u) { if (inb(x, z)) under[idx(x, z)] = u; }
+  function setO(x, z, o) { if (inb(x, z)) over[idx(x, z)] = o; }
+  function rectU(x0, z0, x1, z1, u) { for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) setU(x, z, u); }
+  function rectO(x0, z0, x1, z1, o) { for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) setO(x, z, o); }
+  const ov = (x, z) => inb(x, z) ? over[idx(x, z)] : 0;
+  const isWater = (x, z) => { const o = ov(x, z); return o === O.WATER || o === O.BRIDGE || o === O.PIER; };
+  const isLiquid = (x, z) => isWater(x, z) || ov(x, z) === O.LAVA;
+
+  function addWall(x, z, side, list, style) {
+    if (!inb(x, z)) return;
+    const bits = { N: 1, E: 2, S: 4, W: 8 };
+    wall[idx(x, z)] |= bits[side];
+    const nb = { N: [0, -1, 4], E: [1, 0, 8], S: [0, 1, 1], W: [-1, 0, 2] }[side];
+    if (inb(x + nb[0], z + nb[1])) wall[idx(x + nb[0], z + nb[1])] |= nb[2];
+    list.push({ x, z, side, style });
+  }
+
+  // ---------- heights ----------
+  function baseH(x, z) {
+    let h = 0.45 * Math.sin(x * 0.09 + 1) * Math.cos(z * 0.08) + 0.22 * Math.sin(x * 0.23 + z * 0.17) + 0.12 * Math.cos(x * 0.37 - z * 0.29);
+    for (const [cx, cz, r] of [[90, 82, 20], [145, 82, 16], [100, 22, 10]]) {
+      const dv = Math.hypot(x - cx, z - cz);
+      if (dv < r) { const w = dv < r * 0.6 ? 1 : 1 - (dv - r * 0.6) / (r * 0.4); h = h * (1 - w) + 0.1 * w; }
+    }
+    if (z > 130) h += Math.sin(x * 0.15) * Math.cos(z * 0.2) * 0.4;
+    if (x < 36) h += 0.3 * Math.sin(z * 0.2) + 0.2;
+    const de = Math.min(x, z, H - z);
+    if (de < 6) h += (6 - de) * 0.45;
+    return h;
+  }
+  const V = (x, z) => vh[z * (W + 1) + x];
+  function heightAt(fx, fz) {
+    const tx = Math.floor(fx), tz = Math.floor(fz);
+    const o = ov(tx, tz);
+    if (o === O.BRIDGE || o === O.PIER) return 0.05;
+    const x = Math.max(0, Math.min(W - 0.001, fx)), z = Math.max(0, Math.min(H - 0.001, fz));
+    const x0 = Math.floor(x), z0 = Math.floor(z), ax = x - x0, az = z - z0;
+    const h00 = V(x0, z0), h10 = V(x0 + 1, z0), h01 = V(x0, z0 + 1), h11 = V(x0 + 1, z0 + 1);
+    if (ax + az <= 1) return h00 + (h10 - h00) * ax + (h01 - h00) * az;
+    return h11 + (h01 - h11) * (1 - ax) + (h10 - h11) * (1 - az);
+  }
+
+  // ---------- loc definitions ----------
+  const LOCDEF = {
+    tree: { name: 'Tree', ops: ['Chop down'], examine: 'A commonly found tree.' },
+    maple: { name: 'Maple tree', ops: ['Chop down'], examine: 'It\'ll be nice and colourful in autumn.' },
+    yew: { name: 'Yew', ops: ['Chop down'], examine: 'A tough looking yew tree.' },
+    magic: { name: 'Magic tree', ops: ['Chop down'], examine: 'The tree shimmers with a magical force.' },
+    adamantite: { name: 'Rocks', ops: ['Mine', 'Prospect'], examine: 'A rocky outcrop.' },
+    runite: { name: 'Rocks', ops: ['Mine', 'Prospect'], examine: 'A rocky outcrop.' },
+    snare: { name: 'Bird snare', block: false, ops: ['Check', 'Dismantle'], examine: 'A bird snare.' },
+    boxtrap: { name: 'Box trap', block: false, ops: ['Check', 'Dismantle'], examine: 'A box trap.' },
+    oak: { name: 'Oak', ops: ['Chop down'], examine: 'A beautiful old oak.' },
+    willow: { name: 'Willow', ops: ['Chop down'], examine: 'A droopy tree.' },
+    pine: { name: 'Evergreen', ops: [], examine: 'A tall evergreen tree.' },
+    deadtree: { name: 'Dead tree', ops: [], examine: 'It\'s seen better days.' },
+    palm: { name: 'Palm tree', ops: [], examine: 'It provides some welcome shade.' },
+    cactus: { name: 'Cactus', ops: [], examine: 'It looks prickly.' },
+    copper: { name: 'Rocks', ops: ['Mine', 'Prospect'], examine: 'A rocky outcrop.' },
+    tin: { name: 'Rocks', ops: ['Mine', 'Prospect'], examine: 'A rocky outcrop.' },
+    iron: { name: 'Rocks', ops: ['Mine', 'Prospect'], examine: 'A rocky outcrop.' },
+    coal: { name: 'Rocks', ops: ['Mine', 'Prospect'], examine: 'A rocky outcrop.' },
+    gold: { name: 'Rocks', ops: ['Mine', 'Prospect'], examine: 'A rocky outcrop.' },
+    mithril: { name: 'Rocks', ops: ['Mine', 'Prospect'], examine: 'A rocky outcrop.' },
+    essence: { name: 'Rune Essence', w: 2, d: 2, ops: ['Mine'], examine: 'A strange, pale stone humming with power.' },
+    fishing_spot: { name: 'Fishing spot', block: false, ops: ['Net'], examine: 'There are fish swimming here.' },
+    furnace: { name: 'Furnace', w: 2, d: 2, ops: ['Smelt'], examine: 'A red hot furnace.' },
+    anvil: { name: 'Anvil', ops: ['Smith'], examine: 'Used for fashioning metal items.' },
+    range: { name: 'Cooking range', ops: ['Cook'], examine: 'A hot range for cooking on.' },
+    bank_booth: { name: 'Bank booth', ops: ['Bank'], examine: 'The bank teller will serve you from here.' },
+    altar: { name: 'Altar', w: 2, d: 1, ops: ['Pray-at'], examine: 'An altar to the gods of light.' },
+    fountain: { name: 'Fountain', w: 2, d: 2, ops: [], examine: 'The village fountain. The water looks clean.' },
+    well: { name: 'Well', ops: [], examine: 'A deep stone well.' },
+    fire: { name: 'Fire', block: false, ops: [], examine: 'Hot!' },
+    crate: { name: 'Crate', ops: [], examine: 'A sturdy wooden crate.' },
+    barrel: { name: 'Barrel', ops: [], examine: 'It smells of old ale.' },
+    signpost: { name: 'Signpost', ops: ['Read'], examine: 'A wooden signpost.' },
+    lamp: { name: 'Lamp post', ops: [], examine: 'It lights the streets at night.' },
+    flowers: { name: 'Flowers', block: false, ops: [], examine: 'Pretty flowers.', deco: true },
+    bush: { name: 'Bush', block: false, ops: [], examine: 'A leafy bush.', deco: true },
+    bonepile: { name: 'Bones', block: false, ops: [], examine: 'The remains of some poor soul.', deco: true },
+    bakery_stall: { name: 'Bakery stall', w: 2, d: 1, ops: ['Steal-from'], examine: 'A stall selling freshly baked cakes.' },
+    silk_stall: { name: 'Silk stall', w: 2, d: 1, ops: ['Steal-from'], examine: 'A stall selling fine silk.' },
+    spinning_wheel: { name: 'Spinning wheel', ops: ['Spin'], examine: 'I can spin flax into bow string here.' },
+    flax: { name: 'Flax', block: false, ops: ['Pick'], examine: 'A flax plant.' },
+    allotment: { name: 'Allotment', w: 3, d: 2, ops: ['Inspect'], examine: 'A patch of earth for growing vegetables.' },
+    herbpatch: { name: 'Herb patch', w: 2, d: 2, ops: ['Inspect'], examine: 'A patch for growing herbs.' },
+    tent: { name: 'Tent', w: 2, d: 2, ops: [], examine: 'A sturdy canvas tent.' },
+    boat: { name: 'Ship', w: 3, d: 5, ops: [], examine: 'The Sea Maiden. She looks seaworthy enough.' },
+  };
+  for (const k in RC_ALTARS) LOCDEF['rc_' + k] = { name: k.charAt(0).toUpperCase() + k.slice(1) + ' altar', w: 2, d: 2, ops: ['Craft-rune'], examine: `A mysterious altar humming with ${k} energy.`, rune: k };
+  const AG = AGILITY.map((a, i) => Object.assign({}, a, { i, start: [a.start[0] + OX, a.start[1] + OZ], path: a.path.map(([x, z]) => [x + OX, z + OZ]) }));
+  AG.forEach((a, i) => { LOCDEF['agility' + i] = { name: a.name, ops: [a.op], examine: 'An obstacle on the agility course.', agility: a }; });
+  for (const k in LOCDEF) { const d = LOCDEF[k]; d.w = d.w || 1; d.d = d.d || 1; if (d.block === undefined) d.block = true; }
+
+  function canPlace(x, z, w, d) {
+    for (let j = 0; j < d; j++) for (let i = 0; i < w; i++) {
+      const xx = x + i, zz = z + j;
+      if (!inb(xx, zz) || blocked[idx(xx, zz)] || locAt[idx(xx, zz)] || isLiquid(xx, zz)) return false;
+    }
+    return true;
+  }
+  function addLoc(type, x, z, opts) {
+    const def = LOCDEF[type];
+    const loc = Object.assign({ type, x, z, w: def.w, d: def.d, def, depletedUntil: 0, rot: 0 }, opts || {});
+    if (loc.rot % 2) { const t = loc.w; loc.w = loc.d; loc.d = t; }
+    for (let j = 0; j < loc.d; j++) for (let i = 0; i < loc.w; i++) {
+      if (!inb(x + i, z + j)) continue;
+      const k = idx(x + i, z + j);
+      if (!def.deco) locAt[k] = loc;
+      if (def.block) blocked[k] = 1;
+    }
+    locs.push(loc);
+    return loc;
+  }
+  function removeLoc(loc) {
+    const i = locs.indexOf(loc); if (i >= 0) locs.splice(i, 1);
+    for (let j = 0; j < loc.d; j++) for (let ii = 0; ii < loc.w; ii++) {
+      const k = idx(loc.x + ii, loc.z + j);
+      if (locAt[k] === loc) locAt[k] = null;
+      if (loc.def.block) blocked[k] = 0;
+    }
+  }
+
+  // ---------- map design ----------
+  function riverX(z) { return 61 + 2.2 * Math.sin((z - OZ) * 0.11) + 1.0 * Math.sin((z - OZ) * 0.29 + 1); }
+
+  function design() {
+    // regions
+    rectU(36, 3, 124, 40, U.FOREST);
+    rectU(40, 40, 58, 124, U.FOREST);
+    for (let z = 0; z < H; z++) for (let x = 0; x < W; x++) {
+      if (x < 36) setU(x, z, U.DARK);
+      if (x >= 124 && z < 52) setU(x, z, U.SWAMP);
+      const dz = 130 + Math.sin(x * 0.2) * 3;
+      if (z > dz && x >= 36) setU(x, z, U.DESERT);
+    }
+    // river from north to the desert oasis
+    for (let z = 0; z <= 140; z++) { const cx = riverX(z); for (let x = 0; x < W; x++) if (Math.abs(x + 0.5 - cx) <= 1.9) setO(x, z, O.WATER); }
+    for (let z = 0; z < H; z++) for (let x = 0; x < W; x++) {
+      if (Math.hypot(x - 71, z - 47) < 5.6) setO(x, z, O.WATER);
+      if (Math.hypot((x - 62) / 1.4, z - 145) < 6) setO(x, z, O.WATER);
+      if (x >= 160) setO(x, z, O.WATER);
+    }
+    for (let z = 44; z < 50; z++) for (let x = 62; x < 68; x++) if (Math.abs(z - 47) < 1.6) setO(x, z, O.WATER);
+    // swamp pools & mud
+    for (let i = 0; i < 40; i++) { const cx = 128 + rnd() * 28, cz = 6 + rnd() * 40, r = 1 + rnd() * 2.4; for (let z = cz - 4; z < cz + 4; z++) for (let x = cx - 4; x < cx + 4; x++) { const d = Math.hypot(x - cx, z - cz); if (d < r) setO(Math.floor(x), Math.floor(z), i % 3 ? O.MUD : O.WATER); } }
+    // ashlands lava
+    for (const [cx, cz, r] of [[14, 40, 3.2], [22, 98, 2.6], [10, 120, 3.6], [26, 140, 2.2], [18, 70, 1.8]]) for (let z = cz - 5; z < cz + 5; z++) for (let x = cx - 5; x < cx + 5; x++) if (Math.hypot(x - cx, z - cz) < r) setO(Math.floor(x), Math.floor(z), O.LAVA);
+    // banks/beaches
+    for (let z = 0; z < H; z++) for (let x = 0; x < W; x++) {
+      if (isWater(x, z)) continue;
+      let near = false;
+      for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) if (isWater(x + dx, z + dz)) near = true;
+      if (near && rnd() < 0.85 && under[idx(x, z)] !== U.SWAMP) setU(x, z, U.SAND);
+      if (x >= 155 && x < 160) setU(x, z, U.SAND);
+    }
+    // mines & lairs
+    for (let z = 96; z < 120; z++) for (let x = 76; x < 100; x++) if (Math.hypot((x - 87) / 1.2, z - 108) < 8 + rnd()) setU(x, z, U.DIRT);
+    for (let z = 104; z < 116; z++) for (let x = 124; x < 138; x++) if (Math.hypot(x - 130, z - 109) < 5.5 + rnd()) setU(x, z, U.DIRT);
+    for (let z = 140; z < 156; z++) for (let x = 98; x < 116; x++) if (Math.hypot(x - 106, z - 147) < 6.5 + rnd()) setU(x, z, U.DIRT);
+    for (let z = 106; z < 120; z++) for (let x = 43; x < 57; x++) if (Math.hypot(x - 50, z - 113) < 6 + rnd()) setU(x, z, U.DARK);
+    for (let z = 84; z < 94; z++) for (let x = 45; x < 55; x++) if (Math.hypot(x - 50, z - 89) < 4.5) setU(x, z, U.DIRT);
+    // roads
+    for (let x = 30; x < 160; x++) for (const z of [80, 81]) if (!isWater(x, z) && ov(x, z) !== O.LAVA) setO(x, z, under[idx(x, z)] === U.DESERT ? O.SANDPATH : O.PATH);
+    for (let z = 10; z < 152; z++) for (const x of [90, 91]) if (!isWater(x, z)) setO(x, z, under[idx(x, z)] === U.DESERT ? O.SANDPATH : O.PATH);
+    for (let x = 92; x < 108; x++) setO(x, 94, O.PATH);
+    for (let z = 82; z < 104; z++) setO(140, z, O.PATH);
+    for (let x = 128; x < 140; x++) setO(x, 104, O.PATH);
+    rectO(86, 76, 95, 85, O.COBBLE);
+    rectO(136, 76, 152, 86, O.COBBLE);
+    // bridge over the river
+    for (const z of [80, 81]) for (let x = 0; x < W; x++) if (ov(x, z) === O.WATER && x > 52 && x < 70) { setO(x, z, O.BRIDGE); bridgeTiles.push([x, z]); }
+    // pier into the sea
+    for (let x = 160; x < 171; x++) for (const z of [82, 83]) setO(x, z, O.PIER);
+  }
+
+  function building(b) {
+    buildings.push(b);
+    const id = buildings.length - 1;
+    rectO(b.x0, b.z0, b.x1, b.z1, b.floor);
+    for (let z = b.z0; z <= b.z1; z++) for (let x = b.x0; x <= b.x1; x++) roofOf[idx(x, z)] = id;
+    const isDoor = (x, z, s) => b.doors.some(d => d.x === x && d.z === z && d.s === s);
+    for (let x = b.x0; x <= b.x1; x++) { if (!isDoor(x, b.z0, 'N')) addWall(x, b.z0, 'N', wallSegs, b.style); if (!isDoor(x, b.z1, 'S')) addWall(x, b.z1, 'S', wallSegs, b.style); }
+    for (let z = b.z0; z <= b.z1; z++) { if (!isDoor(b.x0, z, 'W')) addWall(b.x0, z, 'W', wallSegs, b.style); if (!isDoor(b.x1, z, 'E')) addWall(b.x1, z, 'E', wallSegs, b.style); }
+    for (const d of b.doors) b.doorSegs = (b.doorSegs || []).concat([d]);
+    return b;
+  }
+  // building with village-offset coordinates
+  function vbuilding(b) {
+    b.x0 += OX; b.x1 += OX; b.z0 += OZ; b.z1 += OZ;
+    b.doors = b.doors.map(d => ({ x: d.x + OX, z: d.z + OZ, s: d.s }));
+    return building(b);
+  }
+  const vloc = (t, x, z, o) => addLoc(t, x + OX, z + OZ, o);
+  const vicon = (x, z, icon) => mapIcons.push({ x: x + OX, z: z + OZ, icon });
+  function fence(x0, z0, x1, z1, gates) {
+    const isGate = (x, z) => gates.some(g => g[0] === x && g[1] === z);
+    for (let x = x0; x <= x1; x++) { if (!isGate(x, z0)) addWall(x, z0, 'N', fenceSegs); if (!isGate(x, z1)) addWall(x, z1, 'S', fenceSegs); }
+    for (let z = z0; z <= z1; z++) { if (!isGate(x0, z)) addWall(x0, z, 'W', fenceSegs); if (!isGate(x1, z)) addWall(x1, z, 'E', fenceSegs); }
+  }
+
+  function placeStructures() {
+    // ===== Ardenvale (original layout, offset) =====
+    vbuilding({ name: 'Bank', x0: 41, z0: 33, x1: 48, z1: 38, style: 'stone', roof: 'slate', floor: O.STONE, doors: [{ x: 44, z: 38, s: 'S' }, { x: 45, z: 38, s: 'S' }] });
+    for (const x of [42, 44, 45, 47]) vloc('bank_booth', x, 35);
+    vicon(44.5, 36, 'bank');
+    vbuilding({ name: 'General Store', x0: 54, z0: 33, x1: 59, z1: 38, style: 'wood', roof: 'rooftile', floor: O.WOOD, doors: [{ x: 56, z: 38, s: 'S' }] });
+    vloc('crate', 54, 33); vloc('barrel', 59, 33); vloc('crate', 55, 33);
+    vicon(57, 36, 'store');
+    vbuilding({ name: 'Smithy', x0: 54, z0: 51, x1: 60, z1: 55, style: 'stone', roof: 'slate', floor: O.STONE, doors: [{ x: 55, z: 51, s: 'N' }, { x: 56, z: 51, s: 'N' }] });
+    vloc('furnace', 58, 53, { rot: 2 }); vloc('anvil', 55, 54); vloc('anvil', 56, 54);
+    vicon(59, 54, 'furnace'); vicon(55.5, 54.5, 'anvil');
+    vbuilding({ name: 'Cottage', x0: 41, z0: 51, x1: 46, z1: 55, style: 'wood', roof: 'thatch', floor: O.WOOD, doors: [{ x: 44, z: 51, s: 'N' }] });
+    vloc('range', 42, 55, { rot: 2 }); vloc('spinning_wheel', 46, 53);
+    vicon(42.5, 55.5, 'range'); vicon(46.5, 53.5, 'spin');
+    vbuilding({ name: 'Chapel', x0: 62, z0: 39, x1: 68, z1: 47, style: 'stone', roof: 'rooftile', floor: O.STONE, doors: [{ x: 62, z: 44, s: 'W' }, { x: 62, z: 43, s: 'W' }] });
+    vloc('altar', 66, 40, { rot: 1 }); vicon(66.5, 41, 'altar');
+    vbuilding({ name: 'Elder\'s House', x0: 34, z0: 39, x1: 39, z1: 42, style: 'wood', roof: 'thatch', floor: O.WOOD, doors: [{ x: 37, z: 42, s: 'S' }] });
+    vicon(36.5, 40.5, 'quest');
+    vbuilding({ name: 'Orla\'s Runes', x0: 41, z0: 26, x1: 46, z1: 30, style: 'stone', roof: 'slate', floor: O.STONE, doors: [{ x: 43, z: 30, s: 'S' }] });
+    vicon(43.5, 28, 'rune');
+    vbuilding({ name: 'Bryn\'s Archery', x0: 54, z0: 26, x1: 59, z1: 30, style: 'wood', roof: 'rooftile', floor: O.WOOD, doors: [{ x: 56, z: 30, s: 'S' }] });
+    vloc('barrel', 59, 26); vicon(57, 28, 'archery');
+    vbuilding({ name: 'Wren\'s Herbs', x0: 34, z0: 33, x1: 38, z1: 37, style: 'wood', roof: 'thatch', floor: O.WOOD, doors: [{ x: 38, z: 35, s: 'E' }] });
+    vicon(36, 35, 'herb');
+    vbuilding({ name: 'Tannery', x0: 58, z0: 61, x1: 62, z1: 64, style: 'wood', roof: 'rooftile', floor: O.WOOD, doors: [{ x: 60, z: 61, s: 'N' }] });
+    vicon(60, 63, 'tanner');
+    vloc('fountain', 50, 43); vloc('signpost', 48, 47);
+    vloc('bakery_stall', 53, 41); vloc('silk_stall', 53, 47);
+    vicon(54, 41.5, 'stall'); vicon(54, 47.5, 'stall');
+    for (const [x, z] of [[46, 44], [55, 44], [49, 39], [52, 49]]) vloc('lamp', x, z);
+    fence(64 + OX, 28 + OZ, 72 + OX, 35 + OZ, [[64 + OX, 31 + OZ], [64 + OX, 32 + OZ]]);
+    fence(66 + OX, 52 + OZ, 80 + OX, 66 + OZ, [[66 + OX, 58 + OZ]]);
+    vloc('crate', 46, 40); vloc('barrel', 46, 41);
+    // Farming
+    vloc('allotment', 31, 47); vloc('allotment', 35, 47); vloc('herbpatch', 38, 47);
+    vicon(35, 48, 'farm');
+    for (let z = 50; z < 56; z++) for (let x = 25; x < 30; x++) if (!isWater(x + OX, z + OZ) && (x + z) % 2 === 0) vloc('flax', x, z);
+    // Agility course
+    const agBlock = [[1, 0, 6, 1], [1, 0, 1, 3], [0, 1, 1, 4], [1, 0, 5, 1], [0, 1, 1, 4]];
+    AG.forEach((a, i) => {
+      const xs = a.path.map(p => p[0]), zs = a.path.map(p => p[1]);
+      const x0 = Math.min(...xs.slice(0, -1)), z0 = Math.min(...zs.slice(0, -1));
+      let rect;
+      if (i === 0) rect = [71, 94, 6, 1]; else if (i === 1) rect = [78, 94, 1, 3]; else if (i === 2) rect = [79, 97, 1, 4]; else if (i === 3) rect = [73, 102, 5, 1]; else rect = [71, 97, 1, 4];
+      addLoc('agility' + i, rect[0], rect[1], { w: rect[2], d: rect[3] });
+    });
+    mapIcons.push({ x: 75, z: 97, icon: 'agility' });
+    // Slayer master's tent near the goblin camp
+    addLoc('tent', 100, 109); mapIcons.push({ x: 101, z: 110, icon: 'slayer' });
+    mapIcons.push({ x: 87, z: 108, icon: 'mine' }, { x: 50, z: 89, icon: 'mine' });
+
+    // ===== Port Sarrow (east coast) =====
+    building({ name: 'Sarrow Bank', x0: 137, z0: 70, x1: 143, z1: 74, style: 'stone', roof: 'slate', floor: O.STONE, doors: [{ x: 140, z: 74, s: 'S' }] });
+    addLoc('bank_booth', 139, 71); addLoc('bank_booth', 141, 71);
+    mapIcons.push({ x: 140, z: 72, icon: 'bank' });
+    building({ name: 'Harbourmaster', x0: 146, z0: 70, x1: 151, z1: 74, style: 'wood', roof: 'rooftile', floor: O.WOOD, doors: [{ x: 148, z: 74, s: 'S' }] });
+    mapIcons.push({ x: 148.5, z: 72, icon: 'quest' });
+    building({ name: 'Fish House', x0: 146, z0: 88, x1: 151, z1: 92, style: 'wood', roof: 'thatch', floor: O.WOOD, doors: [{ x: 148, z: 88, s: 'N' }] });
+    addLoc('range', 150, 91); mapIcons.push({ x: 150.5, z: 91.5, icon: 'range' });
+    building({ name: 'Sarrow Forge', x0: 136, z0: 88, x1: 141, z1: 92, style: 'stone', roof: 'slate', floor: O.STONE, doors: [{ x: 138, z: 88, s: 'N' }] });
+    addLoc('furnace', 139, 90); addLoc('anvil', 137, 91);
+    mapIcons.push({ x: 140, z: 91, icon: 'furnace' }, { x: 137.5, z: 91.5, icon: 'anvil' });
+    addLoc('well', 144, 80); addLoc('signpost', 135, 79);
+    for (const [x, z] of [[137, 77], [152, 77], [137, 85], [152, 85]]) addLoc('lamp', x, z);
+    addLoc('boat', 164, 85, { w: 3, d: 5 });
+    for (const [x, z] of [[156, 79], [157, 86], [155, 84]]) addLoc('crate', x, z);
+    addLoc('barrel', 156, 78);
+    mapIcons.push({ x: 165, z: 82.5, icon: 'fish' });
+    addLoc('copper', 127, 107); addLoc('tin', 128, 110); addLoc('iron', 131, 106); addLoc('coal', 133, 108); addLoc('coal', 130, 112); addLoc('iron', 134, 111); addLoc('coal', 127, 113);
+    mapIcons.push({ x: 130, z: 109, icon: 'mine' });
+
+    // ===== Runestone circle (Elderwood) =====
+    const rc = [['air', 93, 15], ['mind', 99, 12], ['water', 105, 15], ['earth', 107, 21], ['fire', 105, 27], ['body', 93, 27]];
+    for (const [k, x, z] of rc) { addLoc('rc_' + k, x, z); mapIcons.push({ x: x + 1, z: z + 1, icon: 'rc' }); }
+    addLoc('essence', 99, 20); mapIcons.push({ x: 100, z: 21, icon: 'essence' });
+    addLoc('rc_chaos', 16, 56); mapIcons.push({ x: 17, z: 57, icon: 'rc' });
+    addLoc('rc_nature', 146, 22); mapIcons.push({ x: 147, z: 23, icon: 'rc' });
+
+    // ===== Desert =====
+    for (const [t, x, z] of [['gold', 102, 144], ['gold', 105, 142], ['mithril', 108, 146], ['mithril', 110, 149], ['coal', 103, 149], ['coal', 106, 151], ['iron', 101, 147], ['coal', 111, 145]]) addLoc(t, x, z);
+    mapIcons.push({ x: 106, z: 147, icon: 'mine' });
+    // western woods iron
+    for (const [t, x, z] of [['iron', 48, 88], ['iron', 50, 87], ['iron', 52, 89], ['iron', 49, 91], ['copper', 51, 92], ['tin', 47, 90], ['coal', 53, 91]]) addLoc(t, x, z);
+    // village mine
+    for (const [t, x, z] of [['copper', 43, 69], ['copper', 44, 70], ['copper', 42, 72], ['copper', 45, 74], ['copper', 47, 68], ['tin', 49, 70], ['tin', 50, 73], ['tin', 52, 71], ['tin', 48, 75], ['tin', 53, 74], ['iron', 46, 77], ['iron', 51, 77], ['coal', 54, 69]]) vloc(t, x, z);
+
+    // ===== Al Kharid (desert town) =====
+    building({ name: 'Al Kharid Bank', x0: 126, z0: 137, x1: 133, z1: 141, style: 'stone', roof: 'sandstone', floor: O.STONE, doors: [{ x: 129, z: 141, s: 'S' }, { x: 130, z: 141, s: 'S' }] });
+    for (const x of [127, 129, 130, 132]) addLoc('bank_booth', x, 138);
+    mapIcons.push({ x: 129.5, z: 139, icon: 'bank' });
+    building({ name: 'Al Kharid Furnace', x0: 137, z0: 137, x1: 142, z1: 141, style: 'stone', roof: 'sandstone', floor: O.STONE, doors: [{ x: 139, z: 141, s: 'S' }] });
+    addLoc('furnace', 139, 138); mapIcons.push({ x: 140, z: 139, icon: 'furnace' });
+    building({ name: 'Zeke\'s Scimitars', x0: 126, z0: 146, x1: 130, z1: 150, style: 'stone', roof: 'sandstone', floor: O.WOOD, doors: [{ x: 128, z: 146, s: 'N' }] });
+    mapIcons.push({ x: 128, z: 148, icon: 'scimitar' });
+    building({ name: 'Kebab House', x0: 137, z0: 146, x1: 141, z1: 150, style: 'stone', roof: 'sandstone', floor: O.WOOD, doors: [{ x: 139, z: 146, s: 'N' }] });
+    addLoc('range', 140, 149); addLoc('anvil', 138, 149); mapIcons.push({ x: 140.5, z: 149.5, icon: 'range' });
+    rectO(124, 142, 145, 145, O.SANDPATH);
+    for (let x = 92; x < 124; x++) for (const z of [143, 144]) if (!isWater(x, z)) setO(x, z, O.SANDPATH);
+    for (const [x, z] of [[124, 136], [145, 136], [124, 152], [145, 152], [134, 146], [135, 140]]) addLoc('palm', x, z);
+    for (let z = 134; z < 156; z++) { if (z < 142 || z > 145) { addWall(122, z, 'W', fenceSegs); } }
+    // Wilderness ditch
+    for (let z = 3; z < H - 3; z++) if (!isLiquid(36, z) && !ov(36, z)) setO(36, z, O.MUD);
+    // labels for the world map
+    labels.push(['Ardenvale', 90, 74, 1], ['Port Sarrow', 144, 66, 1], ['Elderwood', 85, 8, 0], ['Runestone Circle', 100, 34, 0], ['Duskmoor Swamp', 140, 14, 0],
+      ['Kharidian Desert', 100, 136, 1], ['Al Kharid', 135, 133, 1], ['Wilderness', 18, 30, 1], ['Western Woods', 49, 64, 0], ['Ardenvale Mine', 87, 120, 0], ['Goblin Camp', 112, 122, 0],
+      ['Cinder Lair', 50, 122, 0], ['Demon Pit', 18, 140, 0], ['Agility Course', 74, 106, 0], ['Farm', 75, 90, 0], ['Oasis', 62, 156, 0]);
+
+    // ===== NPCs =====
+    [['chicken', 66, 30], ['chicken', 68, 32], ['chicken', 70, 31], ['chicken', 67, 34], ['chicken', 69, 29],
+      ['cow', 70, 56], ['cow', 74, 60], ['cow', 77, 54], ['cow', 72, 63], ['cow', 76, 64], ['cow', 69, 61],
+      ['goblin', 66, 74], ['goblin', 70, 77], ['goblin', 74, 72], ['goblin', 68, 80], ['goblin', 76, 79], ['goblin', 72, 82],
+      ['man', 48, 44], ['man', 53, 45], ['woman', 47, 48], ['man', 54, 42], ['woman', 44, 46],
+      ['guard', 45, 40], ['guard', 52, 50], ['guard', 30, 46],
+      ['banker', 42, 34], ['banker', 44, 34], ['banker', 45, 34], ['banker', 47, 34],
+      ['shopkeeper', 57, 35], ['elder', 36, 40], ['smith', 57, 52], ['mage', 44, 28], ['fletcher', 57, 28], ['herbalist', 36, 35],
+      ['farmer', 34, 50], ['tanner', 60, 63], ['priest', 65, 44], ['rat', 28, 72], ['rat', 31, 76], ['rat', 27, 80], ['rat', 33, 70]].forEach(([id, x, z]) => vnpc(id, x, z));
+    npc('slayer', 102, 111);
+    for (const [x, z] of [[49, 76], [52, 72], [47, 84], [51, 96], [53, 100], [48, 70]]) npc('bandit', x, z);
+    npc('ogre', 50, 113);
+    for (const [x, z] of [[20, 50], [26, 62], [14, 80], [24, 90], [18, 110], [28, 125], [12, 134], [22, 30]]) npc('skeleton', x, z);
+    for (const [x, z] of [[96, 140], [110, 140], [84, 150], [120, 148], [100, 156], [74, 140]]) npc('scorpion', x, z);
+    for (const [x, z] of [[132, 20], [140, 34], [150, 12], [136, 44]]) npc('rat', x, z);
+    for (const [x, z] of [[139, 75], [141, 75]]) npc('banker', x, z - 3);
+    npc('huntsman', 92, 30); npc('lesser_demon', 14, 128); npc('lesser_demon', 22, 134);
+    for (const [x, z] of [[131, 144], [136, 143], [142, 144], [128, 152], [140, 153]]) npc('kharid_warrior', x, z);
+    npc('zeke', 128, 148); for (const x of [127, 129, 130, 132]) npc('kharid_banker', x, 137);
+    npc('harbourmaster', 148, 72); npc('sailor', 166, 82); npc('man', 145, 82); npc('woman', 150, 79); npc('guard', 140, 80); npc('man', 143, 86);
+  }
+
+  function scatterNature() {
+    const free = (x, z) => canPlace(x, z, 1, 1) && !over[idx(x, z)] && roofOf[idx(x, z)] < 0 && !wall[idx(x, z)];
+    for (let z = 0; z < H; z++) for (let x = 0; x < W; x++) {
+      const de = Math.min(x, z, H - 1 - z, x >= 160 ? 99 : W - 1 - x);
+      if (de <= 2) { blocked[idx(x, z)] = 1; if (de >= 1 && !isWater(x, z) && rnd() < 0.55) addLoc(under[idx(x, z)] === U.DESERT ? 'cactus' : under[idx(x, z)] === U.DARK ? 'deadtree' : 'pine', x, z); }
+    }
+    const nearRC = (x, z) => Math.hypot(x - 100, z - 21) < 11;
+    for (let z = 3; z < H - 3; z++) for (let x = 3; x < 158; x++) {
+      if (!free(x, z)) continue;
+      const u = under[idx(x, z)], r = rnd();
+      if (Math.hypot(x - 90, z - 82) < 15 || Math.hypot(x - 144, z - 81) < 13 || nearRC(x, z)) continue;
+      if (x >= 64 && x <= 81 && z >= 82 && z <= 104) continue; // farm + agility
+      if (x >= 103 && x <= 121 && z >= 63 && z <= 103) continue; // pens
+      if (u === U.FOREST) { if (r < 0.1) addLoc('tree', x, z); else if (r < 0.125) addLoc('oak', x, z); else if (r < 0.15) addLoc('pine', x, z); else if (r < 0.17) addLoc('bush', x, z); }
+      else if (u === U.GRASS) { if (r < 0.018) addLoc('tree', x, z); else if (r < 0.024) addLoc('oak', x, z); else if (r < 0.034) addLoc('flowers', x, z); else if (r < 0.04) addLoc('bush', x, z); }
+      else if (u === U.DARK) { if (r < 0.04) addLoc('deadtree', x, z); else if (r < 0.05) addLoc('bonepile', x, z); }
+      else if (u === U.SWAMP) { if (r < 0.06) addLoc('deadtree', x, z); else if (r < 0.1) addLoc('willow', x, z); }
+      else if (u === U.DESERT) { if (r < 0.012) addLoc('cactus', x, z); else if (r < 0.016) addLoc('bonepile', x, z); }
+    }
+    // special trees
+    for (const [x, z] of [[72, 20], [80, 14], [86, 30], [110, 26], [116, 12], [76, 32], [118, 34]]) if (free(x, z)) addLoc('maple', x, z);
+    for (const [x, z] of [[112, 86], [124, 74], [128, 92], [100, 64], [134, 60]]) if (free(x, z)) addLoc('yew', x, z);
+    for (const [x, z] of [[30, 26], [24, 76], [70, 152], [56, 150]]) if (free(x, z)) addLoc('magic', x, z);
+    for (const [t, x, z] of [['adamantite', 12, 100], ['adamantite', 15, 103], ['runite', 9, 130], ['mithril', 20, 104], ['coal', 17, 99]]) if (free(x, z)) addLoc(t, x, z);
+    for (let a = 0; a < 6.28; a += 0.5) { const x = Math.round(62 + Math.cos(a) * 11), z = Math.round(145 + Math.sin(a) * 9); if (free(x, z)) addLoc('palm', x, z); }
+    for (let z = 40; z < 140; z += 3) { const cx = Math.floor(riverX(z)); for (const x of [cx + 3, cx - 4]) if (free(x, z) && rnd() < 0.6) addLoc('willow', x, z); }
+  }
+
+  // ---------- chunks ----------
+  const CH = 16;
+  const chunks = [];
+  let scene, terrainMesh, bridgeGroup, waterTex;
+  function chunkFor(x, z) {
+    const cx = Math.max(0, Math.min(Math.floor(W / CH), Math.floor(x / CH))), cz = Math.max(0, Math.min(Math.floor(H / CH), Math.floor(z / CH)));
+    const k = cz * 100 + cx;
+    if (!chunks[k]) { const g = new THREE.Group(); g.userData.cx = cx * CH + CH / 2; g.userData.cz = cz * CH + CH / 2; chunks[k] = g; scene.add(g); }
+    return chunks[k];
+  }
+  function updateChunks(px, pz, radius) {
+    for (const g of chunks) if (g) g.visible = Math.abs(g.userData.cx - px) < radius + CH / 2 && Math.abs(g.userData.cz - pz) < radius + CH / 2;
+  }
+
+  // ---------- meshes ----------
+  const roofMeshes = [];
+  const pickables = [];
+  function tileUnderCol(x, z) { const c = UCOL[under[idx(x, z)]], n = tileNoise[idx(x, z)]; return [c[0] * n, c[1] * n, c[2] * n]; }
+
+  function buildTerrain() {
+    for (let z = 0; z <= H; z++) for (let x = 0; x <= W; x++) {
+      let h = baseH(x, z), wet = false;
+      for (let dz = -1; dz <= 0; dz++) for (let dx = -1; dx <= 0; dx++) if (isLiquid(x + dx, z + dz)) wet = true;
+      if (wet) h = WATER_H;
+      vh[z * (W + 1) + x] = h;
+    }
+    for (const b of buildings) {
+      let s = 0, n = 0;
+      for (let z = b.z0; z <= b.z1 + 1; z++) for (let x = b.x0; x <= b.x1 + 1; x++) { s += V(x, z); n++; }
+      b.h = s / n;
+      for (let z = b.z0; z <= b.z1 + 1; z++) for (let x = b.x0; x <= b.x1 + 1; x++) vh[z * (W + 1) + x] = b.h;
+    }
+    for (let i = 0; i < W * H; i++) tileNoise[i] = 0.93 + rnd() * 0.12;
+    const vnorm = (x, z) => { const hl = V(Math.max(0, x - 1), z), hr = V(Math.min(W, x + 1), z), hu = V(x, Math.max(0, z - 1)), hd = V(x, Math.min(H, z + 1)); const n = new THREE.Vector3(hl - hr, 2, hu - hd); return n.normalize(); };
+    const vcache = [];
+    for (let z = 0; z <= H; z++) for (let x = 0; x <= W; x++) {
+      let r = 0, g = 0, b = 0, n = 0;
+      for (let dz = -1; dz <= 0; dz++) for (let dx = -1; dx <= 0; dx++) { if (!inb(x + dx, z + dz)) continue; const c = tileUnderCol(x + dx, z + dz); r += c[0]; g += c[1]; b += c[2]; n++; }
+      vcache.push([r / n, g / n, b / n]);
+    }
+    const VC = (x, z) => vcache[z * (W + 1) + x];
+    const TEXO = { [O.WATER]: 'water', [O.BRIDGE]: 'water', [O.PIER]: 'water', [O.WOOD]: 'planks', [O.STONE]: 'stonefloor', [O.COBBLE]: 'cobble' };
+    const pos = [], col = [], nor = [];
+    const tex = {}; // texture overlays
+    for (let z = 0; z < H; z++) for (let x = 0; x < W; x++) {
+      const o = over[idx(x, z)];
+      const corners = [[x, z], [x, z + 1], [x + 1, z], [x + 1, z], [x, z + 1], [x + 1, z + 1]];
+      const tname = TEXO[o];
+      if (tname) {
+        const T = tex[tname] || (tex[tname] = { pos: [], nor: [], uv: [] });
+        for (const [cx, cz] of corners) {
+          const wtr = tname === 'water';
+          T.pos.push(cx, wtr ? WATER_H : V(cx, cz), cz);
+          const n = wtr ? { x: 0, y: 1, z: 0 } : vnorm(cx, cz); T.nor.push(n.x, n.y, n.z);
+          T.uv.push(cx / 2, cz / 2);
+        }
+        continue;
+      }
+      let oc = null;
+      if (o) { const c = OCOL[o], n = tileNoise[idx(x, z)]; oc = [c[0] * n, c[1] * n, c[2] * n]; }
+      for (const [cx, cz] of corners) {
+        pos.push(cx, V(cx, cz), cz);
+        const n = vnorm(cx, cz); nor.push(n.x, n.y, n.z);
+        const c = oc || VC(cx, cz); col.push(c[0] / 255, c[1] / 255, c[2] / 255);
+      }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+    g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    terrainMesh = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ vertexColors: true }));
+    scene.add(terrainMesh);
+    for (const t in tex) {
+      const gg = new THREE.BufferGeometry();
+      gg.setAttribute('position', new THREE.Float32BufferAttribute(tex[t].pos, 3));
+      gg.setAttribute('normal', new THREE.Float32BufferAttribute(tex[t].nor, 3));
+      gg.setAttribute('uv', new THREE.Float32BufferAttribute(tex[t].uv, 2));
+      let m;
+      if (t === 'water') { waterTex = Tex.get('water').clone(); waterTex.needsUpdate = true; m = new THREE.MeshLambertMaterial({ map: waterTex }); }
+      else m = new THREE.MeshLambertMaterial({ map: Tex.get(t), color: t === 'planks' ? '#d8c0a0' : '#ffffff' });
+      scene.add(new THREE.Mesh(gg, m));
+    }
+    // lava glow
+    const lava = [];
+    for (let z = 0; z < H; z++) for (let x = 0; x < W; x++) if (ov(x, z) === O.LAVA) for (const [cx, cz] of [[x, z], [x, z + 1], [x + 1, z], [x + 1, z], [x, z + 1], [x + 1, z + 1]]) lava.push(cx, WATER_H + 0.02, cz);
+    if (lava.length) { const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute(lava, 3)); lg.computeVertexNormals(); scene.add(new THREE.Mesh(lg, new THREE.MeshBasicMaterial({ color: '#ff6a10' }))); }
+  }
+
+  function edgeEnds(x, z, side) {
+    switch (side) {
+      case 'N': return [[x, z], [x + 1, z]];
+      case 'S': return [[x, z + 1], [x + 1, z + 1]];
+      case 'W': return [[x, z], [x, z + 1]];
+      case 'E': return [[x + 1, z], [x + 1, z + 1]];
+    }
+  }
+  function buildWalls() {
+    const done = new Set();
+    const WH = 1.9;
+    const brick = Models.tmat('brick', '#ffffff'), plaster = Models.tmat('plaster', '#ffffff');
+    for (const s of wallSegs) {
+      const [[ax, az], [bx, bz]] = edgeEnds(s.x, s.z, s.side);
+      const key = ax + ',' + az + ',' + bx + ',' + bz;
+      if (done.has(key)) continue; done.add(key);
+      const grp = chunkFor(ax, az);
+      const h = Math.min(V(ax, az), V(bx, bz));
+      const horiz = az === bz;
+      const stone = s.style === 'stone';
+      const mx = (ax + bx) / 2, mz = (az + bz) / 2;
+      Models.box(horiz ? 1.0 : 0.14, WH, horiz ? 0.14 : 1.0, stone ? brick : plaster, mx, h + WH / 2, mz, grp);
+      if (!stone) {
+        Models.box(horiz ? 1.02 : 0.16, 0.1, horiz ? 0.16 : 1.02, '#5a3a1e', mx, h + WH - 0.05, mz, grp);
+        Models.box(horiz ? 1.02 : 0.16, 0.1, horiz ? 0.16 : 1.02, '#5a3a1e', mx, h + 0.05, mz, grp);
+        if ((s.x + s.z) % 2) { const d = Models.box(horiz ? 0.08 : 0.16, WH * 1.05, horiz ? 0.16 : 0.08, '#5a3a1e', mx, h + WH / 2, mz, grp); d.rotation[horiz ? 'z' : 'x'] = 0.5; }
+      } else Models.box(horiz ? 1.02 : 0.18, 0.12, horiz ? 0.18 : 1.02, '#6e695e', mx, h + 0.06, mz, grp);
+      if (((s.x * 7 + s.z * 13) % 3) === 0) {
+        Models.box(horiz ? 0.4 : 0.17, 0.46, horiz ? 0.17 : 0.4, '#1a1c22', mx, h + 1.1, mz, grp);
+        Models.box(horiz ? 0.04 : 0.18, 0.46, horiz ? 0.18 : 0.04, '#5a3a1e', mx, h + 1.1, mz, grp);
+      }
+      for (const [px, pz] of [[ax, az], [bx, bz]]) {
+        const pk = 'p' + px + ',' + pz; if (done.has(pk)) continue; done.add(pk);
+        Models.box(0.2, WH + 0.02, 0.2, stone ? '#7a7468' : '#5a3a1e', px, h + WH / 2, pz, grp);
+      }
+    }
+    // door frames
+    for (const b of buildings) for (const d of b.doors) {
+      const [[ax, az], [bx, bz]] = edgeEnds(d.x, d.z, d.s);
+      const grp = chunkFor(ax, az);
+      const horiz = az === bz;
+      Models.box(horiz ? 1.0 : 0.16, 0.3, horiz ? 0.16 : 1.0, b.style === 'stone' ? Models.tmat('brick', '#ffffff') : '#5a3a1e', (ax + bx) / 2, b.h + 1.75, (az + bz) / 2, grp);
+    }
+    for (const s of fenceSegs) {
+      const [[ax, az], [bx, bz]] = edgeEnds(s.x, s.z, s.side);
+      const key = 'f' + ax + ',' + az + ',' + bx + ',' + bz;
+      if (done.has(key)) continue; done.add(key);
+      const grp = chunkFor(ax, az);
+      const ha = V(ax, az), hb = V(bx, bz), horiz = az === bz;
+      for (const [px, pz, ph] of [[ax, az, ha], [bx, bz, hb]]) { const pk = 'fp' + px + ',' + pz; if (done.has(pk)) continue; done.add(pk); Models.box(0.09, 0.8, 0.09, '#6b4a2a', px, ph + 0.4, pz, grp); }
+      for (const y of [0.35, 0.65]) {
+        const r = Models.box(horiz ? 1.0 : 0.05, 0.07, horiz ? 0.05 : 1.0, '#7a5530', (ax + bx) / 2, (ha + hb) / 2 + y, (az + bz) / 2, grp);
+        if (horiz) r.rotation.z = Math.atan2(hb - ha, 1); else r.rotation.x = -Math.atan2(hb - ha, 1);
+      }
+    }
+  }
+
+  function buildRoofs() {
+    for (const b of buildings) {
+      const x0 = b.x0 - 0.2, x1 = b.x1 + 1.2, z0 = b.z0 - 0.2, z1 = b.z1 + 1.2;
+      const base = b.h + 1.9;
+      const alongX = (x1 - x0) >= (z1 - z0);
+      const span = alongX ? (z1 - z0) : (x1 - x0);
+      const peak = base + span * 0.42;
+      const verts = [], uvs = [];
+      const q = (a, b2, c, d) => { verts.push(...a, ...b2, ...c, ...a, ...c, ...d); };
+      const t = (a, b2, c) => verts.push(...a, ...b2, ...c);
+      if (alongX) {
+        const zm = (z0 + z1) / 2;
+        q([x0, base, z1], [x1, base, z1], [x1, peak, zm], [x0, peak, zm]);
+        q([x1, base, z0], [x0, base, z0], [x0, peak, zm], [x1, peak, zm]);
+        t([x0, base, z0], [x0, base, z1], [x0, peak, zm]); t([x1, base, z1], [x1, base, z0], [x1, peak, zm]);
+      } else {
+        const xm = (x0 + x1) / 2;
+        q([x0, base, z0], [x0, base, z1], [xm, peak, z1], [xm, peak, z0]);
+        q([x1, base, z1], [x1, base, z0], [xm, peak, z0], [xm, peak, z1]);
+        t([x1, base, z0], [x0, base, z0], [xm, peak, z0]); t([x0, base, z1], [x1, base, z1], [xm, peak, z1]);
+      }
+      for (let i = 0; i < verts.length; i += 3) { const x = verts[i], y = verts[i + 1], z = verts[i + 2]; uvs.push((alongX ? x : z) / 1.5, (y - base) * 1.6 + (alongX ? 0 : 0)); }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+      g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+      g.computeVertexNormals();
+      const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ map: Tex.get(b.roof), flatShading: true, side: THREE.DoubleSide }));
+      chunkFor(b.x0, b.z0).add(m);
+      roofMeshes.push(m);
+    }
+  }
+
+  function buildBridge() {
+    if (bridgeGroup) bridgeGroup.parent.remove(bridgeGroup);
+    bridgeGroup = new THREE.Group();
+    let minX = 999, maxX = 0;
+    for (const [x] of bridgeTiles) { minX = Math.min(minX, x); maxX = Math.max(maxX, x); }
+    const mid = Math.floor((minX + maxX) / 2);
+    const pl = Models.tmat('planks', '#ffffff');
+    for (let x = minX - 1; x <= maxX + 1; x++) {
+      if (!bridgeOpen && (x === mid || x === mid + 1)) continue;
+      const p = Models.box(1.0, 0.08, 2.2, pl, x + 0.5, 0.02, 81, bridgeGroup);
+      if (!bridgeOpen && (x === mid - 1 || x === mid + 2)) p.rotation.x = 0.25;
+      for (const zz of [79.95, 82.05]) { Models.box(0.08, 0.6, 0.08, '#5a3a1e', x + 0.5, 0.3, zz, bridgeGroup); Models.box(1.0, 0.07, 0.06, '#6b4a2a', x + 0.5, 0.55, zz, bridgeGroup); }
+    }
+    chunkFor(minX, 80).add(bridgeGroup);
+  }
+  function buildPier() {
+    const pl = Models.tmat('planks', '#ffffff');
+    for (let x = 160; x < 171; x++) {
+      const g = chunkFor(x, 82);
+      Models.box(1.0, 0.1, 2.0, pl, x + 0.5, 0.0, 83, g);
+      if (x % 2 === 0) for (const zz of [82.05, 83.95]) Models.box(0.16, 1.2, 0.16, '#4a3018', x + 0.5, -0.4, zz, g);
+    }
+  }
+  function setBridgeOpen(v) { bridgeOpen = v; if (scene) buildBridge(); }
+
+  // ---------- loc meshes ----------
+  function locModel(loc) {
+    const r = () => rnd();
+    const t = loc.type;
+    if (TREES[t] || ['pine', 'deadtree', 'palm', 'cactus'].includes(t)) return Models.tree(t, r);
+    if (ROCKS[t]) return Models.rock(t, r);
+    if (t.startsWith('rc_')) return Models.runeAltar(t.slice(3));
+    if (t.startsWith('agility')) return Models.agility(['log', 'net', 'rope', 'pipe', 'swing'][+t.slice(7)]);
+    switch (t) {
+      case 'essence': return Models.essenceRock();
+      case 'fishing_spot': return Models.fishingSpot();
+      case 'furnace': return Models.furnace();
+      case 'anvil': return Models.anvil();
+      case 'range': return Models.range();
+      case 'bank_booth': return Models.bankBooth();
+      case 'altar': return Models.altar();
+      case 'fountain': return Models.fountain();
+      case 'well': return Models.well();
+      case 'fire': return Models.fire();
+      case 'crate': return Models.crate();
+      case 'barrel': return Models.barrel();
+      case 'signpost': return Models.signpost();
+      case 'lamp': return Models.lamp();
+      case 'flowers': return Models.flowers(r);
+      case 'bush': return Models.bush(r);
+      case 'bonepile': return Models.bones();
+      case 'bakery_stall': return Models.stall('#c04040');
+      case 'silk_stall': return Models.stall('#4060c0');
+      case 'spinning_wheel': return Models.spinningWheel();
+      case 'flax': return Models.flaxPlant(r);
+      case 'allotment': case 'herbpatch': { const p = loc.patch || { state: 'weeds', stage: 3 }; return Models.patch(loc.w, loc.d, p.state, p.crop, p.stage); }
+      case 'tent': return Models.tent('#7a2a1e');
+      case 'boat': return Models.boat();
+      case 'snare': case 'boxtrap': return Models.trap(loc.type, loc.caught ? 'caught' : 'set');
+    }
+    return new THREE.Group();
+  }
+  function spawnLocMesh(loc) {
+    const m = locModel(loc);
+    const cx = loc.x + loc.w / 2, cz = loc.z + loc.d / 2;
+    m.position.set(cx, heightAt(cx, cz), cz);
+    if (loc.type === 'fishing_spot') m.position.y = WATER_H + 0.02;
+    if (loc.type === 'boat') m.position.y = WATER_H;
+    if (loc.rot) m.rotation.y = -loc.rot * Math.PI / 2;
+    if (loc.type.startsWith('agility') && loc.w > loc.d && loc.type !== 'agility0' && loc.type !== 'agility3') m.rotation.y = Math.PI / 2;
+    if ((loc.type === 'agility1' || loc.type === 'agility2' || loc.type === 'agility4')) m.rotation.y = 0;
+    if (loc.type === 'agility4') m.rotation.y = Math.PI / 2;
+    m.userData.ent = loc;
+    loc.mesh = m;
+    const grp = chunkFor(loc.x, loc.z);
+    if (TREES[loc.type]) { const st = Models.stump(loc.type); st.position.copy(m.position); st.visible = false; st.userData.ent = loc; loc.stump = st; grp.add(st); pickables.push(st); }
+    grp.add(m);
+    if (!loc.def.deco) pickables.push(m);
+  }
+  function addLocLive(type, x, z, opts) { const loc = addLoc(type, x, z, opts); spawnLocMesh(loc); return loc; }
+  function removeLocLive(loc) {
+    removeLoc(loc);
+    for (const m of [loc.mesh, loc.stump]) { if (!m) continue; const i = pickables.indexOf(m); if (i >= 0) pickables.splice(i, 1); if (m.parent) m.parent.remove(m); }
+  }
+  function refreshLoc(loc) {
+    for (const m of [loc.mesh]) { const i = pickables.indexOf(m); if (i >= 0) pickables.splice(i, 1); if (m.parent) m.parent.remove(m); }
+    spawnLocMesh(loc);
+  }
+
+  function build(sc) {
+    scene = sc;
+    design();
+    placeStructures();
+    scatterNature();
+    const spots = [];
+    for (let z = 50; z < 76; z++) { const cx = riverX(z); const x = Math.floor(cx + 1.4); if (isWater(x, z) && !isWater(x + 1, z) && ov(x, z) === O.WATER) spots.push([x, z]); }
+    for (let z = 42; z < 53; z++) for (let x = 73; x < 78; x++) if (ov(x, z) === O.WATER && !isWater(x + 1, z)) spots.push([x, z]);
+    for (let x = 161; x < 171; x++) for (const z of [81, 84]) spots.push([x, z]);
+    World.fishTiles = spots;
+    for (let i = 0; i < 10 && spots.length; i++) { const [x, z] = spots.splice(Math.floor(rnd() * spots.length), 1)[0]; addLoc('fishing_spot', x, z); }
+    buildTerrain();
+    buildWalls();
+    buildRoofs();
+    buildBridge();
+    buildPier();
+    for (const loc of locs) spawnLocMesh(loc);
+  }
+
+  // ---------- movement / pathfinding ----------
+  function walkable(x, z) {
+    if (!inb(x, z) || blocked[idx(x, z)]) return false;
+    const o = over[idx(x, z)];
+    if (o === O.WATER || o === O.LAVA) return false;
+    if (o === O.BRIDGE) return bridgeOpen;
+    return true;
+  }
+  function edgeOpen(x, z, dx, dz) {
+    const w = wall[idx(x, z)];
+    if (dx === 1) return !(w & 2); if (dx === -1) return !(w & 8);
+    if (dz === 1) return !(w & 4); return !(w & 1);
+  }
+  function canStep(x, z, dx, dz) {
+    if (!walkable(x + dx, z + dz)) return false;
+    if (dx !== 0 && dz !== 0) return canStep(x, z, dx, 0) && canStep(x, z, 0, dz) && canStep(x + dx, z, 0, dz) && canStep(x, z + dz, dx, 0);
+    return edgeOpen(x, z, dx, dz);
+  }
+  const DIRS = [[-1, 0], [1, 0], [0, 1], [0, -1], [-1, 1], [1, 1], [-1, -1], [1, -1]];
+  const prev = new Int32Array(W * H), dist = new Int32Array(W * H), q = new Int32Array(W * H);
+  // BFS limited to a 128x128 region around the start (like the original client)
+  function findPath(sx, sz, isGoal, tx, tz) {
+    const R = 64;
+    const x0 = Math.max(0, sx - R), x1 = Math.min(W - 1, sx + R), z0 = Math.max(0, sz - R), z1 = Math.min(H - 1, sz + R);
+    for (let z = z0; z <= z1; z++) dist.fill(-1, idx(x0, z), idx(x1, z) + 1);
+    let qh = 0, qt = 0;
+    const s = idx(sx, sz);
+    dist[s] = 0; q[qt++] = s;
+    let found = -1;
+    if (isGoal(sx, sz)) return [];
+    while (qh < qt) {
+      const c = q[qh++];
+      const cx = c % W, cz = (c / W) | 0;
+      for (const [dx, dz] of DIRS) {
+        const nx = cx + dx, nz = cz + dz;
+        if (nx < x0 || nx > x1 || nz < z0 || nz > z1) continue;
+        const n = idx(nx, nz);
+        if (dist[n] >= 0 || !canStep(cx, cz, dx, dz)) continue;
+        dist[n] = dist[c] + 1; prev[n] = c; q[qt++] = n;
+        if (isGoal(nx, nz)) { found = n; break; }
+      }
+      if (found >= 0) break;
+    }
+    if (found < 0) {
+      let best = -1, bd = 1e9, bl = 1e9;
+      for (let z = Math.max(z0, tz - 10); z <= Math.min(z1, tz + 10); z++) for (let x = Math.max(x0, tx - 10); x <= Math.min(x1, tx + 10); x++) {
+        const n = idx(x, z); if (dist[n] < 0) continue;
+        const d = (x - tx) * (x - tx) + (z - tz) * (z - tz);
+        if (d < bd || (d === bd && dist[n] < bl)) { bd = d; bl = dist[n]; best = n; }
+      }
+      if (best < 0) return null;
+      found = best;
+    }
+    const path = [];
+    let c = found;
+    while (c !== s && c >= 0) { path.push([c % W, (c / W) | 0]); c = prev[c]; }
+    path.reverse();
+    return path;
+  }
+  function adjacentTo(px, pz, rx, rz, rw, rd) {
+    for (let j = 0; j < rd; j++) for (let i = 0; i < rw; i++) {
+      const tx = rx + i, tz = rz + j;
+      for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (px === tx + dx && pz === tz + dz && inb(px, pz) && edgeOpen(px, pz, -dx, -dz)) return true;
+    }
+    return false;
+  }
+  function roofAt(x, z) { return inb(x, z) ? roofOf[idx(x, z)] : -1; }
+  function minimapColor(x, z) {
+    const o = over[idx(x, z)];
+    if (o === O.BRIDGE) return bridgeOpen ? [120, 86, 50] : OCOL[2];
+    if (o === O.PIER) return [120, 86, 50];
+    const c = o ? OCOL[o] : UCOL[under[idx(x, z)]];
+    const n = tileNoise[idx(x, z)];
+    return [Math.min(255, c[0] * n * 1.05), Math.min(255, c[1] * n * 1.05), Math.min(255, c[2] * n * 1.05)];
+  }
+  // ray-march the heightfield (fast tile picking)
+  function rayTile(origin, dir) {
+    let t = 0;
+    for (let i = 0; i < 600; i++) {
+      t += 0.08;
+      const x = origin.x + dir.x * t, y = origin.y + dir.y * t, z = origin.z + dir.z * t;
+      if (x < 0 || z < 0 || x >= W || z >= H) { if (t > 60) break; continue; }
+      if (y <= heightAt(x, z)) return [Math.floor(x), Math.floor(z)];
+    }
+    return null;
+  }
+
+  return {
+    W, H, OX, OZ, WATER_H, SPAWN, NPC_SPAWNS, build, heightAt, walkable, canStep, findPath, adjacentTo, roofAt, locs, buildings, roofMeshes,
+    pickables, wallSegs, fenceSegs, mapIcons, labels, minimapColor, edgeEnds, LOCDEF, AG, addLocLive, removeLocLive, refreshLoc, canPlace,
+    setBridgeOpen, get bridgeOpen() { return bridgeOpen; }, isWater, locAt: (x, z) => inb(x, z) ? locAt[idx(x, z)] : null,
+    rnd, inb, riverX, updateChunks, rayTile, get waterTex() { return waterTex; }, chunkFor,
+  };
+})();

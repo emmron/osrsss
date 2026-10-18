@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ardenvale</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  #wrap { position: absolute; width: 765px; height: 503px; transform-origin: 0 0; }
+  #wrap canvas { position: absolute; }
+  #ui { image-rendering: pixelated; }
+  #gl { left: 4px; top: 4px; width: 512px; height: 334px; }
+  #ui { left: 0; top: 0; width: 765px; height: 503px; cursor: default; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="gl" width="512" height="334"></canvas>
+  <canvas id="ui" width="765" height="503"></canvas>
+</div>
+<script src="lib/three.min.js"></script>
+<script src="js/data.js"></script>
+<script src="js/icons.js"></script>
+<script src="js/models.js"></script>
+<script src="js/world.js"></script>
+<script src="js/game.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
