@@ -143,11 +143,11 @@ defItem('mithril_arrowtips', { name: 'Mithril arrowtips', stackable: true, value
 defItem('steel_arrow', { name: 'Steel arrow', stackable: true, value: 12, icon: { t: 'arrows', c: '#9aa0a8' }, equip: EQ('ammo', { rstr: 16 }), examine: 'Arrows with steel heads.' });
 defItem('mithril_arrow', { name: 'Mithril arrow', stackable: true, value: 32, icon: { t: 'arrows', c: '#4a4aa0' }, equip: EQ('ammo', { rstr: 22 }), examine: 'Arrows with mithril heads.' });
 defItem('adamant_arrowtips', { name: 'Adamant arrowtips', stackable: true, value: 40, icon: { t: 'tips', c: '#3a6a3a' }, examine: 'I can make some arrows with these.' });
-defItem('rune_arrowtips', { name: 'Rune arrowtips', stackable: true, value: 200, icon: { t: 'tips', c: '#3a8aa8' }, examine: 'I can make some arrows with these.' });
+defItem('rune_arrowtips', { name: 'Rune arrowtips', stackable: true, value: 200, icon: { t: 'tips', c: '#4f7182' }, examine: 'I can make some arrows with these.' });
 defItem('adamant_arrow', { name: 'Adamant arrow', stackable: true, value: 80, icon: { t: 'arrows', c: '#3a6a3a' }, equip: EQ('ammo', { rstr: 31 }), examine: 'Arrows with adamant heads.' });
-defItem('rune_arrow', { name: 'Rune arrow', stackable: true, value: 400, icon: { t: 'arrows', c: '#3a8aa8' }, equip: EQ('ammo', { rstr: 49 }), examine: 'Arrows with rune heads.' });
+defItem('rune_arrow', { name: 'Rune arrow', stackable: true, value: 400, icon: { t: 'arrows', c: '#4f7182' }, equip: EQ('ammo', { rstr: 49 }), examine: 'Arrows with rune heads.' });
 const ARROWS = [['bronze', 1, 1.3], ['iron', 15, 2.5], ['steel', 30, 5], ['mithril', 45, 7.5], ['adamant', 60, 10], ['rune', 75, 12.5]];
-const DARTS = [['bronze', 10, 1.8, 1, '#9a6a3a'], ['iron', 22, 3.8, 3, '#6e6a66'], ['steel', 37, 7.5, 6, '#9aa0a8'], ['mithril', 52, 11.2, 9, '#4a4aa0'], ['adamant', 67, 15, 13, '#3a6a3a'], ['rune', 81, 18.8, 18, '#3a8aa8']];
+const DARTS = [['bronze', 10, 1.8, 1, '#9a6a3a'], ['iron', 22, 3.8, 3, '#6e6a66'], ['steel', 37, 7.5, 6, '#9aa0a8'], ['mithril', 52, 11.2, 9, '#4a4aa0'], ['adamant', 67, 15, 13, '#3a6a3a'], ['rune', 81, 18.8, 18, '#4f7182']];
 for (const [m, lv, xp, rs, col] of DARTS) {
   defItem(m + '_dart_tip', { name: m.charAt(0).toUpperCase() + m.slice(1) + ' dart tip', stackable: true, value: 2 * rs, icon: { t: 'tips', c: col }, examine: 'Fletch with feathers to make darts.' });
   defItem(m + '_dart', { name: m.charAt(0).toUpperCase() + m.slice(1) + ' dart', stackable: true, value: 4 * rs, icon: { t: 'dart', c: col }, equip: EQ('weapon', { kind: 'thrown', rstr: rs, rng: 2 + rs, speed: 3, req: { ranged: Math.max(1, lv - 10) } }), examine: 'A deadly throwing dart.' });
@@ -333,7 +333,7 @@ metalSet('steel', 'Steel', '#9aa0a8', 3);
 metalSet('black', 'Black', '#2a2a2e', 3.5);
 metalSet('mithril', 'Mithril', '#4a4aa0', 4);
 metalSet('adamant', 'Adamant', '#3a6a3a', 5);
-metalSet('rune', 'Rune', '#3a8aa8', 6.5);
+metalSet('rune', 'Rune', '#4f7182', 6.5);
 defItem('fancy_boots', { name: 'Fancy boots', value: 1, icon: { t: 'boots', c: '#c060c8' }, equip: EQ('feet', { def: 4, mag: 2, color: '#b050c0' }), examine: 'Stylish boots from the Stronghold of Security.' });
 defItem('fighting_boots', { name: 'Fighting boots', value: 1, icon: { t: 'boots', c: '#c83030' }, equip: EQ('feet', { def: 4, str: 1, color: '#b02828' }), examine: 'Tough boots from the Stronghold of Security.' });
 for (const [m, a] of [['steel', 5], ['black', 10], ['mithril', 20], ['adamant', 30], ['rune', 40]]) {
