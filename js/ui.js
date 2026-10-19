@@ -397,6 +397,8 @@ const UI = (() => {
       for (let b = 0; b < 4; b++) if (lx >= 12 + b * 42 && ly >= 40 && lx < 48 + b * 42 && ly < 64) return [O(act('Adjust Brightness'), () => { st.settings.brightness = b; Render.setBrightness(b); })];
       if (lx >= 12 && ly >= 100 && lx < 178 && ly < 124) return [O(act('Toggle Sound Effects'), () => { Sfx.enabled = !Sfx.enabled; })];
       if (lx >= 12 && ly >= 134 && lx < 178 && ly < 158) return [O(act('Toggle Music'), () => Sfx.setMusic(!Sfx.musicOn))];
+      if (ly >= 222 && ly < 246 && lx >= 12 && lx < 92) return [O(act('Toggle 2005 colour palette'), () => Render.setClassic('palette', !Render.classic.palette))];
+      if (ly >= 222 && ly < 246 && lx >= 98 && lx < 178) return [O(act('Toggle classic black fog'), () => Render.setClassic('fog', !Render.classic.fog))];
       for (const [i, r] of [[0, 1], [1, 2], [2, 5], [3, 10]]) if (lx >= 12 + i * 42 && ly >= 190 && lx < 48 + i * 42 && ly < 214) return [O(act('Set XP rate', r + 'x', C.yellow), () => { st.settings.xpRate = r; Game.msg(`XP rate set to ${r}x.`); })];
       return [];
     }
@@ -1275,6 +1277,7 @@ const UI = (() => {
       button(px + 12, py + 134, 166, 24, 'Music: ' + (Sfx.musicOn ? 'On' : 'Off'), Sfx.musicOn);
       T('Experience rate', px + 95, py + 182, C.orange, F12, 'center');
       [1, 2, 5, 10].forEach((r, i) => button(px + 12 + i * 42, py + 190, 36, 24, r + 'x', st.settings.xpRate === r));
+      button(px + 12, py + 222, 80, 24, '2005 colours', Render.classic.palette, '10px Arial'); button(px + 98, py + 222, 80, 24, 'Black fog', Render.classic.fog, '10px Arial');
     } else if (tab === 12) {
       T('Move speed:', px + 95, py + 20, C.orange, F12, 'center');
       button(px + 14, py + 30, 78, 26, 'Walk', !st.player.run); button(px + 98, py + 30, 78, 26, 'Run', st.player.run);

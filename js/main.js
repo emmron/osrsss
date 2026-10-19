@@ -264,7 +264,7 @@ const Render = (() => {
       if (seaMesh) seaMesh.visible = !ug;
       if (World.waterMesh) World.waterMesh.visible = !ug;
     }
-    if (!ug) { const wl = p && S.loggedIn && tx < 36 ? Math.min(1, (36 - tx) / 22) : 0; if (wl !== lastWl) { lastWl = wl; const c = new THREE.Color('#9cb8d8').lerp(new THREE.Color('#4a3a3e'), wl * 0.8); scene.background.copy(c); scene.fog.color.copy(c); } }
+    if (!ug) { const wl = p && S.loggedIn && tx < 36 ? Math.min(1, (36 - tx) / 22) : 0; const key = wl + (classic.fog ? 10 : 0); if (key !== lastWl) { lastWl = key; const c = classic.fog ? new THREE.Color('#000000') : new THREE.Color('#9cb8d8').lerp(new THREE.Color('#4a3a3e'), wl * 0.8); scene.background.copy(c); scene.fog.color.copy(c); scene.fog.near = classic.fog ? 14 : 20; scene.fog.far = classic.fog ? 30 : 42; if (seaMesh) seaMesh.visible = !classic.fog; } }
     else lastWl = -1;
     World.updateChunks(tx, tz, ug ? 18 : 40);
     for (const n of S.npcs) {
@@ -297,9 +297,37 @@ const Render = (() => {
       if (m.userData.spin) m.userData.spin.rotation.y = time * 1.5;
     }
     updateProjectiles();
-    renderer.render(scene, camera);
+    if (classic.palette) {
+      if (!post) setupPost();
+      renderer.setRenderTarget(post.rt); renderer.render(scene, camera);
+      renderer.setRenderTarget(null); renderer.render(post.scene, post.cam);
+    } else renderer.render(scene, camera);
   }
 
+  // ----- RS2 look: 16-bit HSL palette (6-bit hue, 3-bit saturation, 7-bit lightness) like the 2005 engine -----
+  const classic = { palette: true, fog: true };  // 2005: the world fades into black at the edge of view
+  let post = null;
+  function setupPost() {
+    const rt = new THREE.WebGLRenderTarget(VW, VH, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter });
+    const m = new THREE.ShaderMaterial({
+      uniforms: { tex: { value: rt.texture } },
+      vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+      fragmentShader: `uniform sampler2D tex; varying vec2 vUv;
+        vec3 rgb2hsl(vec3 c) { float mx = max(max(c.r, c.g), c.b), mn = min(min(c.r, c.g), c.b), l = (mx + mn) * 0.5, h = 0.0, s = 0.0; float d = mx - mn;
+          if (d > 1e-5) { s = l > 0.5 ? d / (2.0 - mx - mn) : d / (mx + mn); if (mx == c.r) h = (c.g - c.b) / d + (c.g < c.b ? 6.0 : 0.0); else if (mx == c.g) h = (c.b - c.r) / d + 2.0; else h = (c.r - c.g) / d + 4.0; h /= 6.0; }
+          return vec3(h, s, l); }
+        float h2r(float p, float q, float t) { t = fract(t); if (t < 1.0 / 6.0) return p + (q - p) * 6.0 * t; if (t < 0.5) return q; if (t < 2.0 / 3.0) return p + (q - p) * (2.0 / 3.0 - t) * 6.0; return p; }
+        vec3 hsl2rgb(vec3 c) { if (c.y < 1e-5) return vec3(c.z); float q = c.z < 0.5 ? c.z * (1.0 + c.y) : c.z + c.y - c.z * c.y, p = 2.0 * c.z - q; return vec3(h2r(p, q, c.x + 1.0 / 3.0), h2r(p, q, c.x), h2r(p, q, c.x - 1.0 / 3.0)); }
+        void main() { vec3 c = texture2D(tex, vUv).rgb; vec3 h = rgb2hsl(c);
+          h.x = floor(h.x * 128.0 + 0.5) / 128.0; h.y = floor(h.y * 7.0 + 0.5) / 7.0; h.z = floor(h.z * 128.0 + 0.5) / 128.0;
+          gl_FragColor = vec4(hsl2rgb(h), 1.0); }`,
+      depthTest: false, depthWrite: false,
+    });
+    const sc = new THREE.Scene(); sc.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), m));
+    post = { rt, scene: sc, cam: new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1) };
+  }
+  function setClassic(k, v) { classic[k] = v; try { localStorage.setItem('ardenvale_classic2', JSON.stringify(classic)); } catch (e) { } if (k === 'fog') lastWl = -2; }
+  try { Object.assign(classic, JSON.parse(localStorage.getItem('ardenvale_classic2') || '{}')); } catch (e) { }
   function visibleChain(o) { while (o) { if (!o.visible) return false; o = o.parent; } return true; }
   const ndc = new THREE.Vector2();
   function pick(vx, vy) {
@@ -326,7 +354,7 @@ const Render = (() => {
     if (v3.z > 1) return null;
     return [(v3.x + 1) / 2 * VW, (1 - v3.y) / 2 * VH];
   }
-  return { init, update, pick, project, groundMesh, projectile, cam, setBrightness, setHoverTile, setDestTile, get camera() { return camera; } };
+  return { init, update, pick, project, groundMesh, projectile, cam, setBrightness, setHoverTile, setDestTile, classic, setClassic, get camera() { return camera; } };
 })();
 
 // ===== Boot =====
