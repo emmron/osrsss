@@ -731,7 +731,7 @@ const UI = (() => {
     if (st.iface && st.iface.type === 'guide' && inR(x, y, WIN)) { guideScroll = Math.max(0, guideScroll + Math.sign(e.deltaY)); return; }
     if (Math.hypot(x - MM.cx, y - MM.cy) <= MM.r) { mmZ = Math.max(2, Math.min(8, mmZ + (e.deltaY > 0 ? -0.5 : 0.5))); return; }
     if (inR(x, y, CHAT)) { chatScroll = Math.max(0, Math.min(st.messages.length - 7, chatScroll - Math.sign(e.deltaY))); return; }
-    Render.cam.tDist = Math.max(4.5, Math.min(16, (Render.cam.tDist ?? Render.cam.dist) + Math.sign(e.deltaY) * 0.9));
+    Render.cam.tDist = Math.max(5, Math.min(19, (Render.cam.tDist ?? Render.cam.dist) + Math.sign(e.deltaY) * 1.0));
   }
   function onKey(e, down) {
     if (e.target && e.target.tagName === 'INPUT' && e.key !== 'Escape') return;
@@ -796,7 +796,7 @@ const UI = (() => {
     if (!n) return;
     Game.load(n.charAt(0).toUpperCase() + n.slice(1));
     Render.setBrightness(S().settings.brightness);
-    Render.cam.pitch = 0.62; Render.cam.dist = 9.5; Render.cam.tDist = 9.5; Render.cam.yaw = 0; lastArea = null;
+    Render.cam.pitch = 0.7; Render.cam.dist = 12; Render.cam.tDist = 12; Render.cam.yaw = 0; lastArea = null;
     Sfx.playTrack('Ardenvale');
   }
   function autoLogin(name) { loginName = name; doLogin(name); }

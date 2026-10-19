@@ -1083,9 +1083,10 @@ const World = (() => {
       const alongX = (x1 - x0) >= (z1 - z0);
       const span = alongX ? (z1 - z0) : (x1 - x0);
       const peak = base + span * 0.42;
-      const verts = [], uvs = [];
+      const verts = [], uvs = [], gab = [], guv = [];
       const q = (a, b2, c, d) => { verts.push(...a, ...b2, ...c, ...a, ...c, ...d); };
-      const t = (a, b2, c) => verts.push(...a, ...b2, ...c);
+      // gable ends are wall material in RS, not roof tiles
+      const t = (a, b2, c) => { gab.push(...a, ...b2, ...c); for (const p of [a, b2, c]) guv.push((alongX ? p[2] : p[0]) * 0.5, (p[1] - base) * 0.5); };
       if (alongX) {
         const zm = (z0 + z1) / 2;
         q([x0, base, z1], [x1, base, z1], [x1, peak, zm], [x0, peak, zm]);
@@ -1097,12 +1098,20 @@ const World = (() => {
         q([x1, base, z1], [x1, base, z0], [xm, peak, z0], [xm, peak, z1]);
         t([x1, base, z0], [x0, base, z0], [xm, peak, z0]); t([x0, base, z1], [x1, base, z1], [xm, peak, z1]);
       }
-      for (let i = 0; i < verts.length; i += 3) { const x = verts[i], y = verts[i + 1], z = verts[i + 2]; uvs.push((alongX ? x : z) / 1.5, (y - base) * 1.6 + (alongX ? 0 : 0)); }
+      for (let i = 0; i < verts.length; i += 3) { const x = verts[i], y = verts[i + 1], z = verts[i + 2]; uvs.push((alongX ? x : z) / 2.2, (y - base) * 1.1); }
       const g = new THREE.BufferGeometry();
       g.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
       g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
       g.computeVertexNormals();
       const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ map: Tex.get(b.roof), flatShading: true, side: THREE.DoubleSide }));
+      const gg = new THREE.BufferGeometry();
+      gg.setAttribute('position', new THREE.Float32BufferAttribute(gab, 3)); gg.setAttribute('uv', new THREE.Float32BufferAttribute(guv, 2)); gg.computeVertexNormals();
+      const gm = new THREE.Mesh(gg, new THREE.MeshLambertMaterial({ map: Tex.get(b.style === 'wood' ? 'plaster' : b.style === 'white' ? 'whitestone' : 'brick'), flatShading: true, side: THREE.DoubleSide }));
+      m.add(gm);
+      // ridge beam + eaves trim
+      const L = alongX ? x1 - x0 : z1 - z0, trim = b.roof === 'thatch' ? '#6a5428' : '#3a2a1c';
+      const ridge = Models.box(alongX ? L + 0.1 : 0.12, 0.1, alongX ? 0.12 : L + 0.1, trim, (x0 + x1) / 2, peak + 0.02, (z0 + z1) / 2); m.add(ridge);
+      for (const sd of [0, 1]) { const e = alongX ? Models.box(L, 0.06, 0.08, trim, (x0 + x1) / 2, base - 0.02, sd ? z1 : z0) : Models.box(0.08, 0.06, L, trim, sd ? x1 : x0, base - 0.02, (z0 + z1) / 2); m.add(e); }
       chunkFor(b.x0, b.z0).add(m);
       roofMeshes.push(m);
     }

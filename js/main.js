@@ -104,7 +104,7 @@ const Sfx = (() => {
 
 const Render = (() => {
   let renderer, scene, camera, ambient, sun, seaMesh, underground = false, camTY = null, lastWl = 0;
-  const cam = { yaw: 0, pitch: 0.62, dist: 9.5, keys: {} };
+  const cam = { yaw: 0, pitch: 0.7, dist: 12, keys: {} };
   const raycaster = new THREE.Raycaster();
   const groundTex = {};
   const projectiles = [];
@@ -121,7 +121,7 @@ const Render = (() => {
     const sea = new THREE.Mesh(new THREE.PlaneGeometry(1400, 1400), new THREE.MeshLambertMaterial({ color: '#2c4a84' }));
     sea.rotation.x = -Math.PI / 2; sea.position.set(120, -0.42, 132);
     scene.add(sea); seaMesh = sea;
-    camera = new THREE.PerspectiveCamera(46, VW / VH, 0.1, 80);
+    camera = new THREE.PerspectiveCamera(40, VW / VH, 0.1, 90); // narrower lens, further back: 2005 framing
     ambient = new THREE.AmbientLight(0xffffff, 0.6);
     sun = new THREE.DirectionalLight(0xfff4e0, 1.0); // stronger key light: shaded sides read clearly, like the RS2 lighting
     sun.position.set(-40, 80, -25);
@@ -319,7 +319,7 @@ const Render = (() => {
         float h2r(float p, float q, float t) { t = fract(t); if (t < 1.0 / 6.0) return p + (q - p) * 6.0 * t; if (t < 0.5) return q; if (t < 2.0 / 3.0) return p + (q - p) * (2.0 / 3.0 - t) * 6.0; return p; }
         vec3 hsl2rgb(vec3 c) { if (c.y < 1e-5) return vec3(c.z); float q = c.z < 0.5 ? c.z * (1.0 + c.y) : c.z + c.y - c.z * c.y, p = 2.0 * c.z - q; return vec3(h2r(p, q, c.x + 1.0 / 3.0), h2r(p, q, c.x), h2r(p, q, c.x - 1.0 / 3.0)); }
         void main() { vec3 c = texture2D(tex, vUv).rgb; vec3 h = rgb2hsl(c);
-          h.x = floor(h.x * 128.0 + 0.5) / 128.0; h.y = floor(h.y * 7.0 + 0.5) / 7.0; h.z = floor(h.z * 128.0 + 0.5) / 128.0;
+          h.x = floor(h.x * 128.0 + 0.5) / 128.0; h.y = floor(h.y * 32.0 + 0.5) / 32.0; h.z = floor(h.z * 128.0 + 0.5) / 128.0;
           gl_FragColor = vec4(hsl2rgb(h), 1.0); }`,
       depthTest: false, depthWrite: false,
     });
