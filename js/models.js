@@ -136,6 +136,7 @@ const Models = (() => {
     // torso: waist, flat chest planes, broad squared shoulder line, trapezius slope into the neck
     P.torso = part(shell('rsTorsoM', [[0.93, trunk(0.18, 0.105, 0.105)], [1.04, trunk(0.17, 0.11, 0.104)], [1.15, trunk(0.19, 0.128, 0.11)], [1.26, trunk(0.225, 0.136, 0.118)], [1.35, trunk(0.258, 0.13, 0.118)], [1.42, trunk(0.252, 0.112, 0.108)], [1.462, trunk(0.205, 0.092, 0.092)], [1.49, trunk(0.08, 0.06, 0.058)]]), o.shirt, 0, 0, 0, body);
     P.chest = part(G('rsNone', () => new THREE.BufferGeometry()), o.shirt, 0, 0, 0, body);
+    P.vneck = part(G('rsVneck', () => { const g = new THREE.BufferGeometry(); const v = [[-0.06, 1.475, 0.075], [0.06, 1.475, 0.075], [0, 1.38, 0.124]]; const pos = []; for (const k of [0, 2, 1]) pos.push(...v[k]); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.computeVertexNormals(); return g; }), o.skin, 0, 0, 0.004, body); P.vneck.visible = !o.robe;
     P.belt = part(shell('rsBeltM', [[0.932, trunk(0.183, 0.107, 0.107)], [0.972, trunk(0.18, 0.105, 0.105)]]), o.belt || '#5a1410', 0, 0, 0, body);
     P.armL = pivot(body, -0.25, 1.39, 0);
     P.armR = pivot(body, 0.25, 1.39, 0);
@@ -158,23 +159,24 @@ const Models = (() => {
     }
     P.handR = pivot(P.armR.userData.elbow, 0, -0.24, 0.02);
     P.handL = pivot(P.armL.userData.elbow, 0, -0.13, 0);
-    P.head = pivot(body, 0, 1.425, 0.03);
+    P.head = pivot(body, 0, 1.445, 0.035);
     P.head.scale.setScalar(0.92);
     P.neck = part(shell('rsNeckM', [[-0.01, hex(0.05, 0.045, 0.05)], [0.07, hex(0.046, 0.04, 0.048)]]), o.skin, 0, 0, 0, P.head);
     // head: pointed chin, cheek planes, flat forehead, rounded skull (about 0.24 tall without hair)
     const headRing = (hw, f, bk, chin) => [[0, f + (chin || 0)], [hw * 0.6, f * 0.86], [hw, f * 0.25], [hw * 0.92, -bk * 0.5], [hw * 0.5, -bk * 0.95], [0, -bk], [-hw * 0.5, -bk * 0.95], [-hw * 0.92, -bk * 0.5], [-hw, f * 0.25], [-hw * 0.6, f * 0.86]];
-    P.face = part(shell('rsHeadM', [[0.035, headRing(0.03, 0.07, 0.02, 0.012)], [0.07, headRing(0.064, 0.085, 0.045, 0.006)], [0.115, headRing(0.082, 0.092, 0.075)], [0.16, headRing(0.088, 0.094, 0.092)], [0.2, headRing(0.089, 0.088, 0.1)], [0.24, headRing(0.078, 0.07, 0.093)], [0.268, headRing(0.045, 0.036, 0.056)]]), o.skin, 0, 0, 0, P.head);
-    part(G('rsNoseM', () => { const g = new THREE.BufferGeometry(); const v = [[0, 0.165, 0.093], [0.016, 0.115, 0.093], [-0.016, 0.115, 0.093], [0, 0.113, 0.118]]; const pos = []; for (const t of [[0, 2, 3], [0, 3, 1], [1, 3, 2]]) for (const i of t) pos.push(...v[i]); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.computeVertexNormals(); return g; }), Icons.shade(o.skin, 0.93), 0, 0, 0, P.head);
-    for (const sx of [-1, 1]) { const e = part(G('rsEyeM', () => new THREE.BoxGeometry(0.032, 0.008, 0.006)), '#1a1210', sx * 0.034, 0.158, 0.093, P.head); e.rotation.z = sx * 0.2; }
+    P.face = part(shell('rsHeadM2', [[0.0, headRing(0.022, 0.062, 0.012, 0.022)], [0.05, headRing(0.058, 0.088, 0.04, 0.01)], [0.1, headRing(0.08, 0.097, 0.07)], [0.15, headRing(0.088, 0.097, 0.09)], [0.2, headRing(0.09, 0.09, 0.1)], [0.24, headRing(0.08, 0.072, 0.094)], [0.27, headRing(0.046, 0.038, 0.058)]]), o.skin, 0, 0, 0, P.head);
+    part(G('rsNoseM', () => { const g = new THREE.BufferGeometry(); const v = [[0, 0.155, 0.095], [0.017, 0.098, 0.093], [-0.017, 0.098, 0.093], [0, 0.098, 0.12]]; const pos = []; for (const t of [[0, 2, 3], [0, 3, 1], [1, 3, 2]]) for (const i of t) pos.push(...v[i]); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.computeVertexNormals(); return g; }), Icons.shade(o.skin, 0.93), 0, 0, 0, P.head);
+    // OSRS eyes: dark almond slits slanting down toward the nose
+    for (const sx of [-1, 1]) { const e = part(G('rsEyeM2', () => { const g = new THREE.BufferGeometry(); const v = [[-0.024, 0.006, 0], [0.022, 0.01, 0], [0.026, -0.006, 0], [-0.018, -0.008, 0]]; const pos = []; for (const t of [[0, 3, 2], [0, 2, 1]]) for (const k of t) pos.push(...v[k]); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.computeVertexNormals(); return g; }), '#140e0a', sx * 0.04, 0.152, 0.091, P.head); e.scale.x = sx; e.rotation.set(-0.1, sx * 0.3, -sx * 0.22); }
     // old-style accessories (ears, hats, beards, hoods, helms) were authored at 0.56 scale: keep them in a scaled child
     P.hatG = new THREE.Group(); P.hatG.scale.setScalar(0.6); P.hatG.position.y = 0.0; P.head.add(P.hatG);
     if (o.hair) {
       P.hair = new THREE.Group(); P.head.add(P.hair);
       // hair cap hugs the skull, leaves the face open at the front, hangs lower at the back and sides
       const hr = (hw, f, bk, fr) => [[0, fr], [hw * 0.6, fr * 0.9], [hw, f * 0.2], [hw * 0.92, -bk * 0.5], [hw * 0.5, -bk * 0.97], [0, -bk], [-hw * 0.5, -bk * 0.97], [-hw * 0.92, -bk * 0.5], [-hw, f * 0.2], [-hw * 0.6, fr * 0.9]];
-      part(shell('rsHairM', [[0.07, hr(0.08, 0.02, 0.09, -0.03)], [0.13, hr(0.096, 0.05, 0.106, 0.0)], [0.2, hr(0.097, 0.095, 0.11, 0.098)], [0.25, hr(0.087, 0.08, 0.103, 0.082)], [0.29, hr(0.05, 0.045, 0.062, 0.045)]], true, false), o.hair, 0, 0, 0, P.hair);
+      part(shell('rsHairM2', [[0.13, hr(0.088, 0.02, 0.1, -0.04)], [0.18, hr(0.095, 0.06, 0.108, 0.02)], [0.215, hr(0.095, 0.095, 0.108, 0.097)], [0.25, hr(0.086, 0.08, 0.1, 0.082)], [0.285, hr(0.05, 0.045, 0.06, 0.045)]], true, false), o.hair, 0, 0, 0, P.hair);
       // swept fringe: a lock falling across one side of the forehead
-      part(G('rsFringeM', () => { const g = new THREE.BufferGeometry(); const v = [[-0.08, 0.235, 0.09], [0.07, 0.24, 0.09], [0.06, 0.15, 0.1], [0.0, 0.19, 0.104], [-0.07, 0.205, 0.097]]; const pos = []; for (const t of [[0, 3, 1], [1, 3, 2], [0, 4, 3]]) for (const i of t) pos.push(...v[i]); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.computeVertexNormals(); return g; }), o.hair, 0, 0, 0, P.hair).material = new THREE.MeshLambertMaterial({ color: o.hair, side: THREE.DoubleSide });
+      part(G('rsFringeM2', () => { const g = new THREE.BufferGeometry(); const v = [[-0.075, 0.24, 0.093], [0.07, 0.245, 0.093], [0.05, 0.195, 0.1], [-0.02, 0.212, 0.1]]; const pos = []; for (const t of [[0, 3, 1], [1, 3, 2]]) for (const k of t) pos.push(...v[k]); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.computeVertexNormals(); return g; }), o.hair, 0, 0, 0, P.hair).material = new THREE.MeshLambertMaterial({ color: o.hair, side: THREE.DoubleSide });
     }
     if (o.beard) { part(G('rsBeard', () => new THREE.BoxGeometry(0.25, 0.13, 0.1)), o.beard, 0, 0.09, 0.1, P.hatG); part(G('rsBeard2', () => new THREE.BoxGeometry(0.17, 0.08, 0.08)), o.beard, 0, 0.01, 0.1, P.hatG); }
     if (o.ears) for (const s of [-1, 1]) { const e = part(G('ear', () => new THREE.ConeGeometry(0.05, 0.18, 4)), o.skin, s * 0.17, 0.24, 0, P.hatG); e.rotation.z = -s * 1.1; }
@@ -246,6 +248,7 @@ const Models = (() => {
     const bodyCol = equip.body ? col(equip.body) : o.shirt;
     const legCol = equip.legs ? col(equip.legs) : o.pants;
     P.torso.material = cmat(bodyCol); P.chest.material = cmat(bodyCol);
+    if (P.vneck) P.vneck.visible = !equip.body && !o.robe;
     for (const a of [P.armL, P.armR]) {
       const ac = equip.body ? bodyCol : (o.sleeves ? o.shirt : o.skin);
       a.userData.upper.material = cmat(ac); a.userData.shoulder.material = cmat(ac); a.userData.fore.material = cmat(equip.body || (o.sleeves && o.longSleeves) ? ac : o.skin); if (a.userData.bicep) a.userData.bicep.material = cmat(equip.body || (o.sleeves && o.longSleeves) ? ac : o.skin);
@@ -360,7 +363,7 @@ const Models = (() => {
     P.legL.userData.foot.rotation.set(0, -0.08, 0.17); P.legR.userData.foot.rotation.set(0, 0.08, -0.17); P.legL.userData.foot.scale.set(0.85, 1, 0.92); P.legR.userData.foot.scale.set(0.85, 1, 0.92);
     P.legL.userData.kneeP.rotation.set(g('kL'), 0, 0); P.legR.userData.kneeP.rotation.set(g('kR'), 0, 0);
     P.body.rotation.set(g('bX'), g('bY'), g('bZ')); P.body.position.y = g('bH'); P.body.position.z = 0;
-    P.head.rotation.set(g('hX') + 0.14, g('hY'), 0); // OSRS heads jut forward and tilt down slightly
+    P.head.rotation.set(g('hX') + 0.22, g('hY'), 0); // OSRS heads jut forward and tilt down slightly
   }
   // crouch helper: bends hips and knees together so the feet stay planted
   const crouch = (d, extra) => Object.assign({ lLx: -0.9 * d, kL: 1.7 * d, lRx: -0.9 * d, kR: 1.7 * d, bH: -0.2 * d, bX: 0.35 * d }, extra || {});
