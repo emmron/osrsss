@@ -96,32 +96,33 @@ const Models = (() => {
     P.legL = pivot(body, -0.1, 0.74, 0);
     P.legR = pivot(body, 0.1, 0.74, 0);
     for (const leg of [P.legL, P.legR]) {
-      leg.userData.upper = part(cyl(0.1, 0.075, 0.38, 4), o.pants, 0, -0.18, 0, leg);
+      leg.userData.upper = part(cyl(0.108, 0.08, 0.38, 6), o.pants, 0, -0.18, 0, leg);
       leg.userData.kneeP = pivot(leg, 0, -0.36, 0);
-      leg.userData.knee = part(G('kneeB', () => new THREE.BoxGeometry(0.13, 0.08, 0.13)), o.pants, 0, 0, 0, leg.userData.kneeP);
-      leg.userData.shin = part(cyl(0.075, 0.06, 0.34, 4), o.pants, 0, -0.17, 0, leg.userData.kneeP);
-      leg.userData.foot = part(G('boot', () => new THREE.BoxGeometry(0.14, 0.11, 0.25)), o.boots, 0, -0.355, 0.045, leg.userData.kneeP);
+      leg.userData.knee = part(cyl(0.082, 0.082, 0.07, 6), o.pants, 0, 0, 0, leg.userData.kneeP);
+      leg.userData.shin = part(cyl(0.08, 0.062, 0.34, 6), o.pants, 0, -0.17, 0, leg.userData.kneeP);
+      leg.userData.foot = part(G('rsFoot', () => { const g = new THREE.BoxGeometry(0.13, 0.1, 0.26, 1, 1, 1); const p = g.attributes.position; for (let i = 0; i < p.count; i++) { if (p.getZ(i) > 0) { p.setX(i, p.getX(i) * 0.75); if (p.getY(i) > 0) p.setY(i, p.getY(i) - 0.06); } } g.computeVertexNormals(); return g; }), o.boots, 0, -0.355, 0.045, leg.userData.kneeP);
     }
     if (o.robe) { P.skirt = part(cyl(0.2, 0.34, 0.72, 6), o.robe, 0, 0.38, 0, body); for (const l of [P.legL, P.legR]) { l.userData.upper.visible = false; l.userData.knee.visible = false; l.userData.shin.visible = false; } }
     // blocky, broad-shouldered torso like the RS2 player model
-    P.torso = part(G('torsoBox', () => { const g = new THREE.CylinderGeometry(0.5 * 0.7071, 0.36 * 0.7071, 0.56, 4, 1); g.rotateY(Math.PI / 4); g.scale(1, 1, 0.3 / 0.43); return g; }), o.shirt, 0, 1.0, 0, body);
-    P.chest = part(G('chestBox', () => new THREE.BoxGeometry(0.42, 0.2, 0.08)), o.shirt, 0, 1.13, 0.1, body);
-    P.belt = part(cyl(0.2, 0.2, 0.07, 6), Icons.shade(o.pants, 0.7), 0, 0.74, 0, body, 1, 1, 0.7);
-    P.hips = part(cyl(0.19, 0.2, 0.14, 6), o.pants, 0, 0.66, 0, body, 1, 1, 0.7);
-    P.armL = pivot(body, -0.3, 1.2, 0);
-    P.armR = pivot(body, 0.3, 1.2, 0);
+    // OSRS-style torso: tapered 8-sided trunk, fuller chest, shoulders that slope into the neck
+    P.torso = part(G('rsTorso', () => { const g = new THREE.CylinderGeometry(0.235, 0.175, 0.5, 8, 1); g.rotateY(Math.PI / 8); g.scale(1, 1, 0.62); return g; }), o.shirt, 0, 0.97, 0, body);
+    P.chest = part(G('rsChest', () => { const g = new THREE.CylinderGeometry(0.15, 0.25, 0.16, 8, 1); g.rotateY(Math.PI / 8); g.scale(1, 1, 0.66); return g; }), o.shirt, 0, 1.3, 0.005, body);
+    P.belt = part(cyl(0.18, 0.18, 0.06, 8), Icons.shade(o.pants, 0.7), 0, 0.73, 0, body, 1, 1, 0.66);
+    P.hips = part(cyl(0.18, 0.19, 0.14, 8), o.pants, 0, 0.66, 0, body, 1, 1, 0.66);
+    P.armL = pivot(body, -0.275, 1.25, 0);
+    P.armR = pivot(body, 0.275, 1.25, 0);
     for (const arm of [P.armL, P.armR]) {
       const c = o.sleeves ? o.shirt : o.skin;
-      arm.userData.shoulder = part(G('shoulderB', () => new THREE.BoxGeometry(0.15, 0.13, 0.15)), c, 0, -0.01, 0, arm);
-      arm.userData.upper = part(cyl(0.08, 0.065, 0.28, 4), c, 0, -0.13, 0, arm);
+      arm.userData.shoulder = part(G('rsShoulder', () => new THREE.IcosahedronGeometry(0.098, 0)), c, 0, -0.02, 0, arm);
+      arm.userData.upper = part(cyl(0.088, 0.07, 0.3, 6), c, 0, -0.14, 0, arm);
       arm.userData.elbow = pivot(arm, 0, -0.27, 0);
-      arm.userData.fore = part(cyl(0.066, 0.05, 0.25, 4), c, 0, -0.12, 0, arm.userData.elbow);
-      arm.userData.hand = part(G('handB', () => new THREE.BoxGeometry(0.08, 0.13, 0.1)), o.skin, 0, -0.27, 0, arm.userData.elbow);
+      arm.userData.fore = part(cyl(0.07, 0.054, 0.25, 6), c, 0, -0.12, 0, arm.userData.elbow);
+      arm.userData.hand = part(G('rsHand', () => new THREE.CylinderGeometry(0.052, 0.04, 0.12, 5)), o.skin, 0, -0.29, 0, arm.userData.elbow);
     }
     P.handR = pivot(P.armR.userData.elbow, 0, -0.28, 0.02);
     P.handL = pivot(P.armL.userData.elbow, 0, -0.15, 0);
     P.head = pivot(body, 0, 1.28, 0);
-    P.neck = part(cyl(0.065, 0.075, 0.12, 4), o.skin, 0, 0.0, 0, P.head);
+    P.neck = part(cyl(0.06, 0.072, 0.12, 6), o.skin, 0, 0.0, 0, P.head);
     // skull: 8-sided block that narrows to the jaw, as on the 2005 player model (no drawn eyes or mouth)
     P.face = part(G('rsHead', () => { const g = new THREE.CylinderGeometry(0.155, 0.12, 0.32, 8, 1); g.rotateY(Math.PI / 8); g.scale(1, 1, 1.05); return g; }), o.skin, 0, 0.2, 0, P.head);
     part(G('rsHeadTop', () => { const g = new THREE.CylinderGeometry(0.11, 0.155, 0.07, 8, 1); g.rotateY(Math.PI / 8); return g; }), o.skin, 0, 0.395, 0, P.head);
@@ -218,11 +219,11 @@ const Models = (() => {
     if (isPlate(equip.body)) {
       const hi = Icons.shade(bodyCol, 1.25), lo = Icons.shade(bodyCol, 0.8);
       for (const [arm, s] of [[P.armL, -1], [P.armR, 1]]) {
-        const pd = add(arm, part(G('pauld', () => new THREE.BoxGeometry(0.2, 0.09, 0.24)), hi, s * 0.02, 0.05, 0, arm)); pd.rotation.z = s * -0.35;
-        add(arm, part(G('pauld2', () => new THREE.BoxGeometry(0.17, 0.07, 0.21)), bodyCol, s * 0.04, -0.03, 0, arm)).rotation.z = s * -0.35;
+        const pd = add(arm, part(G('pauld', () => { const g = new THREE.SphereGeometry(0.13, 6, 3, 0, Math.PI * 2, 0, Math.PI / 2); g.scale(1, 0.75, 1.05); return g; }), hi, s * 0.015, -0.01, 0, arm)); pd.rotation.z = s * -0.3;
+
       }
-      add(P.body, part(G('plateRidge', () => new THREE.BoxGeometry(0.06, 0.42, 0.04)), hi, 0, 1.0, 0.17, P.body));
-      add(P.body, part(G('plateBelt', () => new THREE.BoxGeometry(0.4, 0.06, 0.32)), lo, 0, 0.76, 0, P.body));
+      add(P.body, part(G('plateRidge', () => new THREE.BoxGeometry(0.05, 0.4, 0.04)), hi, 0, 1.02, 0.14, P.body));
+      add(P.body, part(G('plateBelt', () => { const g = new THREE.CylinderGeometry(0.19, 0.19, 0.06, 8); g.scale(1, 1, 0.68); return g; }), lo, 0, 0.75, 0, P.body));
       add(P.body, part(G('gorget', () => new THREE.CylinderGeometry(0.11, 0.14, 0.08, 6)), hi, 0, 1.3, 0, P.body));
     }
     if (equip.legs && /_platelegs$|^bk_legs$|^wk_legs$/.test(equip.legs)) {
