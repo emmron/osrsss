@@ -262,6 +262,10 @@ const Models = (() => {
     const add = (par, m) => { P.equip.extra.push([par, m]); return m; };
     const isPlate = id => id && (/_platebody$|^bk_body$|^wk_body$/.test(id));
     const slab = (key, w, h, d, taperOut) => G(key, () => { const g = new THREE.BoxGeometry(w, h, d); const p = g.attributes.position; for (let i = 0; i < p.count; i++) { if (p.getY(i) < 0) { p.setX(i, p.getX(i) * taperOut); p.setZ(i, p.getZ(i) * (taperOut * 0.95)); } } g.computeVertexNormals(); return g; });
+    if (equip.body && ITEMS[equip.body].icon.t === 'robe' && !P.skirt) {
+      add(P.body, part(G('rsRobeSkirt', () => { const tr = (hw, f, bk) => [[0, f], [hw * 0.62, f * 0.93], [hw, f * 0.25], [hw * 0.93, -bk * 0.45], [hw * 0.55, -bk * 0.95], [0, -bk], [-hw * 0.55, -bk * 0.95], [-hw * 0.93, -bk * 0.45], [-hw, f * 0.25], [-hw * 0.62, f * 0.93]]; const R2 = [[0.04, tr(0.3, 0.24, 0.25)], [0.4, tr(0.24, 0.18, 0.19)], [0.96, tr(0.185, 0.108, 0.109)]]; const N = 10, pos = [], idx = []; for (const [y, pts] of R2) for (const [x, z] of pts) pos.push(x, y, z); for (let r = 0; r < R2.length - 1; r++) for (let k = 0; k < N; k++) { const a0 = r * N + k, a1 = r * N + (k + 1) % N; idx.push(a0, a1, a0 + N, a1, a1 + N, a0 + N); } const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals(); return g; }), bodyCol, 0, 0, 0, P.body)).material = new THREE.MeshLambertMaterial({ color: bodyCol, side: THREE.DoubleSide });
+      for (const l of [P.legL, P.legR]) { l.userData.upper.visible = false; l.userData.knee.visible = false; l.userData.shin.visible = false; }
+    } else if (!P.skirt) for (const l of [P.legL, P.legR]) { l.userData.upper.visible = true; l.userData.knee.visible = true; l.userData.shin.visible = true; }
     if (isPlate(equip.body)) {
       const lt = Icons.shade(bodyCol, 1.18), dk = Icons.shade(bodyCol, 0.58);
       // breastplate is the lighter tone; sleeves stay plate, wrists get a darker cuff
@@ -293,8 +297,8 @@ const Models = (() => {
     if (equip.head) {
       const d = ITEMS[equip.head], c = d.icon.c || '#8a5a30';
       const h = new THREE.Group();
-      if (d.icon.t === 'wizhat') { part(cyl(0.25, 0.25, 0.025, 12), c, 0, 0.35, 0, h); const k = part(cone(0.15, 0.48, 10), c, 0, 0.6, -0.03, h); k.rotation.x = -0.25; }
-      else if (d.icon.t === 'cowl') { part(sph(0.185, 12, 10, 0, Math.PI * 2, 0, Math.PI * 0.75), '#8a5a30', 0, 0.2, -0.02, h, 1, 1.25, 1.1); }
+      if (d.icon.t === 'wizhat') { part(cyl(0.33, 0.35, 0.035, 9), c, 0, 0.36, 0, h); const k = part(G('wh2', () => new THREE.ConeGeometry(0.19, 0.62, 9)), c, 0, 0.66, -0.05, h); k.rotation.x = -0.3; const t2 = part(G('wh3', () => new THREE.ConeGeometry(0.07, 0.25, 6)), c, 0, 0.96, -0.22, h); t2.rotation.x = -1.1; }
+      else if (d.icon.t === 'cowl') { const hd = part(G('rsCowl', () => { const g = new THREE.SphereGeometry(0.2, 8, 6, Math.PI * 0.32, Math.PI * 1.36, 0, Math.PI * 0.72); g.scale(1, 1.22, 1.08); return g; }), '#8a5a30', 0, 0.21, -0.01, h); hd.material = new THREE.MeshLambertMaterial({ color: '#8a5a30', side: THREE.DoubleSide }); hd.rotation.y = Math.PI; }
       else {
         const dk = Icons.shade(c, 0.72);
         part(G('rsHelm2', () => { const g = new THREE.CylinderGeometry(0.182, 0.165, 0.3, 9, 1); g.rotateY(Math.PI / 9); return g; }), c, 0, 0.2, -0.005, h);
@@ -329,7 +333,7 @@ const Models = (() => {
         const face = new THREE.Mesh(G('rsKiteFace', () => new THREE.ExtrudeGeometry(kite(0.86), { depth: 0.012, bevelEnabled: false })), cmat(c)); face.position.set(0, -0.006, 0.03); plate.add(face);
         const v = new THREE.Mesh(G('rsKiteV', () => new THREE.BoxGeometry(0.035, 0.6, 0.016)), cmat(frameC)); v.position.set(0, -0.03, 0.042); plate.add(v);
         const hz = new THREE.Mesh(G('rsKiteH', () => new THREE.BoxGeometry(0.38, 0.035, 0.016)), cmat(frameC)); hz.position.set(0, 0.07, 0.042); plate.add(hz);
-        plate.scale.setScalar(1.3); plate.rotation.set(0, -0.35, 0.72); plate.position.set(-0.03, 0.04, 0.14);
+        plate.scale.setScalar(0.95); plate.rotation.set(0, -0.35, 0.72); plate.position.set(-0.03, 0.03, 0.12);
       }
       else { const k = taper(0.38, 0.12, 0.52, 0.04, c, 0, -0.05, 0, s); k.rotation.y = Math.PI / 2; k.material = cmat(c); }
       s.position.set(-0.09, 0, 0.05);
