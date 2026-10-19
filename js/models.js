@@ -199,16 +199,18 @@ const Models = (() => {
     if (!def) return g;
     const col = def.icon.c || '#888888';
     const t = def.icon.t;
+    // blades are flat extruded profiles in the y/z plane (z = along the weapon), x = thickness
+    const blade = (key, pts, th, color) => { const m = new THREE.Mesh(G(key, () => { const sh = new THREE.Shape(); pts.forEach(([zz, yy], i) => i ? sh.lineTo(zz, yy) : sh.moveTo(zz, yy)); sh.closePath(); const ge = new THREE.ExtrudeGeometry(sh, { depth: th, bevelEnabled: false }); ge.translate(0, 0, -th / 2); ge.rotateY(Math.PI / 2); return ge; }), cmat(color)); g.add(m); return m; };
     if (t === 'axe' || t === 'pickaxe') {
-      box(0.05, 0.6, 0.05, '#6b4523', 0, 0, 0.22, g).rotation.x = Math.PI / 2;
-      if (t === 'axe') box(0.04, 0.16, 0.14, col, 0, -0.06, 0.45, g);
-      else box(0.04, 0.05, 0.5, col, 0, -0.04, 0.48, g).rotation.x = Math.PI / 2;
+      const h = new THREE.Mesh(cyl(0.022, 0.026, 0.62, 6), cmat('#6b4523')); h.rotation.x = Math.PI / 2; h.position.z = 0.24; g.add(h);
+      if (t === 'axe') { blade('rsAxeHead', [[0.42, 0.02], [0.52, 0.03], [0.58, -0.17], [0.47, -0.2], [0.44, -0.05]], 0.035, col); blade('rsAxeBack', [[0.45, 0.02], [0.51, 0.02], [0.5, 0.07], [0.46, 0.07]], 0.04, Icons.shade(col, 0.8)); }
+      else { blade('rsPickHead', [[0.5, 0.0], [0.55, 0.02], [0.6, 0.0], [0.56, -0.08], [0.53, -0.26], [0.51, -0.08], [0.52, 0.08], [0.53, 0.25], [0.55, 0.08]], 0.045, col); }
     } else if (t === 'dagger' || t === 'sword' || t === 'scimitar') {
       const len = t === 'dagger' ? 0.32 : def.icon.big ? 1.0 : def.icon.long ? 0.78 : 0.62;
-      box(0.05, 0.05, 0.12, '#4a3020', 0, 0, 0.0, g);
-      box(0.2, 0.04, 0.04, Icons.shade(col, 0.8), 0, 0, 0.07, g);
-      const b = box(0.03, 0.08, len, col, 0, t === 'scimitar' ? 0.03 : 0, 0.08 + len / 2, g);
-      if (t === 'scimitar') b.rotation.x = -0.15;
+      const hilt = new THREE.Mesh(cyl(0.02, 0.022, 0.12, 6), cmat('#4a3020')); hilt.rotation.x = Math.PI / 2; g.add(hilt);
+      box(0.04, 0.17, 0.035, Icons.shade(col, 0.75), 0, 0, 0.07, g);
+      if (t === 'scimitar') blade('rsScim' + len, [[0.08, 0.03], [0.08 + len * 0.55, 0.045], [0.08 + len * 0.9, 0.09], [0.08 + len, 0.14], [0.08 + len * 0.86, 0.04], [0.08 + len * 0.5, -0.015], [0.08, -0.025]], 0.025, col);
+      else blade('rsSword' + len, [[0.08, 0.03], [0.08 + len * 0.88, 0.028], [0.08 + len, 0], [0.08 + len * 0.88, -0.028], [0.08, -0.03]], 0.022, col);
     } else if (t === 'mace' || t === 'warhammer') {
       box(0.04, 0.04, 0.5, '#5a3c20', 0, 0, 0.2, g);
       if (t === 'mace') { const h = new THREE.Mesh(new THREE.IcosahedronGeometry(0.09, 0), mat(col)); h.position.set(0, 0, 0.48); g.add(h); for (const [x, y] of [[0.09, 0], [-0.09, 0], [0, 0.09], [0, -0.09]]) box(0.04, 0.04, 0.04, Icons.shade(col, 1.3), x, y, 0.48, g); }
